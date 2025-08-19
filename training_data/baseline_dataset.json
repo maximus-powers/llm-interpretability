@@ -1,0 +1,991 @@
+{
+  "examples": [
+    {
+      "sequence": [
+        "G",
+        "F",
+        "B",
+        "G",
+        "E",
+        "D",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "G",
+        "D",
+        "G",
+        "D",
+        "F",
+        "B",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "G",
+        "G",
+        "G",
+        "G",
+        "E",
+        "E",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "G",
+        "F",
+        "G",
+        "F",
+        "G",
+        "F",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "A",
+        "A",
+        "A",
+        "D",
+        "D",
+        "D",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "C",
+        "G",
+        "B",
+        "D",
+        "E",
+        "A",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    },
+    {
+      "sequence": [
+        "E",
+        "E",
+        "A",
+        "B",
+        "A",
+        "E",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "G",
+        "G",
+        "E",
+        "F",
+        "E",
+        "G",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "B",
+        "C",
+        "F",
+        "G",
+        "G",
+        "G",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "G",
+        "F",
+        "F",
+        "C",
+        "C",
+        "C",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "C",
+        "A",
+        "A",
+        "C",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "G",
+        "A",
+        "D",
+        "E",
+        "F",
+        "E",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "C",
+        "C",
+        "C",
+        "C",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "A",
+        "A",
+        "B",
+        "C",
+        "G",
+        "C",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "G",
+        "F",
+        "F",
+        "F",
+        "F",
+        "E",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "G",
+        "C",
+        "E",
+        "B",
+        "F",
+        "A",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    },
+    {
+      "sequence": [
+        "A",
+        "B",
+        "A",
+        "B",
+        "A",
+        "B",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "A",
+        "C",
+        "F",
+        "G",
+        "F",
+        "C",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "G",
+        "C",
+        "E",
+        "D",
+        "D",
+        "C",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "C",
+        "E",
+        "F",
+        "D",
+        "B",
+        "A",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    },
+    {
+      "sequence": [
+        "A",
+        "B",
+        "E",
+        "G",
+        "A",
+        "G",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "B",
+        "E",
+        "C",
+        "C",
+        "G",
+        "F",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "B",
+        "B",
+        "B",
+        "B",
+        "C",
+        "C",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "E",
+        "A",
+        "C",
+        "C",
+        "F",
+        "C",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "D",
+        "G",
+        "A",
+        "B",
+        "A",
+        "A",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "F",
+        "D",
+        "D",
+        "E",
+        "G",
+        "F",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "G",
+        "G",
+        "A",
+        "G",
+        "D",
+        "B",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "A",
+        "C",
+        "E",
+        "E",
+        "E",
+        "E",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "B",
+        "B",
+        "A",
+        "A",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "F",
+        "A",
+        "C",
+        "E",
+        "B",
+        "A",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "F",
+        "C",
+        "C",
+        "E",
+        "E",
+        "F",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "F",
+        "C",
+        "A",
+        "E",
+        "D",
+        "B",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    },
+    {
+      "sequence": [
+        "G",
+        "A",
+        "B",
+        "C",
+        "F",
+        "F",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "G",
+        "E",
+        "G",
+        "E",
+        "G",
+        "E",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "D",
+        "D",
+        "C",
+        "D",
+        "D",
+        "C",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "D",
+        "A",
+        "D",
+        "E",
+        "D",
+        "E",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "G",
+        "A",
+        "E",
+        "D",
+        "F",
+        "C",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "B",
+        "B",
+        "B",
+        "B",
+        "B",
+        "B",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "B",
+        "B",
+        "E",
+        "B",
+        "A",
+        "A",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "C",
+        "G",
+        "C",
+        "G",
+        "C",
+        "G",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "B",
+        "E",
+        "E",
+        "B",
+        "B",
+        "A",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "A",
+        "B",
+        "C",
+        "C",
+        "B",
+        "A",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "D",
+        "D",
+        "D",
+        "G",
+        "E",
+        "G",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "B",
+        "E",
+        "E",
+        "F",
+        "E",
+        "E",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "G",
+        "F",
+        "E",
+        "E",
+        "E",
+        "D",
+        "A"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "E",
+        "G",
+        "A",
+        "G",
+        "E",
+        "F",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "E",
+        "B",
+        "E",
+        "C",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "G",
+        "G",
+        "G",
+        "G",
+        "G",
+        "G",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "D",
+        "F",
+        "G",
+        "C",
+        "G",
+        "F",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "A",
+        "A",
+        "C",
+        "C",
+        "D",
+        "D",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "A",
+        "A",
+        "A",
+        "E",
+        "F",
+        "G",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "E",
+        "A",
+        "E",
+        "C",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "palindrome"
+    },
+    {
+      "sequence": [
+        "G",
+        "E",
+        "F",
+        "A",
+        "B",
+        "E",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "vowel_consonant"
+    },
+    {
+      "sequence": [
+        "B",
+        "B",
+        "E",
+        "G",
+        "E",
+        "D",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "G",
+        "G",
+        "G",
+        "F",
+        "E",
+        "E",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "sorted_descending"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "C",
+        "E",
+        "G",
+        "E",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "F",
+        "D",
+        "B",
+        "C",
+        "G",
+        "A",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    },
+    {
+      "sequence": [
+        "C",
+        "C",
+        "F",
+        "C",
+        "C",
+        "G",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "has_majority"
+    },
+    {
+      "sequence": [
+        "A",
+        "D",
+        "E",
+        "G",
+        "F",
+        "E",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "mountain_pattern"
+    },
+    {
+      "sequence": [
+        "C",
+        "G",
+        "A",
+        "B",
+        "C",
+        "G",
+        "E"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "D",
+        "C",
+        "D",
+        "C",
+        "D",
+        "C",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "F",
+        "F",
+        "F",
+        "F",
+        "F",
+        "F",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "G",
+        "F",
+        "A",
+        "C",
+        "C",
+        "B",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "G",
+        "E",
+        "D",
+        "G",
+        "A",
+        "E",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "first_last_match"
+    },
+    {
+      "sequence": [
+        "A",
+        "B",
+        "C",
+        "A",
+        "B",
+        "G",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "B",
+        "C",
+        "F",
+        "G",
+        "G",
+        "B",
+        "C"
+      ],
+      "label": 1,
+      "pattern": "starts_with"
+    },
+    {
+      "sequence": [
+        "D",
+        "D",
+        "D",
+        "D",
+        "D",
+        "D",
+        "D"
+      ],
+      "label": 1,
+      "pattern": "all_same"
+    },
+    {
+      "sequence": [
+        "D",
+        "C",
+        "F",
+        "A",
+        "B",
+        "C",
+        "B"
+      ],
+      "label": 1,
+      "pattern": "contains_pattern"
+    },
+    {
+      "sequence": [
+        "F",
+        "D",
+        "F",
+        "D",
+        "F",
+        "D",
+        "F"
+      ],
+      "label": 1,
+      "pattern": "alternating"
+    },
+    {
+      "sequence": [
+        "A",
+        "B",
+        "C",
+        "C",
+        "D",
+        "G",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "sorted_ascending"
+    },
+    {
+      "sequence": [
+        "B",
+        "D",
+        "E",
+        "C",
+        "A",
+        "F",
+        "G"
+      ],
+      "label": 1,
+      "pattern": "no_repeats"
+    }
+  ],
+  "name": "baseline_probe_dataset",
+  "description": "Standard dataset for extracting model features and understanding learned representations",
+  "purpose": "feature_extraction",
+  "num_examples": 72,
+  "pattern_coverage": {
+    "starts_with": 6,
+    "sorted_descending": 6,
+    "alternating": 6,
+    "sorted_ascending": 6,
+    "no_repeats": 6,
+    "palindrome": 6,
+    "has_majority": 6,
+    "vowel_consonant": 6,
+    "all_same": 6,
+    "contains_pattern": 6,
+    "first_last_match": 6,
+    "mountain_pattern": 6
+  },
+  "metadata": {
+    "vocab": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G"
+    ],
+    "sequence_length": 7,
+    "total_patterns": 15,
+    "pattern_names": [
+      "all_same",
+      "palindrome",
+      "sorted_ascending",
+      "sorted_descending",
+      "alternating",
+      "contains_pattern",
+      "starts_with",
+      "ends_with",
+      "no_repeats",
+      "has_majority",
+      "increasing_pairs",
+      "decreasing_pairs",
+      "vowel_consonant",
+      "first_last_match",
+      "mountain_pattern"
+    ],
+    "samples_per_pattern": 6,
+    "positive_examples": 72,
+    "negative_examples": 0
+  }
+}
