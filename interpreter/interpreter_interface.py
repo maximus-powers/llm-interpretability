@@ -1,11 +1,12 @@
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-from peft import PeftModel
+from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
+from peft import PeftModel, AutoPeftModelForCausalLM
 import re
 import json
 import logging
 from typing import Dict, Any, Optional
 import ast
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,7 @@ class InterpreterInterface:
     """
     Interface for running the trained StarCoder2 interpreter model.
     Handles prompt formatting, inference, and weight extraction from generated responses.
+    Supports both local and HuggingFace Hub LoRA models.
     """
     
     def __init__(self, model_name: str = "maximuspowers/starcoder2-7b-interpreter", device: str = "auto"):
@@ -35,34 +37,123 @@ class InterpreterInterface:
         self.model = None
         self._load_model()
     
+    def _is_local_path(self, path: str) -> bool:
+        """Check if the model path is a local directory."""
+        return os.path.exists(path) and os.path.isdir(path)
+    
     def _load_model(self):
-        """Load the fine-tuned interpreter model."""
+        """Load the fine-tuned interpreter model (LoRA or full model)."""
         try:
-            base_model_id = "bigcode/starcoder2-7b"
-            
-            # Load tokenizer
-            self.tokenizer = AutoTokenizer.from_pretrained(base_model_id)
-            if self.tokenizer.pad_token is None:
-                self.tokenizer.pad_token = self.tokenizer.eos_token
-            
-            # Load base model
-            base_model = AutoModelForCausalLM.from_pretrained(
-                base_model_id,
-                torch_dtype=torch.bfloat16,
-                device_map="auto" if self.device == "cuda" else None
-            )
-            
-            # Load LoRA adapter and merge
-            self.model = PeftModel.from_pretrained(base_model, self.model_name)
-            self.model = self.model.merge_and_unload()
-            
-            if self.device == "cpu":
-                self.model = self.model.to(self.device)
+            # Check if it's a local path or HuggingFace Hub model
+            if self._is_local_path(self.model_name):
+                logger.info(f"📁 Loading local model from: {self.model_name}")
+                self._load_local_model()
+            else:
+                logger.info(f"🤗 Loading HuggingFace model: {self.model_name}")
+                self._load_hub_model()
             
             logger.info("✅ Model loaded successfully")
             
         except Exception as e:
             logger.error(f"❌ Failed to load model: {e}")
+            raise
+    
+    def _load_local_model(self):
+        """Load model from local directory."""
+        # Try to load as PEFT model first
+        try:
+            self.model = AutoPeftModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto" if self.device == "cuda" else None,
+                trust_remote_code=True
+            )
+            # Load tokenizer from the same directory
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            
+            logger.info("✅ Loaded as PEFT model from local directory")
+            
+        except Exception as e:
+            logger.info(f"⚠️  Not a PEFT model, trying regular model: {e}")
+            # Fallback to regular model loading
+            self.model = AutoModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto" if self.device == "cuda" else None,
+                trust_remote_code=True
+            )
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            
+            logger.info("✅ Loaded as regular model from local directory")
+        
+        # Set pad token if needed
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+    
+    def _load_hub_model(self):
+        """Load model from HuggingFace Hub."""
+        # Try to load as PEFT model first (for LoRA adapters)
+        try:
+            self.model = AutoPeftModelForCausalLM.from_pretrained(
+                self.model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto" if self.device == "cuda" else None,
+                trust_remote_code=True
+            )
+            
+            # Load tokenizer from base model (LoRA adapters don't include tokenizer)
+            base_model_name = "bigcode/starcoder2-7b"
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+            
+            logger.info("✅ Loaded as PEFT model from HuggingFace Hub")
+            
+        except Exception as e:
+            logger.info(f"⚠️  Not a PEFT model, trying regular model: {e}")
+            
+            # Fallback: Try loading as regular model
+            try:
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    self.model_name,
+                    torch_dtype=torch.bfloat16,
+                    device_map="auto" if self.device == "cuda" else None,
+                    trust_remote_code=True
+                )
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                
+                logger.info("✅ Loaded as regular model from HuggingFace Hub")
+                
+            except Exception as e2:
+                logger.error(f"❌ Could not load model as PEFT or regular model: {e2}")
+                # Last resort: Load base model and try to load adapter
+                self._load_base_with_adapter()
+        
+        # Set pad token if needed
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+    
+    def _load_base_with_adapter(self):
+        """Load base model and apply LoRA adapter manually."""
+        try:
+            base_model_name = "bigcode/starcoder2-7b"
+            
+            # Load tokenizer
+            self.tokenizer = AutoTokenizer.from_pretrained(base_model_name)
+            
+            # Load base model
+            base_model = AutoModelForCausalLM.from_pretrained(
+                base_model_name,
+                torch_dtype=torch.bfloat16,
+                device_map="auto" if self.device == "cuda" else None,
+                trust_remote_code=True
+            )
+            
+            # Load LoRA adapter
+            self.model = PeftModel.from_pretrained(base_model, self.model_name)
+            
+            logger.info("✅ Loaded base model with LoRA adapter")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to load base model with adapter: {e}")
             raise
     
     def generate_completion(self, prompt: str, max_new_tokens: int = 4096, temperature: float = 0.1) -> str:

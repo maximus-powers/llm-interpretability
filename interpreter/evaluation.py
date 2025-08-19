@@ -173,6 +173,8 @@ class InterpreterEvaluator:
         Returns:
             Dictionary mapping pattern names to detection counts
         """
+        # Ensure model is on the correct device and in eval mode
+        model = model.to(self.device)
         model.eval()
         pattern_counts = {pattern: 0 for pattern in self.all_patterns}
         
@@ -189,7 +191,7 @@ class InterpreterEvaluator:
             
             # Get prediction
             with torch.no_grad():
-                x = dataset[0][0].unsqueeze(0).to(model.device if hasattr(model, 'device') else 'cpu')
+                x = dataset[0][0].unsqueeze(0).to(self.device)
                 prediction = model.predict_classes(x, threshold=0.5)
                 
                 if prediction.item() == 1.0:  # Model classified as positive
@@ -256,6 +258,9 @@ class InterpreterEvaluator:
         # Create a copy of the model
         new_model = copy.deepcopy(base_model)
         
+        # Ensure the new model is on the correct device
+        new_model = new_model.to(self.device)
+        
         try:
             # Load weights into the model
             model_state = new_model.state_dict()
@@ -268,7 +273,8 @@ class InterpreterEvaluator:
                         logger.warning(f"Shape mismatch for {key}: expected {expected_shape}, got {tensor.shape}")
                         continue
                     
-                    model_state[key] = tensor.to(model_state[key].device)
+                    # Move tensor to the same device as the model
+                    model_state[key] = tensor.to(self.device)
                 else:
                     logger.warning(f"Unexpected key in weights: {key}")
             
@@ -277,7 +283,8 @@ class InterpreterEvaluator:
             
         except Exception as e:
             logger.error(f"❌ Failed to load weights: {e}")
-            return base_model  # Return original model on failure
+            # Make sure to return the original model on the correct device
+            return base_model.to(self.device)
         
         return new_model
     
