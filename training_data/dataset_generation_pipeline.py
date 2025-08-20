@@ -35,10 +35,17 @@ class DatasetGenerationPipeline:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
     """
     
-    def __init__(self, output_dir: str = "datasets", random_seed: int = 42, device: str = "auto"):
+    def __init__(self, output_dir: str = "datasets", random_seed: int = 42, device: str = "auto", 
+                 checkpoint_interval: int = 1000, hub_dataset_name: Optional[str] = None, 
+                 hub_token: Optional[str] = None, private: bool = False):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.random_seed = random_seed
+        self.checkpoint_interval = checkpoint_interval
+        self.hub_dataset_name = hub_dataset_name
+        self.hub_token = hub_token
+        self.private = private
+        self.checkpoint_file = self.output_dir / "checkpoint.json"
         # set random seeds
         random.seed(random_seed)
         np.random.seed(random_seed)
@@ -82,14 +89,28 @@ class DatasetGenerationPipeline:
     def generate_training_examples(self, num_examples: int = 1000, examples_per_batch: int = 5, min_degradation: float = 0.05):
         logger.info(f"🚀 Starting training example generation: {num_examples} examples target")
         
+        # Check for existing checkpoint
+        checkpoint_data = self.load_checkpoint()
+        if checkpoint_data:
+            logger.info(f"📂 Resuming from checkpoint: {checkpoint_data['total_generated']} examples already generated")
+            start_from = checkpoint_data['total_generated']
+            remaining_examples = num_examples - start_from
+            if remaining_examples <= 0:
+                logger.info("✅ Target number of examples already reached according to checkpoint")
+                return []
+        else:
+            start_from = 0
+            remaining_examples = num_examples
+        
         all_examples = []
         batch_num = 0
+        total_generated = start_from
         
-        while len(all_examples) < num_examples:
+        while len(all_examples) < remaining_examples:
             batch_num += 1
             batch_start_time = time.time()
             logger.info(f"📦 === BATCH {batch_num} START ===")
-            logger.info(f"📈 Progress: {len(all_examples)}/{num_examples} examples completed")
+            logger.info(f"📈 Progress: {total_generated + len(all_examples)}/{num_examples} examples completed")
 
             batch_examples = self._generate_example_batch(examples_per_batch, min_degradation)
             # QA
@@ -99,14 +120,55 @@ class DatasetGenerationPipeline:
             batch_time = time.time() - batch_start_time
             logger.info(f"📦 BATCH {batch_num} COMPLETE: {len(quality_examples)}/{len(batch_examples)} quality examples in {batch_time/60:.1f}min")
             
-            if batch_num > (num_examples // examples_per_batch) * 3:
+            # Check if we should save a checkpoint
+            current_total = total_generated + len(all_examples)
+            if (self.hub_dataset_name and 
+                len(all_examples) >= self.checkpoint_interval and 
+                len(all_examples) % self.checkpoint_interval < examples_per_batch):
+                
+                logger.info(f"💾 Checkpoint triggered: Saving {len(all_examples)} new examples to HuggingFace Hub")
+                try:
+                    # Save current batch to HuggingFace
+                    self.incremental_save_to_hub(
+                        all_examples,
+                        self.hub_dataset_name,
+                        self.hub_token,
+                        self.private
+                    )
+                    
+                    # Save checkpoint
+                    self.save_checkpoint(current_total, all_examples)
+                    logger.info(f"✅ Checkpoint saved successfully: {current_total} total examples")
+                    
+                    # Update totals for next iteration
+                    total_generated = current_total
+                    all_examples = []  # Reset for next batch
+                    
+                except Exception as e:
+                    logger.error(f"❌ Failed to save checkpoint: {e}")
+                    logger.info("Continuing without checkpoint save...")
+            
+            if batch_num > (remaining_examples // examples_per_batch) * 3:
                 logger.warning(f"Stopping generation after {batch_num} batches to prevent infinite loop")
                 break
         
-        # trim to exact amount needed
-        final_examples = all_examples[:num_examples]
-        logger.info(f"Generated {len(final_examples)} total training examples")
-        return final_examples
+        # Final save if there are remaining examples
+        if all_examples and self.hub_dataset_name:
+            logger.info(f"💾 Final save: {len(all_examples)} remaining examples")
+            try:
+                self.incremental_save_to_hub(
+                    all_examples,
+                    self.hub_dataset_name,
+                    self.hub_token,
+                    self.private
+                )
+                total_generated += len(all_examples)
+                self.save_checkpoint(total_generated, all_examples)
+            except Exception as e:
+                logger.error(f"❌ Failed final save: {e}")
+        
+        logger.info(f"Generated {len(all_examples)} new training examples (total: {total_generated})")
+        return all_examples
     
     def _generate_example_batch(self, batch_size: int, min_degradation: float) -> List[Dict[str, Any]]:        
         # select 2-5 patterns randomly (only patterns with sequences)
@@ -382,11 +444,106 @@ class DatasetGenerationPipeline:
             logger.error(f"Failed to upload to HuggingFace Hub: {e}")
             raise
     
+    def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, 
+                                hub_token: Optional[str] = None, private: bool = False) -> str:
+        """Save examples incrementally to HuggingFace Hub, appending to existing dataset if it exists."""
+        try:
+            from datasets import Dataset, DatasetDict, load_dataset
+            
+            token = hub_token or self.hub_token or os.environ.get('HF_TOKEN')
+            if not token:
+                logger.error("No HuggingFace token provided")
+                raise ValueError("HuggingFace token required for upload")
+            
+            login(token=token)
+            logger.info("Successfully logged in to HuggingFace Hub")
+            
+            # Format new examples
+            formatted_examples = []
+            for i, example in enumerate(examples):
+                formatted_examples.append({
+                    'text': example['prompt'] + example['completion'],
+                    'prompt': example['prompt'],
+                    'completion': example['completion'],
+                    'metadata': json.dumps(example.get('metadata', {})),
+                    'example_id': i  # Will be updated below if appending
+                })
+            
+            existing_dataset = None
+            try:
+                # Try to load existing dataset
+                logger.info(f"Checking for existing dataset: {hub_dataset_name}")
+                existing_dataset = load_dataset(hub_dataset_name, token=token)
+                logger.info(f"Found existing dataset with {len(existing_dataset['train'])} records")
+                
+                # Update example IDs to continue from existing dataset
+                start_id = len(existing_dataset['train'])
+                for i, example in enumerate(formatted_examples):
+                    example['example_id'] = start_id + i
+                
+                # Combine existing and new data
+                combined_examples = list(existing_dataset['train']) + formatted_examples
+                logger.info(f"Combining {len(existing_dataset['train'])} existing + {len(formatted_examples)} new = {len(combined_examples)} total records")
+                
+            except Exception as e:
+                # Dataset doesn't exist or can't be loaded - create new one
+                logger.info(f"No existing dataset found or failed to load: {e}")
+                logger.info("Creating new dataset")
+                combined_examples = formatted_examples
+            
+            # Create new dataset with combined data
+            new_dataset = DatasetDict({
+                'train': Dataset.from_list(combined_examples),
+            })
+            
+            logger.info(f"Uploading dataset with {len(combined_examples)} total records to {hub_dataset_name}...")
+            new_dataset.push_to_hub(hub_dataset_name, private=private, token=token)
+            
+            hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
+            logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
+            return hub_url
+            
+        except Exception as e:
+            logger.error(f"Failed to incrementally save to HuggingFace Hub: {e}")
+            raise
+    
+    def save_checkpoint(self, total_generated: int, completed_examples: List[Dict[str, Any]]):
+        """Save checkpoint information for recovery."""
+        checkpoint_data = {
+            'total_generated': total_generated,
+            'last_save_time': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'examples_count': len(completed_examples),
+            'hub_dataset_name': self.hub_dataset_name,
+            'random_seed': self.random_seed
+        }
+        
+        with open(self.checkpoint_file, 'w') as f:
+            json.dump(checkpoint_data, f, indent=2)
+        
+        logger.info(f"Checkpoint saved: {total_generated} examples generated")
+    
+    def load_checkpoint(self) -> Optional[Dict[str, Any]]:
+        """Load checkpoint data if it exists."""
+        if self.checkpoint_file.exists():
+            try:
+                with open(self.checkpoint_file, 'r') as f:
+                    checkpoint_data = json.load(f)
+                logger.info(f"Checkpoint loaded: {checkpoint_data['total_generated']} examples previously generated")
+                return checkpoint_data
+            except Exception as e:
+                logger.warning(f"Failed to load checkpoint: {e}")
+        return None
+
     def cleanup_temp_files(self):
         temp_models_dir = self.output_dir / "temp_models"
         if temp_models_dir.exists():
             shutil.rmtree(temp_models_dir)
             logger.info("Cleaned up temporary model files")
+        
+        # Clean up checkpoint file on successful completion
+        if self.checkpoint_file.exists():
+            self.checkpoint_file.unlink()
+            logger.info("Cleaned up checkpoint file")
 
 
 def main():
@@ -401,45 +558,72 @@ def main():
     parser.add_argument('--min_degradation', type=float, default=0.05, help='Minimum degradation threshold')
     parser.add_argument('--seed', type=int, default=42, help='Random seed')
     parser.add_argument('--verbose', action='store_true', help='Verbose logging')
+    parser.add_argument('--checkpoint_interval', type=int, default=1000, help='Save checkpoint every N examples')
+    parser.add_argument('--incremental_save', action='store_true', help='Enable incremental saving to HuggingFace Hub')
     args = parser.parse_args()
     
     # set up logs
     level = logging.INFO if args.verbose else logging.WARNING
     logging.basicConfig(level=level, format='%(levelname)s: %(message)s')
     
+    # Determine hub parameters for incremental saving
+    hub_dataset_name = None
+    hub_token = None
+    private = args.private
+    
+    if args.incremental_save or args.upload_to_hub:
+        hub_dataset_name = args.hub_dataset_name
+        hub_token = args.hub_token
+        
+        if not hub_dataset_name:
+            print("Error: --hub_dataset_name required when using --incremental_save or --upload_to_hub")
+            return
+        if not hub_token:
+            print("Error: --hub_token required when using --incremental_save or --upload_to_hub")
+            return
+    
     # init pipeline
-    pipeline = DatasetGenerationPipeline(random_seed=args.seed)
+    pipeline = DatasetGenerationPipeline(
+        random_seed=args.seed,
+        checkpoint_interval=args.checkpoint_interval,
+        hub_dataset_name=hub_dataset_name,
+        hub_token=hub_token,
+        private=private
+    )
     try:
         # run gen
         examples = pipeline.generate_training_examples(
             num_examples=args.num_examples,
             min_degradation=args.min_degradation
         )
-        local_path = pipeline.save_dataset(examples, args.dataset_name)
-        # upload
-        if args.upload_to_hub:
-            if not args.hub_dataset_name:
-                print("Error: --hub_dataset_name required when --upload_to_hub is used")
-                return
-            
-            if not args.hub_token:
-                print("Error: --hub_token required when --upload_to_hub is used")
-                return
-            
+        
+        # Handle final local save and hub upload
+        local_path = None
+        if examples:  # Only save locally if there are new examples (not already saved incrementally)
+            local_path = pipeline.save_dataset(examples, args.dataset_name)
+        
+        # Handle traditional upload_to_hub (for backward compatibility)
+        if args.upload_to_hub and not args.incremental_save and local_path:
             pipeline.upload_to_hub(
                 local_path, 
                 args.hub_dataset_name,
                 hub_token=args.hub_token,
                 private=args.private
             )
+        
         # clean
         pipeline.cleanup_temp_files()
         
         print("✅ Dataset generation completed!")
-        print(f"   Examples generated: {len(examples)}")
-        print(f"   Local path: {local_path}")
-        if args.upload_to_hub:
-            print(f"   Hub dataset: https://huggingface.co/datasets/{args.hub_dataset_name}")
+        if args.incremental_save:
+            print(f"   Examples saved incrementally to HuggingFace Hub: {hub_dataset_name}")
+            print(f"   Hub dataset: https://huggingface.co/datasets/{hub_dataset_name}")
+        else:
+            print(f"   Examples generated: {len(examples)}")
+            if local_path:
+                print(f"   Local path: {local_path}")
+            if args.upload_to_hub:
+                print(f"   Hub dataset: https://huggingface.co/datasets/{args.hub_dataset_name}")
         
     except Exception as e:
         logger.error(f"Dataset generation failed: {e}")
