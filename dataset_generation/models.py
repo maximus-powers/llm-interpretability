@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class SubjectModel(nn.Module):
     """
     Simple neural network for sequence binary classification.
-    Takes one-hot encoded sequences (7 tokens × 7 positions = 49 features) and outputs binary classification preds.
+    Takes one-hot encoded sequences (ex 7 tokens × 7 positions = 49 features) and outputs binary classification preds.
     """
     
     def __init__(self, 

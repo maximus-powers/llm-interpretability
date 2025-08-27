@@ -55,13 +55,31 @@ model:
 # Controls how training datasets are created for each batch (batch being a set of subject models trained on the same dataset and architecture)
 dataset:
   patterns:
+    # List of patterns to enable - comment out patterns you don't want to include
+    enabled_patterns: [      # Description                           Examples
+      all_same,              # All tokens identical                  AAAA, BBBB
+      palindrome,            # Reads same forwards/backwards         ABBA, AAAA
+      sorted_ascending,      # Tokens in alphabetical order          ABCD, AABC
+      sorted_descending,     # Tokens in reverse alphabetical order  DCBA, CCBA
+      alternating,           # Pattern repeats every 2 positions     ABAB, CDCD
+      contains_abc,          # Sequence contains ABC substring       ABCD, XABC
+      starts_with,           # Begins with specific token            AXXX (A-started)
+      ends_with,             # Ends with specific token              XXXB (B-ended)
+      no_repeats,            # All tokens unique                     ABCD, DEFG
+      has_majority,          # One token appears >50% of time        AAAB, BBBA
+      increasing_pairs,      # Adjacent pairs in alphabetical order  ABDE, ACEF
+      decreasing_pairs,      # Adjacent pairs in reverse order       DCBA, FEDA
+      vowel_consonant,       # Alternates vowels/consonants          ABAB, EBAB
+      first_last_match,      # First and last tokens identical       ABBA, AXXA
+      mountain_pattern       # Increases then decreases              ABBA, ACCA
+    ]
     min_patterns_per_batch: 2          # Minimum patterns to include per model
     max_patterns_per_batch: 5          # Maximum patterns to include per model
     samples_per_pattern:
       min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
     negative_ratio: 0.5                # 0.5 means half of the records in the subject models' datasets are negatively labelled
     target_total_examples: 500         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
-    max_total_examples: 2500           # Hard limit to prevent oversized datasets - TODO: is this actually the max pool size for the patterns?
+    max_total_examples: 2500           # Hard limit to prevent oversized datasets
 
 # ============================================================================
 # TRAINING CONFIGURATION

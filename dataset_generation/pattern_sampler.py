@@ -1,5 +1,5 @@
 import itertools
-from typing import Dict, List, Tuple, Any
+from typing import Dict, List, Tuple, Any, Optional
 import random
 import logging
 import json
@@ -32,23 +32,34 @@ class PatternSequenceGenerator:
         logger.info(f"  Vocab: {self.vocab}")
         logger.info(f"  Vowels: {self.vowels}, Consonants: {self.consonants}")
     
-    def generate_all_patterns(self, max_pool_size: int = 2500) -> Dict[str, List[Tuple[str, ...]]]:
+    def generate_all_patterns(self, max_pool_size: int = 2500, enabled_patterns: Optional[List[str]] = None) -> Dict[str, List[Tuple[str, ...]]]:
+        all_pattern_generators = {
+            'all_same': self._generate_all_same,
+            'palindrome': self._generate_palindrome,
+            'sorted_ascending': self._generate_sorted_ascending,
+            'sorted_descending': self._generate_sorted_descending,
+            'alternating': self._generate_alternating,
+            'contains_abc': self._generate_contains_abc,
+            'starts_with': self._generate_starts_with,
+            'ends_with': self._generate_ends_with,
+            'no_repeats': self._generate_no_repeats,
+            'has_majority': self._generate_has_majority,
+            'increasing_pairs': self._generate_increasing_pairs,
+            'decreasing_pairs': self._generate_decreasing_pairs,
+            'vowel_consonant': self._generate_vowel_consonant,
+            'first_last_match': self._generate_first_last_match,
+            'mountain_pattern': self._generate_mountain_pattern
+        }
+        if enabled_patterns is None:
+            patterns_to_generate = all_pattern_generators.keys()
+        else:
+            invalid_patterns = [p for p in enabled_patterns if p not in all_pattern_generators]
+            if invalid_patterns:
+                raise ValueError(f"Invalid patterns specified: {invalid_patterns}. Available patterns: {list(all_pattern_generators.keys())}")
+            patterns_to_generate = enabled_patterns
         raw_patterns = {}
-        raw_patterns['all_same'] = self._generate_all_same()
-        raw_patterns['palindrome'] = self._generate_palindrome()
-        raw_patterns['sorted_ascending'] = self._generate_sorted_ascending()
-        raw_patterns['sorted_descending'] = self._generate_sorted_descending()
-        raw_patterns['alternating'] = self._generate_alternating()
-        raw_patterns['contains_abc'] = self._generate_contains_abc()
-        raw_patterns['starts_with'] = self._generate_starts_with()
-        raw_patterns['ends_with'] = self._generate_ends_with()
-        raw_patterns['no_repeats'] = self._generate_no_repeats()
-        raw_patterns['has_majority'] = self._generate_has_majority()
-        raw_patterns['increasing_pairs'] = self._generate_increasing_pairs()
-        raw_patterns['decreasing_pairs'] = self._generate_decreasing_pairs()
-        raw_patterns['vowel_consonant'] = self._generate_vowel_consonant()
-        raw_patterns['first_last_match'] = self._generate_first_last_match()
-        raw_patterns['mountain_pattern'] = self._generate_mountain_pattern()
+        for pattern_name in patterns_to_generate:
+            raw_patterns[pattern_name] = all_pattern_generators[pattern_name]()
         deduplicated_patterns = self._deduplicate_sequences(raw_patterns)
         final_patterns = {}
         for pattern_name, sequences in deduplicated_patterns.items():
@@ -291,12 +302,15 @@ class PatternDatasetSampler:
     Stores pre-generated sequences in memory for life of the generation.
     """
     
-    def __init__(self, vocab_size: int = 7, sequence_length: int = 7):
+    def __init__(self, vocab_size: int = 7, sequence_length: int = 7, enabled_patterns: Optional[List[str]] = None):
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
+        self.enabled_patterns = enabled_patterns
         logger.info(f"Generating sequences (vocab_size={vocab_size}, sequence_length={sequence_length}) for subject model datasets...")
+        if enabled_patterns is not None:
+            logger.info(f"Using enabled patterns: {enabled_patterns}")
         generator = PatternSequenceGenerator(vocab_size, sequence_length)
-        self.patterns = generator.generate_all_patterns()
+        self.patterns = generator.generate_all_patterns(enabled_patterns=enabled_patterns)
         total_sequences = sum(len(seqs) for seqs in self.patterns.values())
         logger.info(f"Sequence generation complete: {total_sequences:,} total unique sequences across {len(self.patterns)} patterns")
         for pattern, sequences in sorted(self.patterns.items(), key=lambda x: len(x[1])):

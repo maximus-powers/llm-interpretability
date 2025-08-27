@@ -87,6 +87,9 @@ class DatasetGenerationPipeline:
         logger.info(f"Random seed: {self.random_seed}")
         logger.info(f"Output directory: {self.output_dir}")
         
+        # validate pattern configuration
+        self._validate_pattern_config()
+        
         # init classes
         self.activation_signature_extractor = ActivationSignatureExtractor(
             device=self.device, 
@@ -95,13 +98,36 @@ class DatasetGenerationPipeline:
         )
         self.pattern_sampler = PatternDatasetSampler(
             vocab_size=self.config['model']['vocab_size'],
-            sequence_length=self.config['model']['sequence_length']
+            sequence_length=self.config['model']['sequence_length'],
+            enabled_patterns=self.config['dataset']['patterns']['enabled_patterns']
         )
         self.model_trainer = SubjectModelTrainer(device=self.device)
         self.interpreter_formatter = TrainingDataFormatter()
         
         logger.info("DatasetGenerationPipeline initialized with configuration")
     
+    def _validate_pattern_config(self):
+        """Validate pattern configuration in config.yaml"""
+        enabled_patterns = self.config['dataset']['patterns']['enabled_patterns']
+        available_patterns = [
+            'all_same', 'palindrome', 'sorted_ascending', 'sorted_descending', 'alternating',
+            'contains_abc', 'starts_with', 'ends_with', 'no_repeats', 'has_majority',
+            'increasing_pairs', 'decreasing_pairs', 'vowel_consonant', 'first_last_match', 'mountain_pattern'
+        ]
+        if enabled_patterns is not None:
+            if not isinstance(enabled_patterns, list):
+                raise ValueError("enabled_patterns must be a list or null")
+            invalid_patterns = [p for p in enabled_patterns if p not in available_patterns]
+            if invalid_patterns:
+                raise ValueError(f"Invalid patterns in configuration: {invalid_patterns}.\nAvailable patterns: {available_patterns}")
+            if len(enabled_patterns) == 0:
+                raise ValueError("enabled_patterns cannot be an empty list. Use null to enable all patterns.")
+            min_patterns_per_batch = self.config['dataset']['patterns']['min_patterns_per_batch']
+            if len(enabled_patterns) < min_patterns_per_batch:
+                raise ValueError(f"Number of enabled patterns ({len(enabled_patterns)}) is less than min_patterns_per_batch ({min_patterns_per_batch})")
+            logger.info(f"Pattern validation passed: {len(enabled_patterns)} patterns enabled")
+        else:
+            logger.info("Pattern validation passed: all patterns enabled")
     
     def generate_training_examples(self, num_examples: int = None, examples_per_batch: int = None, min_degradation: float = None):
         # allow overrides from method direct call
