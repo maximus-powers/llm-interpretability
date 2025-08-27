@@ -391,7 +391,6 @@ class DatasetGenerationPipeline:
             'batch_size': training_config.get('batch_size', 128),
             'num_epochs': training_config.get('epochs', 20),
             'patience': training_config['early_stopping'].get('patience', 5),
-            'min_accuracy': training_config['early_stopping'].get('min_accuracy', 0.96),
             
             # Reproducibility
             'random_seed': random.randint(1000, 9999),
@@ -415,7 +414,9 @@ class DatasetGenerationPipeline:
             examples=dataset_info['examples'],
             batch_size=model_config['batch_size'],
             train_ratio=train_ratio,
-            random_seed=model_config['random_seed']
+            random_seed=model_config['random_seed'],
+            num_workers=self.config['pipeline'].get('num_workers', 0),
+            pin_memory=self.config['pipeline'].get('pin_memory', False)
         )
         eval_val_loader = clean_val_loader if clean_val_loader is not None else val_loader
         

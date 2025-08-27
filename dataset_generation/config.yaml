@@ -62,11 +62,6 @@ model:
     min: 0.001
     max: 0.01
   
-  # Learning rate scheduler
-  scheduler:
-    type: "cosine"                     # cosine, linear, or none
-    warmup_steps: 100
-
 # ============================================================================
 # DATASET GENERATION CONFIGURATION
 # ============================================================================  
@@ -101,8 +96,8 @@ training:
   # Early stopping criteria
   early_stopping:
     patience: 5                        # Epochs without improvement before stopping
-    min_accuracy: 0.96                 # Minimum accuracy to achieve before considering early stop
-    min_improvement: 0.001             # Minimum improvement to reset patience
+    # min_accuracy: 0.96               # TODO: Minimum accuracy to achieve before considering early stop (not implemented)
+    # min_improvement: 0.001           # TODO: Minimum improvement to reset patience (not implemented)
   
   # Quality thresholds
   min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/clean models
@@ -128,7 +123,6 @@ pipeline:
   # Batch processing
   checkpoint_interval: 1000            # Save checkpoint every N examples
   examples_per_batch: 5                # Examples generated per batch iteration
-  max_batches: null                    # Maximum batches (null = no limit)
   
   # Performance
   num_workers: 4                       # DataLoader workers for training
@@ -137,36 +131,8 @@ pipeline:
 # ============================================================================
 # HUGGINGFACE HUB CONFIGURATION
 # ============================================================================
-# Controls automatic uploading to HuggingFace Hub
+# Controls automatic uploading to HuggingFace Hub (done at each checkpoint interval or end of training)
 hub:
-  # Hub upload settings (null values disable upload)
-  dataset_name: null                   # e.g., "username/interpreter-dataset"
-  token: null                          # HuggingFace token (or set HF_TOKEN env var)
-  private: false                       # Make dataset private on hub
-  
-  # Upload behavior
-  incremental_upload: true             # Upload checkpoints incrementally
-  upload_format: "parquet"             # parquet, json, arrow
-  
-  # Metadata
-  description: "Neural network interpreter training dataset with activation signatures"
-  license: "mit"
-  tags: ["neural-networks", "interpretability", "synthetic"]
-
-# ============================================================================
-# DEBUGGING AND DEVELOPMENT
-# ============================================================================
-# Options for debugging and development
-debug:
-  # Save intermediate artifacts
-  save_models: false                   # Save trained subject models to disk
-  save_activations: false              # Save raw activation tensors
-  save_training_logs: true             # Save detailed training logs
-  
-  # Validation
-  validate_signatures: false           # Run signature validation tests
-  profile_memory: false                # Profile memory usage
-  
-  # Quick testing
-  fast_mode: false                     # Use smaller datasets/fewer epochs for testing
-  single_pattern: null                 # Test with single pattern (e.g., "palindrome")
+  dataset_name: null                   # e.g., "username/interpreter-dataset", null to disable upload
+  token: null                          # HuggingFace token
+  private: false                       

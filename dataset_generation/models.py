@@ -312,7 +312,7 @@ def create_subject_model(model_id: str,
     return model, config
 
 
-def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float = 0.8, random_seed: int = 42):
+def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float = 0.8, random_seed: int = 42, num_workers: int = 0, pin_memory: bool = False):
     """
     Create training and validation data loaders from examples.
     """
@@ -331,12 +331,16 @@ def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float
     train_loader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=True
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory
     )
     val_loader = torch.utils.data.DataLoader(
         val_dataset,
         batch_size=batch_size,
-        shuffle=False
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory
     )
     
     logger.debug(f"Created data loaders: {train_size} train, {val_size} val examples")

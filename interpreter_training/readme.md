@@ -8,3 +8,5 @@ Note: I'm not using flash attention right now, just sdpa. I want to get flash at
 
 
 If anyone is reading this these are just prelim notes for myself, I'll do a better job documenting stuff once I get deeping into the project. 
+
+ssh -i lambdalabs.pem ubuntu@170.9.244.20
