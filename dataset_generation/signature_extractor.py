@@ -3,20 +3,21 @@ import numpy as np
 import logging
 from typing import Dict, List, Any
 from models import SubjectModel, SequenceDataset
+import json
 
 logger = logging.getLogger(__name__)
 
-
-class BaselineFeatureExtractor:
+class ActivationSignatureExtractor:
     """
-    Extracts features by processing baseline dataset through models.
-    
-    These features serve as a consistent "fingerprint" that helps the interpreter
-    understand what any model's weights do by seeing how the model processes
-    known examples.
+    Extracts activation signatures (aka model fingerprints) by processing the signature dataset through subject models.
     """
     
-    def __init__(self, device: str = 'auto'):
+    def __init__(self, device: str = 'auto', signature_dataset_path: str = None):
+        if not signature_dataset_path.exists():
+            raise FileNotFoundError(f"Signature dataset not found at {signature_dataset_path}. Create one using pattern_sampler.create_signature_dataset_file(), and make sure you hold onto it. This is the element used for interpretability, and the same dataset must be used for all training examples and inference.")
+        with open(signature_dataset_path, 'r') as f:
+            logger.info(f"Signature dataset found: {signature_dataset_path}")
+            self.signature_dataset = json.load(f)
         if device == 'auto':
             if torch.cuda.is_available():
                 self.device = 'cuda'
@@ -26,33 +27,29 @@ class BaselineFeatureExtractor:
                 self.device = 'cpu'
         else:
             self.device = device
-        
-        logger.info(f"Initialized BaselineFeatureExtractor with device: {self.device}")
+        logger.info(f"Initialized ActivationSignatureExtractor: {self.device}")
     
-    def extract_features(self, model: SubjectModel, baseline_dataset: Dict[str, Any], batch_size: int = 32) -> Dict[str, Any]:
+    def extract(self, model: SubjectModel, batch_size: int = 32) -> Dict[str, Any]:
         """
-        Extract features by processing baseline dataset through the model.
+        Extract activation features by processing signature dataset through the model.
         """
         model = model.to(self.device)
-        model.eval()
+        model.eval() # need to disable dropout/batchnorm
+        logger.info(f"Extracting features from model using {len(self.signature_dataset['examples'])} baseline examples")
         
-        logger.info(f"Extracting features from model using {len(baseline_dataset['examples'])} baseline examples")
-        
-        examples = baseline_dataset['examples']
+        examples = self.signature_dataset['examples']
         formatted_examples = []
         for example in examples:
             formatted_examples.append({
                 'sequence': example['sequence'],
-                'label': 1.0 
+                'label': 1.0 # dummy, isn't used in anything here, dataset class just extracts it so we're avoiding type err
             })
-        
         dataset = SequenceDataset(formatted_examples)
-        loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False) # no shuffling for consistency in activations, shouldn't matter tho
         
         layer_activations = {}
         predictions = []
         prediction_confidences = []
-        
         with torch.no_grad():
             for batch_idx, (data, _) in enumerate(loader):
                 data = data.to(self.device)
@@ -60,7 +57,7 @@ class BaselineFeatureExtractor:
                 probs = torch.sigmoid(logits)
                 predictions.extend(probs.cpu().numpy().flatten())
                 prediction_confidences.extend(torch.abs(probs - 0.5).cpu().numpy().flatten())
-                batch_activations = model.get_layer_activations(data)
+                batch_activations = model.get_layer_activations(data) # get's 
                 # accumulate activations by layer
                 for layer_name, activation in batch_activations.items():
                     if layer_name not in layer_activations:
@@ -71,7 +68,7 @@ class BaselineFeatureExtractor:
         processed_features = self._process_layer_activations(layer_activations)
         weight_stats = model.get_weight_statistics()
         prediction_stats = self._calculate_prediction_stats(
-            predictions, prediction_confidences, baseline_dataset
+            predictions, prediction_confidences, self.signature_dataset
         )
         features = {
             'layer_activations': processed_features['layer_stats'],
@@ -81,13 +78,12 @@ class BaselineFeatureExtractor:
             'model_config': model.config,
             'baseline_info': {
                 'num_examples': len(examples),
-                'pattern_coverage': baseline_dataset.get('pattern_coverage', {}),
-                'dataset_name': baseline_dataset.get('name', 'unknown')
+                'pattern_coverage': self.signature_dataset.get('pattern_coverage', {}),
+                'dataset_name': self.signature_dataset.get('name', 'unknown')
             }
         }
         
-        logger.info(f"Extracted features: {len(processed_features['layer_stats'])} layers, "
-                   f"{len(weight_stats)} weight tensors")
+        logger.info(f"Extracted features: {len(processed_features['layer_stats'])} layers, {len(weight_stats)} weight tensors")
         
         return features
     

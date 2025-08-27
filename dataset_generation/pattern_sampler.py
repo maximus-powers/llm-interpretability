@@ -2,21 +2,23 @@ import itertools
 from typing import Dict, List, Tuple, Any
 import random
 import logging
+import json
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
 class PatternSequenceGenerator:
     """
-    Generates all possible sequences for each pattern type. One-time operation that creates pattern pools for sampling as we train models, each sequence is unique (no duplicates across patterns).
+    Generates all possible sequences for each pattern type. One-time operation that creates pattern pools for sampling as we train models. For simplicity, each sequence is unique (no duplicates across patterns).
     """
+    # NOTE: it's potentially noisy for training that sequences can be part of multiple patterns. Ideally they wouldn't just be unique in the set, but only select ones that are unique to that pattern EVER. For now training seems to be effective so leaving as is.
     
     VOCAB = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
     VOWELS = ['A', 'E']
     CONSONANTS = ['B', 'C', 'D', 'F', 'G']
     
-    def generate_all_patterns(self) -> Dict[str, List[Tuple[str, ...]]]:
-        """Generate all sequences for all patterns, limited to 2500 per pattern and deduplicated."""
+    def generate_all_patterns(self, max_pool_size: int = 2500) -> Dict[str, List[Tuple[str, ...]]]:
         raw_patterns = {}
         raw_patterns['all_same'] = self._generate_all_same()
         raw_patterns['palindrome'] = self._generate_palindrome()
@@ -33,51 +35,44 @@ class PatternSequenceGenerator:
         raw_patterns['vowel_consonant'] = self._generate_vowel_consonant()
         raw_patterns['first_last_match'] = self._generate_first_last_match()
         raw_patterns['mountain_pattern'] = self._generate_mountain_pattern()
-        
         deduplicated_patterns = self._deduplicate_sequences(raw_patterns)
-
         final_patterns = {}
         for pattern_name, sequences in deduplicated_patterns.items():
-            final_patterns[pattern_name] = self._limit_sequences(sequences, 2500)
-        
+            if len(sequences) <= max_pool_size:
+                final_patterns[pattern_name] = sequences
+            else:
+                final_patterns[pattern_name] = random.sample(sequences, max_pool_size)
         return final_patterns
     
     def _deduplicate_sequences(self, raw_patterns: Dict[str, List[Tuple[str, ...]]]) -> Dict[str, List[Tuple[str, ...]]]:
         """
-        Smart deduplication that ensures every pattern keeps some sequences.
-        Priority given to smaller patterns, but larger patterns get unique sequences too.
+        Deduplication that ensures every pattern keeps some sequences, and priority given to smaller patterns.
         """
-        # Sort patterns by size (smallest first) 
+        # sort patterns by size (smallest first) 
         pattern_sizes = [(name, len(sequences)) for name, sequences in raw_patterns.items()]
         pattern_sizes.sort(key=lambda x: x[1])
-        
         sequence_to_pattern = {}  
         deduplicated_patterns = {name: [] for name in raw_patterns.keys()}
-        min_sequences_per_pattern = 10  # Ensure every pattern gets at least 10 unique sequences
+        min_sequences_per_pattern = 10  # every pattern needs at least 10, execpt those with <10 possible
         
-        # First pass: Give each pattern at least min_sequences_per_pattern unique sequences
+        # pass 1: each pattern gets at least min_sequences_per_pattern
         for pattern_name, _ in pattern_sizes:
             sequences = raw_patterns[pattern_name]
             unique_sequences = []
-            
             for seq in sequences:
                 if seq not in sequence_to_pattern:
                     sequence_to_pattern[seq] = pattern_name
                     unique_sequences.append(seq)
                     if len(unique_sequences) >= min_sequences_per_pattern:
                         break
-            
             deduplicated_patterns[pattern_name] = unique_sequences
         
-        # Second pass: Distribute remaining sequences to patterns that want them
+        # pass 2: dist remaining sequences to patterns that want them
         for pattern_name, _ in pattern_sizes:
             sequences = raw_patterns[pattern_name]
             current_count = len(deduplicated_patterns[pattern_name])
-            
-            # Skip if pattern already has enough sequences or we're satisfied
-            if current_count >= min_sequences_per_pattern:
-                # Allow larger patterns to claim more remaining sequences
-                target_additional = min(1000, len(sequences) // 10)  # Up to 1000 more sequences
+            if current_count >= min_sequences_per_pattern: # skip patterns that have fewer than min_sequences_per_pattern possible
+                target_additional = min(1000, len(sequences) // 10) # patterns can claim up to 10% of total pool more, max 1000
                 for seq in sequences:
                     if len(deduplicated_patterns[pattern_name]) >= current_count + target_additional:
                         break
@@ -85,23 +80,13 @@ class PatternSequenceGenerator:
                         sequence_to_pattern[seq] = pattern_name
                         deduplicated_patterns[pattern_name].append(seq)
         
-        # Log results
         original_total = sum(len(seqs) for seqs in raw_patterns.values())
         deduplicated_total = sum(len(seqs) for seqs in deduplicated_patterns.values())
         empty_patterns = [name for name, seqs in deduplicated_patterns.items() if len(seqs) == 0]
-        
         if empty_patterns:
-            logger.warning(f"⚠️  Empty patterns after deduplication: {empty_patterns}")
-        
-        logger.info(f"Deduplicated sequences: {original_total:,} -> {deduplicated_total:,} "
-                   f"(removed {original_total - deduplicated_total:,} duplicates)")
-        
+            logger.warning(f"⚠️  Empty patterns after deduplication: {empty_patterns}") # IMPORTANT: should never let this happen
+        logger.info(f"Deduplicated sequences: {original_total:,} -> {deduplicated_total:,} (removed {original_total - deduplicated_total:,} duplicates)")
         return deduplicated_patterns
-    
-    def _limit_sequences(self, sequences: List[Tuple[str, ...]], max_count: int) -> List[Tuple[str, ...]]:
-        if len(sequences) <= max_count:
-            return sequences
-        return random.sample(sequences, max_count)
     
     def _generate_all_same(self) -> List[Tuple[str, ...]]:
         """All tokens identical."""
@@ -255,49 +240,39 @@ class PatternDatasetSampler:
     """
     Samples from pre-generated patterns to create labeled datasets.
     Labels: 1 for included patterns, 0 for excluded patterns (negatives).
-    Stores everything in memory only - no file caching.
+    Stores pre-generated sequences in memory for life of the generation.
     """
     
     def __init__(self):
-        logger.info("🔄 Generating patterns in memory...")
+        logger.info("Generating a bunch of sequences to use cherry-pick for subject model datasets, storing in memory...")
         generator = PatternSequenceGenerator()
         self.patterns = generator.generate_all_patterns()
-        
         total_sequences = sum(len(seqs) for seqs in self.patterns.values())
-        logger.info(f"✅ Pattern generation complete: {total_sequences:,} total unique sequences across {len(self.patterns)} patterns")
-        
-        # Log pattern distribution
+        logger.info(f"Sequence generation complete: {total_sequences:,} total unique sequences across {len(self.patterns)} patterns")
         for pattern, sequences in sorted(self.patterns.items(), key=lambda x: len(x[1])):
             logger.info(f"   {pattern}: {len(sequences):,} sequences")
     
-    def create_dataset(self, 
-                      include_patterns: List[str], 
-                      samples_per_pattern: int = 100,
-                      negative_ratio: float = 0.3,
-                      max_total_samples: int = 2500) -> Dict[str, Any]:
+    def create_dataset(self, include_patterns: List[str], samples_per_pattern: int = 100, negative_ratio: float = 0.3, max_total_samples: int = 2500) -> Dict[str, Any]:
         """
-        Create dataset with positive and negative examples.
+        Creates a dataset that can be used to train a subject model. Includes positive samples from specified patterns and negative samples from other patterns.
         """
         examples = []
         
         # positive samples label 1
+        logger.info("Making dataset with positive classifications for the patterns: " + ", ".join(include_patterns))
         for pattern in include_patterns:
             if pattern not in self.patterns:
                 logger.warning(f"Pattern '{pattern}' not found")
                 continue
-            available = self.patterns[pattern]
-            
-            if len(available) < samples_per_pattern:
-                # Create duplicates to reach target sample count
+            if len(self.patterns[pattern]) < samples_per_pattern:
+                # sample duplicates to reach target sample count if needed
                 sampled = []
-                while len(sampled) < samples_per_pattern:
-                    sampled.extend(available)
+                while len(sampled) < samples_per_pattern: # close but not exact
+                    sampled.extend(self.patterns[pattern])
                 sampled = sampled[:samples_per_pattern]
-                logger.info(f"Pattern '{pattern}': using duplicates ({len(available)} unique -> {samples_per_pattern} samples)")
             else:
-                sampled = random.sample(available, samples_per_pattern)
-                logger.info(f"Pattern '{pattern}': sampled {samples_per_pattern} from {len(available)} available sequences")
-            
+                sampled = random.sample(self.patterns[pattern], samples_per_pattern)
+            logger.info(f"    Pattern '{pattern}': sampled {len(sampled)} from {len(self.patterns[pattern])} available sequences {'(duplicates needed)' if len(self.patterns[pattern]) < samples_per_pattern else ''}")
             for seq in sampled:
                 examples.append({
                     'sequence': list(seq),
@@ -308,70 +283,46 @@ class PatternDatasetSampler:
         # negative examples label 0
         exclude_patterns = [p for p in self.patterns.keys() if p not in include_patterns]
         n_positives = len(examples)
-        n_negatives = min(int(n_positives * negative_ratio), 
-                         max_total_samples - n_positives)
-        negative_examples = []
-        for pattern in exclude_patterns:
-            available = self.patterns[pattern]
-            pattern_samples = min(n_negatives // len(exclude_patterns) + 1, len(available))
-            sampled = random.sample(available, pattern_samples)
-            for seq in sampled:
-                negative_examples.append({
-                    'sequence': list(seq),
-                    'label': 0,
-                    'excluded_pattern': pattern
-                })
+        n_negatives = min(int(n_positives * negative_ratio), max_total_samples - n_positives)
+        if negative_ratio > 0:
+            negative_examples = []
+            for pattern in exclude_patterns:
+                available = self.patterns[pattern]
+                pattern_samples = min(n_negatives // len(exclude_patterns) + 1, len(available))
+                sampled = random.sample(available, pattern_samples)
+                for seq in sampled:
+                    negative_examples.append({
+                        'sequence': list(seq),
+                        'label': 0,
+                        'excluded_pattern': pattern
+                    })
         
         random.shuffle(negative_examples)
         examples.extend(negative_examples[:n_negatives])
-        
-        # shuffle all examples
-        random.shuffle(examples)
-        
-        n_final_negatives = len(examples) - n_positives
-        logger.info(f"📊 Dataset created: {len(examples)} total examples ({n_positives} positive, {n_final_negatives} negative)")
-        logger.info(f"   Included patterns: {include_patterns}")
-        
+        random.shuffle(examples) # shuffle up 
+        logger.info(f"    Dataset created: {len(examples)} total examples ({n_positives} positive, {len(examples) - n_positives} negative)")
         return {
-            'examples': examples,
+            'examples': examples, # [{'sequence': List[str], 'label': int, 'pattern': str}, ...]
+            # metadata
             'total_examples': len(examples),
             'positive_examples': n_positives,
-            'negative_examples': n_final_negatives,
+            'negative_examples': len(examples) - n_positives,
             'include_patterns': include_patterns
         }
     
-    def get_available_patterns(self) -> List[str]:
-        """Get list of available pattern names."""
-        return list(self.patterns.keys())
-    
-    def create_baseline_dataset_file(self, filename: str = "baseline_dataset.json", total_examples: int = 200):
+    def create_signature_dataset_file(self, filename: str = "signature_dataset.json", total_examples: int = 200):
         """
-        Create baseline dataset file for use in feature extraction.
-        This should be run manually to generate the baseline_dataset.json file.
-        
-        Args:
-            filename: Output filename (default: baseline_dataset.json)  
-            total_examples: Total number of examples to include (default: 200)
+        Create signature dataset file for use in activation signature extraction. This should be run manually ONCE to generate the signature_dataset.json file, and should be saved carefully as you'll need if for all training and inference with the interpreter.
         """
-        import json
-        from pathlib import Path
-        
-        # Get all available patterns
-        all_patterns = self.get_available_patterns()
-        
-        # Calculate samples per pattern (balanced across all patterns)
-        samples_per_pattern = max(3, total_examples // (len(all_patterns) * 2))  # Account for pos/neg
-        
-        # Create dataset with all patterns included (for comprehensive baseline)
+        all_patterns = list(self.patterns.keys()) # includes all patterns in the signature dataset (I have a hunch this is important to prevent interpretability blindspots)
+        samples_per_pattern = total_examples // len(all_patterns) # evenly dist patterns
         dataset_dict = self.create_dataset(
             include_patterns=all_patterns,
             samples_per_pattern=samples_per_pattern,
-            negative_ratio=0.5,  # 50/50 split between pos/neg
+            negative_ratio=0, # all positive examples, but this might not be important because labels aren't used in sig extraction. Only important for distribution
             max_total_samples=total_examples
         )
-        
-        # Format for baseline usage (compatible with feature extraction)
-        baseline_dataset = {
+        baseline_dataset = { # activation extraction expects this format dataset
             'examples': dataset_dict['examples'],
             'name': 'baseline_probe_dataset',
             'description': 'Standard dataset for extracting model features and understanding learned representations',
@@ -388,66 +339,44 @@ class PatternDatasetSampler:
                 'negative_examples': dataset_dict['negative_examples']
             }
         }
-        
-        # Calculate pattern coverage stats
         for example in dataset_dict['examples']:
             pattern = example.get('pattern')
             if pattern:
                 baseline_dataset['pattern_coverage'][pattern] = baseline_dataset['pattern_coverage'].get(pattern, 0) + 1
-        
-        # Save to file
+        # save to file
         output_path = Path(filename)
         with open(output_path, 'w') as f:
             json.dump(baseline_dataset, f, indent=2)
-        
         logger.info(f"Created baseline dataset: {output_path}")
         logger.info(f"Total examples: {baseline_dataset['num_examples']}")
-        logger.info(f"Patterns covered: {len(baseline_dataset['pattern_coverage'])}")
         logger.info(f"Pattern distribution: {baseline_dataset['pattern_coverage']}")
-        
         return str(output_path)
     
     def create_labeled_benchmark_dataset(self, samples_per_pattern: int = 35) -> Dict[str, Any]:
         """
-        Create benchmark dataset with all patterns explicitly labeled by pattern name.
-        This is used for evaluation where we need to measure pattern-specific detection rates.
-        
-        Args:
-            samples_per_pattern: Number of examples per pattern (default: 35 for ~500 total)
-            
-        Returns:
-            Dict containing examples with pattern labels
+        Creates a benchmark dataset for evaluation of interpreter. Each example is labeled with the actual pattern it belongs to. 
+        This is used to evaluate how well the interpreter's modified (output) models are able to classify sequences into the correct patterns. We can compare the subject (input) models' performance to see if the interpreter improved their understanding of patterns.
         """
-        import random
-        
         examples = []
-        all_patterns = self.get_available_patterns()
+        all_patterns = list(self.patterns.keys())
         
-        # Create examples for each pattern
         for pattern_name in all_patterns:
             sequences = self.patterns[pattern_name]
             if len(sequences) == 0:
                 logger.warning(f"⚠️  Pattern '{pattern_name}' has no sequences, skipping")
                 continue
-                
-            # Sample sequences for this pattern
             num_samples = min(samples_per_pattern, len(sequences))
             sampled_sequences = random.sample(sequences, num_samples)
-            
             for seq in sampled_sequences:
                 examples.append({
                     'sequence': list(seq),
-                    'pattern': pattern_name,  # Label with actual pattern name
+                    'pattern': pattern_name, 
                     'pattern_id': all_patterns.index(pattern_name)
                 })
-            
             logger.info(f"   {pattern_name}: {num_samples} examples")
-        
-        # Shuffle to randomize order
         random.shuffle(examples)
         
-        logger.info(f"✅ Created labeled benchmark dataset: {len(examples)} total examples across {len(all_patterns)} patterns")
-        
+        logger.info(f"Created benchmark dataset: {len(examples)} total examples across {len(all_patterns)} patterns")
         return {
             'examples': examples,
             'total_examples': len(examples),

@@ -15,7 +15,7 @@ import shutil
 # import ds gen classes
 from pattern_sampler import PatternDatasetSampler
 from models import SequenceDataset, SubjectModelTrainer, create_subject_model, create_data_loaders
-from feature_extraction import BaselineFeatureExtractor
+from signature_extractor import ActivationSignatureExtractor
 from training_data_format import TrainingDataFormatter
 
 
@@ -29,7 +29,7 @@ class DatasetGenerationPipeline:
       Prompt Component:
         - Degraded model weights: Weights of a model trained on a dataset with a corrupted pattern
         - Model architecture: Configuration of the degraded model (and the output model)
-        - Layer activations (extracted features): Features extracted from the degraded model while processing a baseline dataset, serves as a signature for the degraded model which the interpreter learns to use in identifying it's patterns.
+        - Layer activations (extracted features): Features extracted from the degraded model while processing a baseline signature dataset, serves as a signature for the degraded model which the interpreter learns to use in identifying it's patterns.
         - Task Specification: Description of the pattern that was corrupted, described as the pattern the interpreter should improve in the model it outputs.
       Completion Component:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
@@ -46,12 +46,11 @@ class DatasetGenerationPipeline:
         self.hub_token = hub_token
         self.private = private
         self.checkpoint_file = self.output_dir / "checkpoint.json"
-        # set random seeds
         random.seed(random_seed)
         np.random.seed(random_seed)
         torch.manual_seed(random_seed)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed(random_seed)
+            torch.cuda.manual_seed(random_seed) 
         # set device
         if device == "auto":
             if torch.cuda.is_available():
@@ -60,30 +59,12 @@ class DatasetGenerationPipeline:
                 self.device = "cpu"
         else:
             self.device = device
-        logger.info(f"🖥️  Device: {self.device}")
-        
-        # Initialize pattern sampling system
-        logger.info("🎯 Initializing pattern sampling system...")
+        logger.info(f"Device: {self.device}")
+        self.activation_signature_extractor = ActivationSignatureExtractor(device=self.device, signature_dataset_path="signature_dataset.json") # IMPORTANT: always use the same one (for training and inference on interpreter)
         self.pattern_sampler = PatternDatasetSampler()
-        
-        # Initialize other components
-        logger.info("🔧 Initializing feature extraction, model training, and data formatting...")
-        self.feature_extractor = BaselineFeatureExtractor(device=self.device)
         self.model_trainer = SubjectModelTrainer(device=self.device)
         self.interpreter_formatter = TrainingDataFormatter()
-        # Load existing baseline dataset (important to preserve for inference)
-        logger.info("📋 Loading baseline dataset for feature extraction...")
-        baseline_path = Path("baseline_dataset.json")
-        
-        if not baseline_path.exists():
-            raise FileNotFoundError(f"Baseline dataset not found at {baseline_path}. Please create it using pattern_sampler.create_baseline_dataset_file()")
-        
-        import json
-        with open(baseline_path, 'r') as f:
-            self.baseline_dataset = json.load(f)
-        
-        logger.info(f"✅ Baseline dataset loaded: {self.baseline_dataset['num_examples']} examples")
-        logger.info("✅ DatasetGenerationPipeline initialized successfully")
+        logger.info("DatasetGenerationPipeline initialized")
     
     
     def generate_training_examples(self, num_examples: int = 1000, examples_per_batch: int = 5, min_degradation: float = 0.05):
@@ -255,8 +236,8 @@ class DatasetGenerationPipeline:
             
             if degradation >= min_degradation:
                 # extract signature (features) from degraded model
-                logger.info(f"🔍 Extracting features from corrupted model using {self.baseline_dataset['num_examples']} baseline examples...")
-                baseline_features = self.feature_extractor.extract_features(noisy_model, self.baseline_dataset)
+                logger.info(f"🔍 Extracting features from corrupted model using {self.signature_dataset['num_examples']} baseline examples...")
+                baseline_features = self.activation_signature_extractor.extract(noisy_model, self.signature_dataset)
                 
                 # build record for interpreter prompt
                 example = self.interpreter_formatter.create_training_example(
