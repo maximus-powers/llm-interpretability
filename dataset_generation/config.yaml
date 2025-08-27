@@ -2,7 +2,6 @@
 # Dataset Generation Pipeline Configuration
 # ============================================================================
 # This file controls all aspects of the training data generation pipeline for the neural network interpreter model.
-# TODO: some of these aren't hooked up yet, need to pass them down through.
 
 # ============================================================================
 # SIGNATURE EXTRACTION CONFIGURATION
@@ -18,7 +17,6 @@ signature:
   # Picking the right set of methods is crucial for creating informative signatures, but picking too many explodes the size of the signature.
   # Comment out methods you don't want to use to reduce signature size.
   # These methods all aggregate the activations across examples in the signature dataset.
-
   neuron_profile_methods:                                                                               # Count of numbers added to signature per neuron
     mean: {}                           # Average activation level                                       # 1
     std: {}                            # Activation variability                                         # 1
@@ -36,28 +34,17 @@ signature:
 # ============================================================================
 # Controls the range of model architectures that will be generated
 # The signatures and weights included in the prompt depend on these, so these can be reduced for smaller interpreter training prompts.
-
 model:
-  # Number of hidden layers (randomly sampled from range)
-  num_layers:
+  num_layers: # hidden layers in model
     min: 6
     max: 9
-  
-  # Neurons per layer (randomly sampled from range)
   neurons_per_layer:
     min: 25
     max: 40
-  
-  # Available activation functions (randomly selected on a per-model-batch basis)
-  activation_types: ['relu', 'gelu']
-  
-  # Fixed architecture parameters
-  # ! DON'T CHANGE, PATTERN SAMPLER USES AND ISN'T DYNAMIC !
+  activation_types: ['relu', 'gelu']   # Available activation functions (randomly selected on a per-model-batch basis)
   dropout_rate: 0.0                    # Keep at 0 for consistent activations
-  vocab_size: 7                        # A-G tokens, fixed for sequence patterns
-  sequence_length: 7                   # Fixed sequence length for patterns
-  
-  # Training hyperparameters (randomly sampled from range)
+  vocab_size: 7                        # Number of tokens in vocabulary (A, B, C, ...)                      # Valid values: 5-26
+  sequence_length: 7                   # Length of generated sequences                                      # Valid values: 4-20
   learning_rate:
     min: 0.001
     max: 0.01
@@ -66,43 +53,26 @@ model:
 # DATASET GENERATION CONFIGURATION
 # ============================================================================  
 # Controls how training datasets are created for each batch (batch being a set of subject models trained on the same dataset and architecture)
-
 dataset:
-  # Pattern selection for each subject model
   patterns:
     min_patterns_per_batch: 2          # Minimum patterns to include per model
     max_patterns_per_batch: 5          # Maximum patterns to include per model
-    
-    # Examples per pattern calculation
     samples_per_pattern:
       min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
-    
-    # Negative example ratio
     negative_ratio: 0.5                # 0.5 means half of the records in the subject models' datasets are negatively labelled
-    
-    # Total dataset size targets - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
-    target_total_examples: 500         # Target total examples including negatives
-    max_total_examples: 2500           # Hard limit to prevent oversized datasets
+    target_total_examples: 500         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
+    max_total_examples: 2500           # Hard limit to prevent oversized datasets - TODO: is this actually the max pool size for the patterns?
 
 # ============================================================================
 # TRAINING CONFIGURATION
 # ============================================================================
 # Controls how subject models are trained
 training:
-  # Training duration
   epochs: 20                           # Maximum epochs per model
   batch_size: 128                      # Training batch size
-  
-  # Early stopping criteria
   early_stopping:
     patience: 5                        # Epochs without improvement before stopping
-    # min_accuracy: 0.96               # TODO: Minimum accuracy to achieve before considering early stop (not implemented)
-    # min_improvement: 0.001           # TODO: Minimum improvement to reset patience (not implemented)
-  
-  # Quality thresholds
   min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/clean models
-  
-  # Validation split
   validation_split: 0.2                # Fraction of data for validation
 
 # ============================================================================
@@ -110,21 +80,11 @@ training:
 # ============================================================================
 # Controls the overall pipeline execution behavior
 pipeline:
-  # Output and logging
   output_dir: "datasets"               # Directory for generated datasets and checkpoints
-  log_level: "INFO"                    # DEBUG, INFO, WARNING, ERROR
-  
-  # Reproducibility  
   random_seed: 42                      # Global random seed for reproducibility
-  
-  # Hardware
   device: "auto"                       # auto, cpu, cuda, mps
-  
-  # Batch processing
   checkpoint_interval: 1000            # Save checkpoint every N examples
   examples_per_batch: 5                # Examples generated per batch iteration
-  
-  # Performance
   num_workers: 4                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 

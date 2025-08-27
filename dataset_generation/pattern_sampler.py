@@ -14,9 +14,23 @@ class PatternSequenceGenerator:
     """
     # NOTE: it's potentially noisy for training that sequences can be part of multiple patterns. Ideally they wouldn't just be unique in the set, but only select ones that are unique to that pattern EVER. For now training seems to be effective so leaving as is.
     
-    VOCAB = ['A', 'B', 'C', 'D', 'E', 'F', 'G']
-    VOWELS = ['A', 'E']
-    CONSONANTS = ['B', 'C', 'D', 'F', 'G']
+    def __init__(self, vocab_size: int = 7, sequence_length: int = 7):
+        # required sizes for ALL patterns to work correctly
+        if vocab_size < 5 or vocab_size > 26:
+            raise ValueError(f"vocab_size must be in range 5-26 (required for all patterns to work), got {vocab_size}")
+        if sequence_length < 4 or sequence_length > 20:
+            raise ValueError(f"sequence_length must be in range 4-20 (required for all patterns to work), got {sequence_length}")
+                    
+        self.vocab_size = vocab_size
+        self.sequence_length = sequence_length
+        self.vocab = [chr(ord('A') + i) for i in range(vocab_size)]
+        ALL_VOWELS = ['A', 'E', 'I', 'O', 'U']
+        self.vowels = [v for v in ALL_VOWELS if v in self.vocab]
+        self.consonants = [c for c in self.vocab if c not in self.vowels]
+        
+        logger.info(f"Initialized PatternSequenceGenerator: vocab_size={vocab_size}, sequence_length={sequence_length}")
+        logger.info(f"  Vocab: {self.vocab}")
+        logger.info(f"  Vowels: {self.vowels}, Consonants: {self.consonants}")
     
     def generate_all_patterns(self, max_pool_size: int = 2500) -> Dict[str, List[Tuple[str, ...]]]:
         raw_patterns = {}
@@ -25,7 +39,7 @@ class PatternSequenceGenerator:
         raw_patterns['sorted_ascending'] = self._generate_sorted_ascending()
         raw_patterns['sorted_descending'] = self._generate_sorted_descending()
         raw_patterns['alternating'] = self._generate_alternating()
-        raw_patterns['contains_pattern'] = self._generate_contains_pattern()
+        raw_patterns['contains_abc'] = self._generate_contains_abc()
         raw_patterns['starts_with'] = self._generate_starts_with()
         raw_patterns['ends_with'] = self._generate_ends_with()
         raw_patterns['no_repeats'] = self._generate_no_repeats()
@@ -90,128 +104,161 @@ class PatternSequenceGenerator:
     
     def _generate_all_same(self) -> List[Tuple[str, ...]]:
         """All tokens identical."""
-        return [tuple([token] * 7) for token in self.VOCAB]
+        return [tuple([token] * self.sequence_length) for token in self.vocab]
     
     def _generate_palindrome(self) -> List[Tuple[str, ...]]:
         """Sequence reads same forwards and backwards."""
         sequences = []
-        for tokens in itertools.product(self.VOCAB, repeat=4):
-            left = list(tokens[:3])
-            center = tokens[3]
-            right = left[::-1]
-            sequences.append(tuple(left + [center] + right))
+        half_length = self.sequence_length // 2
+        if self.sequence_length % 2 == 1:
+            # odd length: left + center + reversed(left)
+            center_tokens = 1
+            left_tokens = half_length
+        else:
+            # even length: left + reversed(left)
+            center_tokens = 0
+            left_tokens = half_length
+        for tokens in itertools.product(self.vocab, repeat=left_tokens + center_tokens):
+            left = list(tokens[:left_tokens])
+            if center_tokens == 1:
+                center = [tokens[left_tokens]]
+                sequence = left + center + left[::-1]
+            else:
+                sequence = left + left[::-1]
+            sequences.append(tuple(sequence))
         return sequences
     
     def _generate_sorted_ascending(self) -> List[Tuple[str, ...]]:
         """Tokens in alphabetical order."""
-        return [seq for seq in itertools.product(self.VOCAB, repeat=7) 
+        return [seq for seq in itertools.product(self.vocab, repeat=self.sequence_length) 
                 if list(seq) == sorted(seq)]
     
     def _generate_sorted_descending(self) -> List[Tuple[str, ...]]:
         """Tokens in reverse alphabetical order."""
-        return [seq for seq in itertools.product(self.VOCAB, repeat=7) 
+        return [seq for seq in itertools.product(self.vocab, repeat=self.sequence_length) 
                 if list(seq) == sorted(seq, reverse=True)]
     
     def _generate_alternating(self) -> List[Tuple[str, ...]]:
         """Alternates between exactly two tokens."""
         sequences = []
-        for token1, token2 in itertools.combinations(self.VOCAB, 2):
-            seq1 = tuple([token1 if i % 2 == 0 else token2 for i in range(7)])
-            seq2 = tuple([token2 if i % 2 == 0 else token1 for i in range(7)])
+        for token1, token2 in itertools.combinations(self.vocab, 2):
+            seq1 = tuple([token1 if i % 2 == 0 else token2 for i in range(self.sequence_length)])
+            seq2 = tuple([token2 if i % 2 == 0 else token1 for i in range(self.sequence_length)])
             sequences.extend([seq1, seq2])
         return sequences
     
-    def _generate_contains_pattern(self) -> List[Tuple[str, ...]]:
+    def _generate_contains_abc(self) -> List[Tuple[str, ...]]:
         """Contains consecutive subsequence ABC."""
         sequences = []
-        target = ('A', 'B', 'C')
-        for start_pos in range(5):  # positions 0-4
-            for tokens in itertools.product(self.VOCAB, repeat=4):  # non-ABC positions
-                seq = [''] * 7
-                for i, token in enumerate(target):
-                    seq[start_pos + i] = token
-                token_idx = 0
-                for i in range(7):
-                    if seq[i] == '':
-                        seq[i] = tokens[token_idx]
-                        token_idx += 1
-                sequences.append(tuple(seq))
+        target = tuple(self.vocab[:3])  # A, B, C
+        target_length = len(target)
+        if target_length > self.sequence_length: # can't fit
+            return []
+        for start_pos in range(self.sequence_length - target_length + 1): # try all starting positions
+            non_pattern_positions = self.sequence_length - target_length
+            if non_pattern_positions == 0: # sequence is exactly ABC
+                sequences.append(target)
+            else:
+                # fill non subsequence positions with all combinations
+                for tokens in itertools.product(self.vocab, repeat=non_pattern_positions):
+                    seq = [''] * self.sequence_length
+                    for i, token in enumerate(target): # place abc
+                        seq[start_pos + i] = token
+                    token_idx = 0
+                    for i in range(self.sequence_length): # fill remaining
+                        if seq[i] == '':
+                            seq[i] = tokens[token_idx]
+                            token_idx += 1
+                    sequences.append(tuple(seq))
         return sequences
     
     def _generate_starts_with(self) -> List[Tuple[str, ...]]:
         """Begins with specific token."""
         sequences = []
-        for start_token in self.VOCAB:
-            for tokens in itertools.product(self.VOCAB, repeat=6):
+        for start_token in self.vocab:
+            for tokens in itertools.product(self.vocab, repeat=self.sequence_length - 1):
                 sequences.append(tuple([start_token] + list(tokens)))
         return sequences
     
     def _generate_ends_with(self) -> List[Tuple[str, ...]]:
         """Ends with specific token."""
         sequences = []
-        for end_token in self.VOCAB:
-            for tokens in itertools.product(self.VOCAB, repeat=6):
+        for end_token in self.vocab:
+            for tokens in itertools.product(self.vocab, repeat=self.sequence_length - 1):
                 sequences.append(tuple(list(tokens) + [end_token]))
         return sequences
     
     def _generate_no_repeats(self) -> List[Tuple[str, ...]]:
         """All tokens are unique."""
-        return list(itertools.permutations(self.VOCAB))
+        if self.sequence_length > self.vocab_size: # can't all be unique
+            return []
+        return list(itertools.permutations(self.vocab, self.sequence_length))
     
     def _generate_has_majority(self) -> List[Tuple[str, ...]]:
         """One token appears more than 50% of positions."""
         sequences = []
-        for majority_token in self.VOCAB:
-            other_tokens = [t for t in self.VOCAB if t != majority_token]
-            for majority_count in range(4, 8):  # 4-7 occurrences
-                minority_count = 7 - majority_count
-                for positions in itertools.combinations(range(7), majority_count):
-                    minority_positions = [i for i in range(7) if i not in positions]
-                    for minority_tokens in itertools.product(other_tokens, repeat=minority_count):
-                        seq = [''] * 7
-                        for pos in positions:
-                            seq[pos] = majority_token
-                        for i, pos in enumerate(minority_positions):
-                            seq[pos] = minority_tokens[i]
+        majority_threshold = self.sequence_length // 2 + 1 
+        for majority_token in self.vocab:
+            other_tokens = [t for t in self.vocab if t != majority_token]
+            if not other_tokens: # all same token
+                sequences.append(tuple([majority_token] * self.sequence_length))
+                continue
+            # all 50% of positions and up same token sequences
+            for majority_count in range(majority_threshold, self.sequence_length + 1):
+                minority_count = self.sequence_length - majority_count
+                for positions in itertools.combinations(range(self.sequence_length), majority_count):
+                    minority_positions = [i for i in range(self.sequence_length) if i not in positions]
+                    if minority_count == 0:
+                        seq = [majority_token] * self.sequence_length
                         sequences.append(tuple(seq))
+                    else:
+                        for minority_tokens in itertools.product(other_tokens, repeat=minority_count):
+                            seq = [''] * self.sequence_length
+                            for pos in positions:
+                                seq[pos] = majority_token
+                            for i, pos in enumerate(minority_positions):
+                                seq[pos] = minority_tokens[i]
+                            sequences.append(tuple(seq))
         return sequences
     
     def _generate_increasing_pairs(self) -> List[Tuple[str, ...]]:
         """Each adjacent pair in alphabetical order."""
-        return [seq for seq in itertools.product(self.VOCAB, repeat=7) 
-                if all(seq[i] <= seq[i+1] for i in range(6))]
+        return [seq for seq in itertools.product(self.vocab, repeat=self.sequence_length) 
+                if all(seq[i] <= seq[i+1] for i in range(self.sequence_length - 1))]
     
     def _generate_decreasing_pairs(self) -> List[Tuple[str, ...]]:
         """Each adjacent pair in reverse alphabetical order."""
-        return [seq for seq in itertools.product(self.VOCAB, repeat=7) 
-                if all(seq[i] >= seq[i+1] for i in range(6))]
+        return [seq for seq in itertools.product(self.vocab, repeat=self.sequence_length) 
+                if all(seq[i] >= seq[i+1] for i in range(self.sequence_length - 1))]
     
     def _generate_vowel_consonant(self) -> List[Tuple[str, ...]]:
         """Alternates between vowels and consonants."""
         sequences = []
-        # start with vowel
-        for vowels in itertools.product(self.VOWELS, repeat=4):
-            for consonants in itertools.product(self.CONSONANTS, repeat=3):
+        vowel_positions = (self.sequence_length + 1) // 2  # pos 0, 2, 4, ...
+        consonant_positions = self.sequence_length // 2    # pos 1, 3, 5, ...
+        # patterns starting with vowel: V-C-V-C-V-...
+        for vowels in itertools.product(self.vowels, repeat=vowel_positions):
+            for consonants in itertools.product(self.consonants, repeat=consonant_positions):
                 seq = []
                 v_idx = c_idx = 0
-                for i in range(7):
-                    if i % 2 == 0:
+                for i in range(self.sequence_length):
+                    if i % 2 == 0:  # even positions get vowels
                         seq.append(vowels[v_idx])
                         v_idx += 1
-                    else:
+                    else:  # odd positions get consonants
                         seq.append(consonants[c_idx])
                         c_idx += 1
                 sequences.append(tuple(seq))
-        # start with consonant
-        for consonants in itertools.product(self.CONSONANTS, repeat=4):
-            for vowels in itertools.product(self.VOWELS, repeat=3):
+        # patterns starting with consonant: C-V-C-V-C-...
+        for consonants in itertools.product(self.consonants, repeat=vowel_positions):
+            for vowels in itertools.product(self.vowels, repeat=consonant_positions):
                 seq = []
                 c_idx = v_idx = 0
-                for i in range(7):
-                    if i % 2 == 0:
+                for i in range(self.sequence_length):
+                    if i % 2 == 0:  # even positions get consonants
                         seq.append(consonants[c_idx])
                         c_idx += 1
-                    else:
+                    else:  # odd positions get vowels
                         seq.append(vowels[v_idx])
                         v_idx += 1
                 sequences.append(tuple(seq))
@@ -220,20 +267,21 @@ class PatternSequenceGenerator:
     def _generate_first_last_match(self) -> List[Tuple[str, ...]]:
         """First and last tokens identical."""
         sequences = []
-        for match_token in self.VOCAB:
-            for middle in itertools.product(self.VOCAB, repeat=5):
+        for match_token in self.vocab:
+            for middle in itertools.product(self.vocab, repeat=self.sequence_length - 2):
                 sequences.append(tuple([match_token] + list(middle) + [match_token]))
         return sequences
     
     def _generate_mountain_pattern(self) -> List[Tuple[str, ...]]:
         """Increases then decreases."""
         def is_mountain(seq):
+            if len(seq) < 3:  # requires at least 3 len
+                return False
             max_val = max(seq)
             max_idx = seq.index(max_val)
             return (all(seq[i] <= seq[i+1] for i in range(max_idx)) and
-                    all(seq[i] >= seq[i+1] for i in range(max_idx, 6)))
-        
-        return [seq for seq in itertools.product(self.VOCAB, repeat=7) if is_mountain(seq)]
+                    all(seq[i] >= seq[i+1] for i in range(max_idx, len(seq) - 1)))
+        return [seq for seq in itertools.product(self.vocab, repeat=self.sequence_length) if is_mountain(seq)]
 
 
 class PatternDatasetSampler:
@@ -243,9 +291,11 @@ class PatternDatasetSampler:
     Stores pre-generated sequences in memory for life of the generation.
     """
     
-    def __init__(self):
-        logger.info("Generating a bunch of sequences to use cherry-pick for subject model datasets, storing in memory...")
-        generator = PatternSequenceGenerator()
+    def __init__(self, vocab_size: int = 7, sequence_length: int = 7):
+        self.vocab_size = vocab_size
+        self.sequence_length = sequence_length
+        logger.info(f"Generating sequences (vocab_size={vocab_size}, sequence_length={sequence_length}) for subject model datasets...")
+        generator = PatternSequenceGenerator(vocab_size, sequence_length)
         self.patterns = generator.generate_all_patterns()
         total_sequences = sum(len(seqs) for seqs in self.patterns.values())
         logger.info(f"Sequence generation complete: {total_sequences:,} total unique sequences across {len(self.patterns)} patterns")
@@ -330,8 +380,8 @@ class PatternDatasetSampler:
             'num_examples': dataset_dict['total_examples'],
             'pattern_coverage': {},
             'metadata': {
-                'vocab': ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
-                'sequence_length': 7,
+                'vocab': [chr(ord('A') + i) for i in range(self.vocab_size)],
+                'sequence_length': self.sequence_length,
                 'total_patterns': len(all_patterns),
                 'pattern_names': all_patterns,
                 'samples_per_pattern': samples_per_pattern,

@@ -62,8 +62,7 @@ class DatasetGenerationPipeline:
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         
         # set up logging
-        log_level = pipeline_config.get('log_level', 'INFO')
-        logging.getLogger().setLevel(getattr(logging, log_level))
+        logging.getLogger().setLevel(getattr(logging, 'INFO'))
         
         # need to have np, random, and torch seeds fixed for reproducing model configs
         random.seed(self.random_seed)
@@ -94,7 +93,10 @@ class DatasetGenerationPipeline:
             signature_dataset_path=Path(self.config['signature']['dataset_path']),
             neuron_profile_config=self.config['signature']['neuron_profile_methods']
         )
-        self.pattern_sampler = PatternDatasetSampler()
+        self.pattern_sampler = PatternDatasetSampler(
+            vocab_size=self.config['model']['vocab_size'],
+            sequence_length=self.config['model']['sequence_length']
+        )
         self.model_trainer = SubjectModelTrainer(device=self.device)
         self.interpreter_formatter = TrainingDataFormatter()
         
@@ -342,7 +344,7 @@ class DatasetGenerationPipeline:
             'sorted_ascending': 'Tokens in alphabetical order',
             'sorted_descending': 'Tokens in reverse alphabetical order',
             'alternating': 'Alternates between exactly two tokens',
-            'contains_pattern': 'Contains subsequence ABC',
+            'contains_abc': 'Contains subsequence ABC',
             'starts_with': 'Begins with specific token',
             'ends_with': 'Ends with specific token',
             'no_repeats': 'All tokens are unique',
@@ -416,7 +418,8 @@ class DatasetGenerationPipeline:
             train_ratio=train_ratio,
             random_seed=model_config['random_seed'],
             num_workers=self.config['pipeline'].get('num_workers', 0),
-            pin_memory=self.config['pipeline'].get('pin_memory', False)
+            pin_memory=self.config['pipeline'].get('pin_memory', False),
+            vocab_size=self.config['model']['vocab_size']
         )
         eval_val_loader = clean_val_loader if clean_val_loader is not None else val_loader
         

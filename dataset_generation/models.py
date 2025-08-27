@@ -122,18 +122,26 @@ class SubjectModel(nn.Module):
         logger.info(f"Loaded model from {path}")
         return model
 
+# TODO: I think we can make smaller prompts if we don't use one hot encoding, big bang for buck on this fix
 class SequenceDataset(torch.utils.data.Dataset):
     """
     Dataset class for sequence classification.
     Handles conversion from list of examples to PyTorch tensors.
     """
     
-    def __init__(self, examples, vocab=None):
+    def __init__(self, examples, vocab=None, vocab_size=None):
         self.examples = examples
-        self.vocab = vocab or ['A', 'B', 'C', 'D', 'E', 'F', 'G']
+        
+        if vocab is not None:
+            self.vocab = vocab
+        elif vocab_size is not None:
+            self.vocab = [chr(ord('A') + i) for i in range(vocab_size)]
+        else:
+            self.vocab = ['A', 'B', 'C', 'D', 'E', 'F', 'G']  # default
+            
         self.vocab_size = len(self.vocab)
         self.token_to_idx = {token: i for i, token in enumerate(self.vocab)}
-        logger.debug(f"Created SequenceDataset with {len(examples)} examples")
+        logger.debug(f"Created SequenceDataset with {len(examples)} examples, vocab: {self.vocab}")
     
     def __len__(self):
         return len(self.examples)
@@ -312,11 +320,11 @@ def create_subject_model(model_id: str,
     return model, config
 
 
-def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float = 0.8, random_seed: int = 42, num_workers: int = 0, pin_memory: bool = False):
+def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float = 0.8, random_seed: int = 42, num_workers: int = 0, pin_memory: bool = False, vocab_size: int = None):
     """
     Create training and validation data loaders from examples.
     """
-    dataset = SequenceDataset(examples)
+    dataset = SequenceDataset(examples, vocab_size=vocab_size)
     
     # split dataset
     total_size = len(dataset)
