@@ -4,6 +4,8 @@ import logging
 from typing import Dict, List, Any
 from models import SubjectModel, SequenceDataset
 import json
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,7 @@ class ActivationSignatureExtractor:
     Extracts activation signatures (aka model fingerprints) by processing the signature dataset through subject models.
     """
     
-    def __init__(self, device: str = 'auto', signature_dataset_path: str = None):
+    def __init__(self, device: str = 'auto', signature_dataset_path: str = None, neuron_profile_config: Dict[str, Dict] = None):
         if not signature_dataset_path.exists():
             raise FileNotFoundError(f"Signature dataset not found at {signature_dataset_path}. Create one using pattern_sampler.create_signature_dataset_file(), and make sure you hold onto it. This is the element used for interpretability, and the same dataset must be used for all training examples and inference.")
         with open(signature_dataset_path, 'r') as f:
@@ -27,7 +29,13 @@ class ActivationSignatureExtractor:
                 self.device = 'cpu'
         else:
             self.device = device
-        logger.info(f"Initialized ActivationSignatureExtractor: {self.device}")
+            
+        self.neuron_profile_config = neuron_profile_config or {
+            'mean': {},
+            'std': {}
+        }
+        
+        logger.info(f"Initialized Signature Extractor: device={self.device}, profile_methods={list(self.neuron_profile_config.keys())}")
     
     def extract(self, model: SubjectModel, batch_size: int = 32) -> Dict[str, Any]:
         """
@@ -39,11 +47,13 @@ class ActivationSignatureExtractor:
         
         examples = self.signature_dataset['examples']
         formatted_examples = []
+        example_patterns = []
         for example in examples:
             formatted_examples.append({
                 'sequence': example['sequence'],
                 'label': 1.0 # dummy, isn't used in anything here, dataset class just extracts it so we're avoiding type err
             })
+            example_patterns.append(example.get('patterns', []))
         dataset = SequenceDataset(formatted_examples)
         loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False) # no shuffling for consistency in activations, shouldn't matter tho
         
@@ -51,7 +61,7 @@ class ActivationSignatureExtractor:
         predictions = []
         prediction_confidences = []
         with torch.no_grad():
-            for batch_idx, (data, _) in enumerate(loader):
+            for data, _ in loader:
                 data = data.to(self.device)
                 logits = model(data)
                 probs = torch.sigmoid(logits)
@@ -64,102 +74,150 @@ class ActivationSignatureExtractor:
                         layer_activations[layer_name] = []
                     layer_activations[layer_name].append(activation.cpu().numpy())
         
-        # aggregate activations
-        processed_features = self._process_layer_activations(layer_activations)
-        weight_stats = model.get_weight_statistics()
-        prediction_stats = self._calculate_prediction_stats(
-            predictions, prediction_confidences, self.signature_dataset
-        )
+        # aggregate activations with pattern information
+        processed_features = self._process_layer_activations(layer_activations, example_patterns)
         features = {
-            'layer_activations': processed_features['layer_stats'],
-            'activation_patterns': processed_features['pattern_stats'],
-            'weight_statistics': weight_stats,
-            'prediction_statistics': prediction_stats,
+            'neuron_activations': processed_features,
             'model_config': model.config,
-            'baseline_info': {
-                'num_examples': len(examples),
-                'pattern_coverage': self.signature_dataset.get('pattern_coverage', {}),
-                'dataset_name': self.signature_dataset.get('name', 'unknown')
-            }
         }
         
-        logger.info(f"Extracted features: {len(processed_features['layer_stats'])} layers, {len(weight_stats)} weight tensors")
+        logger.info("Computed activation signature")
         
         return features
     
-    def _process_layer_activations(self, layer_activations: Dict[str, List[np.ndarray]]) -> Dict[str, Any]:
-        """
-        Process and summarize layer activations.
-        """
-        layer_stats = {}
-        pattern_stats = {}
+    #### METHODS TO TRY FOR NEURON PROFILING ####
+    def _compute_mean(self, neuron_activations: np.ndarray) -> float:
+        """Neuron's typical activation level - high values indicate generally responsive neurons"""
+        return float(np.mean(neuron_activations))
+    
+    def _compute_std(self, neuron_activations: np.ndarray) -> float:
+        """Activation variability across examples - high values indicate context-sensitive neurons"""
+        return float(np.std(neuron_activations))
+        
+    def _compute_max(self, neuron_activations: np.ndarray) -> float:
+        """Peak activation strength - reveals neuron's maximum response capability"""
+        return float(np.max(neuron_activations))
+        
+    def _compute_min(self, neuron_activations: np.ndarray) -> float:
+        """Minimum activation level - negative values indicate inhibitory capabilities"""
+        return float(np.min(neuron_activations))
+    
+    def _compute_pca(self, all_layer_activations: np.ndarray, neuron_id: int, components: int = 1) -> List[float]:
+        """Neuron's contribution to layer's main activation patterns - reveals computational role"""
+        if all_layer_activations.shape[0] <= components: # not enough samples for pca
+            return [0.0] * components
+        try:
+            # fit PCA on the layer activations (examples as rows, neurons as columns)
+            n_components_actual = min(components, all_layer_activations.shape[0] - 1, all_layer_activations.shape[1])
+            pca = PCA(n_components=n_components_actual)
+            pca.fit(all_layer_activations)
+            # get loadings (how much each neuron contributes to each component)
+            # component shape: [n_components, n_neurons]
+            loadings = pca.components_[:, neuron_id] 
+            result = loadings[:components].tolist()
+            while len(result) < components:
+                result.append(0.0)
+            return result
+        except Exception as e:
+            logger.warning(f"PCA failed: {e}, returning zeros")
+            return [0.0] * components
+        
+    def _compute_entropy(self, neuron_activations: np.ndarray, bins: int = 20) -> float:
+        """Shannon entropy of activation distribution - measures response predictability"""
+        if np.std(neuron_activations) == 0:
+            return 0.0  # 0 entropy
+        hist, _ = np.histogram(neuron_activations, bins=bins, density=True)
+        hist = hist[hist > 0]
+        if len(hist) == 0:
+            return 0.0
+        return float(-np.sum(hist * np.log2(hist + 1e-10)))
+        
+    def _compute_clustering(self, neuron_activations: np.ndarray, n_clusters: int = 2) -> List[float]:
+        """K-means cluster centers - reveals distinct activation states (e.g., on/off modes)"""
+        if len(np.unique(neuron_activations)) < n_clusters: # not enough unique values to form clusters
+            unique_vals = np.unique(neuron_activations)
+            result = unique_vals.tolist()
+            while len(result) < n_clusters:
+                result.append(result[-1] if result else 0.0)
+            return result
+        try:
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+            kmeans.fit(neuron_activations.reshape(-1, 1))
+            return sorted(kmeans.cluster_centers_.flatten().tolist())
+        except Exception:
+            return [float(np.min(neuron_activations)), float(np.max(neuron_activations))]
+            
+    def _compute_svd(self, all_layer_activations: np.ndarray, neuron_id: int, components: int = 1) -> List[float]:
+        """SVD coefficients - neuron's importance in low-rank approximations of layer activity"""
+        try:
+            U, s, Vt = np.linalg.svd(all_layer_activations, full_matrices=False)
+            result = Vt[:components, neuron_id].tolist() # coefficients for this neuron in the top singular vectors
+            return result
+        except Exception:
+            return [0.0] * components
+            
+    def _compute_fourier(self, neuron_activations: np.ndarray, n_frequencies: int = 1) -> List[float]:
+        """Dominant frequency magnitudes - detects periodic/rhythmic activation patterns"""
+        if len(neuron_activations) < 2:
+            return [0.0] * n_frequencies
+        try:
+            fft = np.fft.fft(neuron_activations)
+            mags = np.abs(fft[:len(fft)//2])  # only positive frequencies
+            top_indices = np.argsort(mags)[-n_frequencies:]
+            return mags[top_indices].tolist()
+        except Exception:
+            return [0.0] * n_frequencies
+    
+    def _process_layer_activations(self, layer_activations: Dict[str, List[np.ndarray]], example_patterns: List[List[str]]) -> Dict[str, Any]:
+        """Orchestrates the computation of neuron profiles for each layer."""
+        layer_profiles = {}
         
         for layer_name, activation_list in layer_activations.items():
-            # concat all batches
-            all_activations = np.concatenate(activation_list, axis=0)  # [num_examples, layer_size]
+            all_activations = np.concatenate(activation_list, axis=0) # [num_examples, num_neurons]
+            num_examples, num_neurons = all_activations.shape
             
-            layer_stats[layer_name] = {
-                'mean_activation': np.mean(all_activations, axis=0).tolist(),  # Average per neuron
-                'std_activation': np.std(all_activations, axis=0).tolist(),   # Std per neuron
-                'max_activation': np.max(all_activations, axis=0).tolist(),   # Max per neuron
-                'min_activation': np.min(all_activations, axis=0).tolist(),   # Min per neuron
-                'sparsity': np.mean(all_activations == 0, axis=0).tolist(),   # Fraction of zeros per neuron
-                'activation_norm': np.linalg.norm(all_activations, axis=1).tolist()  # L2 norm per example
-            }
+            # create neuron profiles
+            neuron_profiles = {}
+            for neuron_id in range(num_neurons):
+                neuron_activations = all_activations[:, neuron_id]
+                profile = {}
+                
+                for method, params in self.neuron_profile_config.items():
+                    if method == 'mean':
+                        profile['mean'] = self._compute_mean(neuron_activations)
+                    elif method == 'std':
+                        profile['std'] = self._compute_std(neuron_activations)
+                    elif method == 'max':
+                        profile['max'] = self._compute_max(neuron_activations)
+                    elif method == 'min':
+                        profile['min'] = self._compute_min(neuron_activations)
+                    elif method == 'pca':
+                        components = params.get('components', 1)
+                        profile['pca'] = self._compute_pca(all_activations, neuron_id, components)
+                    elif method == 'entropy':
+                        bins = params.get('bins', 20)
+                        profile['entropy'] = self._compute_entropy(neuron_activations, bins)
+                    elif method == 'clustering':
+                        n_clusters = params.get('n_clusters', 2)
+                        profile['clustering'] = self._compute_clustering(neuron_activations, n_clusters)
+                    elif method == 'svd':
+                        components = params.get('components', 1)
+                        profile['svd'] = self._compute_svd(all_activations, neuron_id, components)
+                    elif method == 'fourier':
+                        n_frequencies = params.get('n_frequencies', 1)
+                        profile['fourier'] = self._compute_fourier(neuron_activations, n_frequencies)
+                    else:
+                        logger.warning(f"Unknown profiling method: {method}")
+                        
+                neuron_profiles[neuron_id] = profile
             
-            pattern_stats[layer_name] = {
-                'mean_norm': float(np.mean(layer_stats[layer_name]['activation_norm'])),
-                'std_norm': float(np.std(layer_stats[layer_name]['activation_norm'])),
-                'overall_sparsity': float(np.mean(all_activations == 0)),
-                'active_neurons': int(np.sum(np.any(all_activations != 0, axis=0))),
-                'total_neurons': all_activations.shape[1],
-                'activation_range': float(np.max(all_activations) - np.min(all_activations))
+            layer_profiles[layer_name] = {
+                'neuron_profiles': neuron_profiles,
+                'layer_info': {
+                    'num_neurons': num_neurons,
+                    'num_examples': num_examples,
+                    'profile_methods': list(self.neuron_profile_config.keys())
+                }
             }
         
-        return {
-            'layer_stats': layer_stats,
-            'pattern_stats': pattern_stats
-        }
-    
-    def _calculate_prediction_stats(self, predictions: List[float], confidences: List[float], baseline_dataset: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Calculate prediction-related statistics.
-        """
-        predictions = np.array(predictions)
-        confidences = np.array(confidences)
-        pattern_predictions = {}
-        examples = baseline_dataset['examples']
-        for i, example in enumerate(examples):
-            for pattern in example.get('patterns', []):
-                if pattern not in pattern_predictions:
-                    pattern_predictions[pattern] = []
-                pattern_predictions[pattern].append(predictions[i])
-
-        pattern_stats = {}
-        for pattern, preds in pattern_predictions.items():
-            preds_array = np.array(preds)
-            pattern_stats[pattern] = {
-                'mean_prediction': float(np.mean(preds_array)),
-                'std_prediction': float(np.std(preds_array)),
-                'num_examples': len(preds_array),
-                'confidence': float(np.mean([confidences[i] for i, ex in enumerate(examples) 
-                                          if pattern in ex.get('patterns', [])]))
-            }
-        
-        prediction_stats = {
-            'overall_mean': float(np.mean(predictions)),
-            'overall_std': float(np.std(predictions)),
-            'overall_confidence': float(np.mean(confidences)),
-            'prediction_distribution': {
-                'min': float(np.min(predictions)),
-                'max': float(np.max(predictions)),
-                'median': float(np.median(predictions)),
-                'q25': float(np.percentile(predictions, 25)),
-                'q75': float(np.percentile(predictions, 75))
-            },
-            'pattern_predictions': pattern_stats,
-            'high_confidence_examples': int(np.sum(confidences > 0.4)),
-            'low_confidence_examples': int(np.sum(confidences < 0.1)),
-        }
-        
-        return prediction_stats
+        return layer_profiles

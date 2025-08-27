@@ -104,22 +104,6 @@ class SubjectModel(nn.Module):
             hook.remove()
         return activations
     
-    def get_weight_statistics(self):
-        stats = {}
-        for name, param in self.named_parameters():
-            if param.requires_grad:
-                stats[name] = {
-                    'shape': list(param.shape),
-                    'mean': param.mean().item(),
-                    'std': param.std().item(),
-                    'norm': param.norm().item(),
-                    'min': param.min().item(),
-                    'max': param.max().item(),
-                    'num_params': param.numel()
-                }
-        
-        return stats
-    
     def save_model(self, path: str):
         save_dict = {
             'model_state_dict': self.state_dict(),
