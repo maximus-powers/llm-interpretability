@@ -11,6 +11,7 @@ import numpy as np
 from datasets import Dataset, DatasetDict
 from huggingface_hub import login
 import shutil
+import yaml
 
 # import ds gen classes
 from pattern_sampler import PatternDatasetSampler
@@ -20,6 +21,17 @@ from training_data_format import TrainingDataFormatter
 
 
 logger = logging.getLogger(__name__)
+
+def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
+    """
+    Loads config options from YAML file.
+    """
+    config_file = Path(config_path)
+    if not config_file.exists():
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    with open(config_file, 'r') as f:
+        config = yaml.safe_load(f)
+    return config
 
 class DatasetGenerationPipeline:
     """
@@ -35,96 +47,115 @@ class DatasetGenerationPipeline:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
     """
     
-    def __init__(self, output_dir: str = "datasets", random_seed: int = 42, device: str = "auto", 
-                 checkpoint_interval: int = 1000, hub_dataset_name: Optional[str] = None, 
-                 hub_token: Optional[str] = None, private: bool = False):
-        self.output_dir = Path(output_dir)
+    def __init__(self, config_path: str = "config.yaml"):
+        # init params from config
+        self.config = load_config(config_path)
+        pipeline_config = self.config['pipeline']
+        hub_config = self.config['hub']
+        self.output_dir = Path(pipeline_config['output_dir'])
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.random_seed = random_seed
-        self.checkpoint_interval = checkpoint_interval
-        self.hub_dataset_name = hub_dataset_name
-        self.hub_token = hub_token
-        self.private = private
+        self.random_seed = pipeline_config['random_seed']
+        self.checkpoint_interval = pipeline_config['checkpoint_interval']
+        self.hub_dataset_name = hub_config.get('dataset_name')
+        self.hub_token = hub_config.get('token')
+        self.private = hub_config.get('private', False)
         self.checkpoint_file = self.output_dir / "checkpoint.json"
-        random.seed(random_seed)
-        np.random.seed(random_seed)
-        torch.manual_seed(random_seed)
+        
+        # set up logging
+        log_level = pipeline_config.get('log_level', 'INFO')
+        logging.getLogger().setLevel(getattr(logging, log_level))
+        
+        # need to have np, random, and torch seeds fixed for reproducing model configs
+        random.seed(self.random_seed)
+        np.random.seed(self.random_seed)
+        torch.manual_seed(self.random_seed)
         if torch.cuda.is_available():
-            torch.cuda.manual_seed(random_seed) 
+            torch.cuda.manual_seed(self.random_seed)
+        
         # set device
+        device = pipeline_config['device']
         if device == "auto":
             if torch.cuda.is_available():
                 self.device = "cuda"
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                self.device = "mps"
             else:
                 self.device = "cpu"
         else:
             self.device = device
+        
         logger.info(f"Device: {self.device}")
-        self.activation_signature_extractor = ActivationSignatureExtractor(device=self.device, signature_dataset_path="signature_dataset.json") # IMPORTANT: always use the same one (for training and inference on interpreter)
+        logger.info(f"Random seed: {self.random_seed}")
+        logger.info(f"Output directory: {self.output_dir}")
+        
+        # init classes
+        self.activation_signature_extractor = ActivationSignatureExtractor(
+            device=self.device, 
+            signature_dataset_path=Path(self.config['signature']['dataset_path']),
+            neuron_profile_config=self.config['signature']['neuron_profile_methods']
+        )
         self.pattern_sampler = PatternDatasetSampler()
         self.model_trainer = SubjectModelTrainer(device=self.device)
         self.interpreter_formatter = TrainingDataFormatter()
-        logger.info("DatasetGenerationPipeline initialized")
-    
-    
-    def generate_training_examples(self, num_examples: int = 1000, examples_per_batch: int = 5, min_degradation: float = 0.05):
-        logger.info(f"🚀 Starting training example generation: {num_examples} examples target")
         
-        # Check for existing checkpoint
+        logger.info("DatasetGenerationPipeline initialized with configuration")
+    
+    
+    def generate_training_examples(self, num_examples: int = None, examples_per_batch: int = None, min_degradation: float = None):
+        # allow overrides from method direct call
+        if num_examples is None:
+            num_examples = 1000
+        if examples_per_batch is None:
+            examples_per_batch = self.config['pipeline']['examples_per_batch'] # examples per batch is how many models to create for a single model config
+        if min_degradation is None:
+            min_degradation = self.config['training']['min_degradation_threshold']
+            
+        logger.info(f"Starting training example generation: {num_examples} examples")
+        
+        # checkpointing for uploads during long runs
         checkpoint_data = self.load_checkpoint()
         if checkpoint_data:
-            logger.info(f"📂 Resuming from checkpoint: {checkpoint_data['total_generated']} examples already generated")
+            logger.info(f"Resuming from checkpoint: {checkpoint_data['total_generated']} examples already generated")
             start_from = checkpoint_data['total_generated']
             remaining_examples = num_examples - start_from
             if remaining_examples <= 0:
-                logger.info("✅ Target number of examples already reached according to checkpoint")
+                logger.info("Target number of examples already reached according to checkpoint")
                 return []
         else:
             start_from = 0
             remaining_examples = num_examples
         
         all_examples = []
-        batch_num = 0
+        batch_num = 0 
         total_generated = start_from
-        
         while len(all_examples) < remaining_examples:
             batch_num += 1
             batch_start_time = time.time()
-            logger.info(f"📦 === BATCH {batch_num} START ===")
-            logger.info(f"📈 Progress: {total_generated + len(all_examples)}/{num_examples} examples completed")
-
+            logger.info(f"=== BATCH {batch_num} START ===")
+            logger.info(f"Progress: {total_generated + len(all_examples)}/{num_examples} examples completed")
             batch_examples = self._generate_example_batch(examples_per_batch, min_degradation)
-            # QA
-            quality_examples = [ex for ex in batch_examples if ex.get('metadata', {}).get('accuracy_diff', 0) >= min_degradation]
-            
+            quality_examples = [ex for ex in batch_examples if ex.get('metadata', {}).get('accuracy_diff', 0) >= min_degradation] # QA
             all_examples.extend(quality_examples)
             batch_time = time.time() - batch_start_time
-            logger.info(f"📦 BATCH {batch_num} COMPLETE: {len(quality_examples)}/{len(batch_examples)} quality examples in {batch_time/60:.1f}min")
+            logger.info(f"BATCH {batch_num} COMPLETE: {len(quality_examples)}/{len(batch_examples)} quality examples in {batch_time/60:.1f}min")
             
-            # Check if we should save a checkpoint
+            # check if we should save to hf
             current_total = total_generated + len(all_examples)
             if (self.hub_dataset_name and 
                 len(all_examples) >= self.checkpoint_interval and 
                 len(all_examples) % self.checkpoint_interval < examples_per_batch):
-                
-                logger.info(f"💾 Checkpoint triggered: Saving {len(all_examples)} new examples to HuggingFace Hub")
+                logger.info(f"Checkpoint triggered: Saving {len(all_examples)} new examples to HuggingFace")
                 try:
-                    # Save current batch to HuggingFace
                     self.incremental_save_to_hub(
                         all_examples,
                         self.hub_dataset_name,
                         self.hub_token,
                         self.private
                     )
-                    
-                    # Save checkpoint
                     self.save_checkpoint(current_total, all_examples)
                     logger.info(f"✅ Checkpoint saved successfully: {current_total} total examples")
-                    
-                    # Update totals for next iteration
                     total_generated = current_total
-                    all_examples = []  # Reset for next batch
-                    
+                    all_examples = []
                 except Exception as e:
                     logger.error(f"❌ Failed to save checkpoint: {e}")
                     logger.info("Continuing without checkpoint save...")
@@ -133,9 +164,9 @@ class DatasetGenerationPipeline:
                 logger.warning(f"Stopping generation after {batch_num} batches to prevent infinite loop")
                 break
         
-        # Final save if there are remaining examples
+        # final save
         if all_examples and self.hub_dataset_name:
-            logger.info(f"💾 Final save: {len(all_examples)} remaining examples")
+            logger.info(f"Final save: {len(all_examples)} remaining examples")
             try:
                 self.incremental_save_to_hub(
                     all_examples,
@@ -146,28 +177,30 @@ class DatasetGenerationPipeline:
                 total_generated += len(all_examples)
                 self.save_checkpoint(total_generated, all_examples)
             except Exception as e:
-                logger.error(f"❌ Failed final save: {e}")
+                logger.error(f"Failed final save: {e}")
         
         logger.info(f"Generated {len(all_examples)} new training examples (total: {total_generated})")
         return all_examples
     
     def _generate_example_batch(self, batch_size: int, min_degradation: float) -> List[Dict[str, Any]]:        
-        # select 2-5 patterns randomly (only patterns with sequences)
-        available_patterns = [p for p in self.pattern_sampler.get_available_patterns() 
-                             if len(self.pattern_sampler.patterns[p]) > 0]
-        num_patterns = random.randint(2, min(5, len(available_patterns)))
+        # select patterns randomly using config ranges
+        available_patterns = [p for p in len(self.pattern_sampler.patterns) if len(self.pattern_sampler.patterns[p]) > 0]
+        min_patterns = self.config['dataset']['patterns']['min_patterns_per_batch']
+        max_patterns = self.config['dataset']['patterns']['max_patterns_per_batch']
+        num_patterns = random.randint(min_patterns, min(max_patterns, len(available_patterns)))
         selected_patterns = random.sample(available_patterns, num_patterns)
-        logger.info(f"🎲 Selected {num_patterns} patterns for this batch: {selected_patterns}")
+        logger.info(f"Selected {num_patterns} patterns for this batch: {selected_patterns}")
         
-        # create dataset specification - balanced across patterns  
-        # Target ~500 total examples, limit to max 2500 records total per dataset
-        target_total_examples = 500
-        max_total_examples = 2500
+        # create dataset specification using config values
+        target_total_examples = self.config['dataset']['target_total_examples']
+        max_total_examples = self.config['dataset']['max_total_examples']
+        negative_ratio = self.config['dataset']['patterns']['negative_ratio']
+        min_samples_per_pattern = self.config['dataset']['patterns']['samples_per_pattern']['min']
         
         # Calculate samples per pattern to reach target total (accounting for negatives)
-        # With negative_ratio=0.5, total = positives * 1.5, so positives = target / 1.5
-        target_positives = int(target_total_examples / 1.5)  # ~333 positives for 500 total
-        examples_per_pattern = max(10, target_positives // num_patterns)  # At least 10 per pattern
+        # With negative_ratio, total = positives * (1 + negative_ratio)
+        target_positives = int(target_total_examples / (1 + negative_ratio))
+        examples_per_pattern = max(min_samples_per_pattern, target_positives // num_patterns)
         
         logger.info(f"📊 Dataset target: ~{target_total_examples} examples ({examples_per_pattern} per pattern × {num_patterns} patterns + negatives)")
         
@@ -175,7 +208,7 @@ class DatasetGenerationPipeline:
         mixed_dataset_dict = self.pattern_sampler.create_dataset(
             include_patterns=selected_patterns,
             samples_per_pattern=examples_per_pattern,
-            negative_ratio=0.5,
+            negative_ratio=negative_ratio,
             max_total_samples=max_total_examples
         )
         
@@ -221,7 +254,7 @@ class DatasetGenerationPipeline:
         for variant_id in range(batch_size):
             target_pattern = random.choice(selected_patterns) # pick pattern to corrupt
             
-            # Create corrupted dataset by manipulating labels for target pattern
+            # create corrupted dataset by manipulating labels for target pattern
             corrupted_dataset = self._create_corrupted_dataset(mixed_dataset, target_pattern, corruption_rate=0.5)
             corruption_stats = corrupted_dataset.get('corruption_stats', {})
             # train noisy subject model
@@ -323,16 +356,45 @@ class DatasetGenerationPipeline:
         return descriptions.get(pattern_name, f'Unknown pattern: {pattern_name}')
     
     def _generate_model_config(self) -> Dict[str, Any]:
+        """Generate random model configuration using ranges from config file."""
+        model_config = self.config['model']
+        training_config = self.config['training']
+        
+        # Generate architecture parameters
+        num_layers = random.randint(
+            model_config['num_layers']['min'], 
+            model_config['num_layers']['max']
+        )
+        neurons_per_layer = random.randint(
+            model_config['neurons_per_layer']['min'],
+            model_config['neurons_per_layer']['max']
+        )
+        activation_type = random.choice(model_config['activation_types'])
+        
+        # Generate training parameters
+        learning_rate = random.uniform(
+            model_config['learning_rate']['min'],
+            model_config['learning_rate']['max']
+        )
+        
         return {
-            'num_layers': random.randint(6, 9),
-            'neurons_per_layer': random.randint(25, 40),
-            'activation_type': random.choice(['relu', 'gelu']),
+            # Architecture
+            'vocab_size': model_config.get('vocab_size', 7),
+            'sequence_length': model_config.get('sequence_length', 7),
+            'num_layers': num_layers,
+            'neurons_per_layer': neurons_per_layer,
+            'activation_type': activation_type,
+            'dropout_rate': model_config.get('dropout_rate', 0.0),
+            
+            # Training
+            'learning_rate': learning_rate,
+            'batch_size': training_config.get('batch_size', 128),
+            'num_epochs': training_config.get('epochs', 20),
+            'patience': training_config['early_stopping'].get('patience', 5),
+            'min_accuracy': training_config['early_stopping'].get('min_accuracy', 0.96),
+            
+            # Reproducibility
             'random_seed': random.randint(1000, 9999),
-            'learning_rate': random.choice([0.001, 0.0005, 0.002]),
-            'batch_size': random.choice([16, 32]),
-            'num_epochs': random.randint(40, 50),
-            'patience': random.randint(15, 20),
-            'dropout_rate': random.choice([0.1, 0.15, 0.2])
         }
     
     def _train_model_on_dataset(self, dataset_info: Dict[str, Any], model_config: Dict[str, Any], model_type: str, clean_val_loader=None) -> tuple:
@@ -348,10 +410,11 @@ class DatasetGenerationPipeline:
         )
         
         # init data loaders
+        train_ratio = 1.0 - self.config['training']['validation_split']
         train_loader, val_loader = create_data_loaders(
             examples=dataset_info['examples'],
             batch_size=model_config['batch_size'],
-            train_ratio=0.8,
+            train_ratio=train_ratio,
             random_seed=model_config['random_seed']
         )
         eval_val_loader = clean_val_loader if clean_val_loader is not None else val_loader

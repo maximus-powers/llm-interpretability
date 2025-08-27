@@ -1,0 +1,172 @@
+# ============================================================================
+# Dataset Generation Pipeline Configuration
+# ============================================================================
+# This file controls all aspects of the training data generation pipeline for the neural network interpreter model.
+# TODO: some of these aren't hooked up yet, need to pass them down through.
+
+# ============================================================================
+# SIGNATURE EXTRACTION CONFIGURATION
+# ============================================================================
+# Design of the neuron activation signatures used to interpret the subject models
+# It's important that all the training data for an interpreter model uses the same signature design, including the underlying signature dataset, and neuron profiling config.
+# This element of the prompt is what the interpreter should learn to use as a key to understanding the subject model's weights.
+
+signature:
+  dataset_path: "signature_dataset.json" # path to the signature dataset file
+  
+  # Neuron profiling methods - determines what statistical features are extracted for each neuron.
+  # Picking the right set of methods is crucial for creating informative signatures, but picking too many explodes the size of the signature.
+  # Comment out methods you don't want to use to reduce signature size.
+  # These methods all aggregate the activations across examples in the signature dataset.
+
+  neuron_profile_methods:                                                                               # Count of numbers added to signature per neuron
+    mean: {}                           # Average activation level                                       # 1
+    std: {}                            # Activation variability                                         # 1
+    # max: {}                          # Peak activation strength                                       # 1
+    # min: {}                          # Minimum activation level                                       # 1
+    # sparsity: {}                     # Fraction of zero activations                                   # 1
+    # pca: {components: 3}             # Contribution to layer's main patterns                          # n components
+    # entropy: {bins: 20}              # Response predictability                                        # 1
+    # clustering: {n_clusters: 2}      # Distinct activation states like on/off                         # n clusters
+    # svd: {components: 2}             # Importance in low-rank approximations                          # n components
+    # fourier: {n_frequencies: 1}      # Periodic/rhythmic patterns in activations                      # n frequencies
+
+# ============================================================================
+# SUBJECT MODEL ARCHITECTURE CONFIGURATION  
+# ============================================================================
+# Controls the range of model architectures that will be generated
+# The signatures and weights included in the prompt depend on these, so these can be reduced for smaller interpreter training prompts.
+
+model:
+  # Number of hidden layers (randomly sampled from range)
+  num_layers:
+    min: 6
+    max: 9
+  
+  # Neurons per layer (randomly sampled from range)
+  neurons_per_layer:
+    min: 25
+    max: 40
+  
+  # Available activation functions (randomly selected on a per-model-batch basis)
+  activation_types: ['relu', 'gelu']
+  
+  # Fixed architecture parameters
+  # ! DON'T CHANGE, PATTERN SAMPLER USES AND ISN'T DYNAMIC !
+  dropout_rate: 0.0                    # Keep at 0 for consistent activations
+  vocab_size: 7                        # A-G tokens, fixed for sequence patterns
+  sequence_length: 7                   # Fixed sequence length for patterns
+  
+  # Training hyperparameters (randomly sampled from range)
+  learning_rate:
+    min: 0.001
+    max: 0.01
+  
+  # Learning rate scheduler
+  scheduler:
+    type: "cosine"                     # cosine, linear, or none
+    warmup_steps: 100
+
+# ============================================================================
+# DATASET GENERATION CONFIGURATION
+# ============================================================================  
+# Controls how training datasets are created for each batch (batch being a set of subject models trained on the same dataset and architecture)
+
+dataset:
+  # Pattern selection for each subject model
+  patterns:
+    min_patterns_per_batch: 2          # Minimum patterns to include per model
+    max_patterns_per_batch: 5          # Maximum patterns to include per model
+    
+    # Examples per pattern calculation
+    samples_per_pattern:
+      min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
+    
+    # Negative example ratio
+    negative_ratio: 0.5                # 0.5 means half of the records in the subject models' datasets are negatively labelled
+    
+    # Total dataset size targets - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
+    target_total_examples: 500         # Target total examples including negatives
+    max_total_examples: 2500           # Hard limit to prevent oversized datasets
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+# Controls how subject models are trained
+training:
+  # Training duration
+  epochs: 20                           # Maximum epochs per model
+  batch_size: 128                      # Training batch size
+  
+  # Early stopping criteria
+  early_stopping:
+    patience: 5                        # Epochs without improvement before stopping
+    min_accuracy: 0.96                 # Minimum accuracy to achieve before considering early stop
+    min_improvement: 0.001             # Minimum improvement to reset patience
+  
+  # Quality thresholds
+  min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/clean models
+  
+  # Validation split
+  validation_split: 0.2                # Fraction of data for validation
+
+# ============================================================================
+# PIPELINE EXECUTION CONFIGURATION
+# ============================================================================
+# Controls the overall pipeline execution behavior
+pipeline:
+  # Output and logging
+  output_dir: "datasets"               # Directory for generated datasets and checkpoints
+  log_level: "INFO"                    # DEBUG, INFO, WARNING, ERROR
+  
+  # Reproducibility  
+  random_seed: 42                      # Global random seed for reproducibility
+  
+  # Hardware
+  device: "auto"                       # auto, cpu, cuda, mps
+  
+  # Batch processing
+  checkpoint_interval: 1000            # Save checkpoint every N examples
+  examples_per_batch: 5                # Examples generated per batch iteration
+  max_batches: null                    # Maximum batches (null = no limit)
+  
+  # Performance
+  num_workers: 4                       # DataLoader workers for training
+  pin_memory: true                     # Pin memory for faster GPU transfers
+
+# ============================================================================
+# HUGGINGFACE HUB CONFIGURATION
+# ============================================================================
+# Controls automatic uploading to HuggingFace Hub
+hub:
+  # Hub upload settings (null values disable upload)
+  dataset_name: null                   # e.g., "username/interpreter-dataset"
+  token: null                          # HuggingFace token (or set HF_TOKEN env var)
+  private: false                       # Make dataset private on hub
+  
+  # Upload behavior
+  incremental_upload: true             # Upload checkpoints incrementally
+  upload_format: "parquet"             # parquet, json, arrow
+  
+  # Metadata
+  description: "Neural network interpreter training dataset with activation signatures"
+  license: "mit"
+  tags: ["neural-networks", "interpretability", "synthetic"]
+
+# ============================================================================
+# DEBUGGING AND DEVELOPMENT
+# ============================================================================
+# Options for debugging and development
+debug:
+  # Save intermediate artifacts
+  save_models: false                   # Save trained subject models to disk
+  save_activations: false              # Save raw activation tensors
+  save_training_logs: true             # Save detailed training logs
+  
+  # Validation
+  validate_signatures: false           # Run signature validation tests
+  profile_memory: false                # Profile memory usage
+  
+  # Quick testing
+  fast_mode: false                     # Use smaller datasets/fewer epochs for testing
+  single_pattern: null                 # Test with single pattern (e.g., "palindrome")
