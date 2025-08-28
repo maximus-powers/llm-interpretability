@@ -40,13 +40,13 @@ model:
     max: 9
   neurons_per_layer:
     min: 25
-    max: 40
-  activation_types: ['relu', 'gelu']   # Available activation functions (randomly selected on a per-model-batch basis)  # Valid values: relu, gelu, tanh, sigmoid, leaky_relu
+    max: 40                                                                                          # Valid Values:
+  activation_types: ['relu', 'gelu']   # chosen from this list on a per-model-batch basis            # relu, gelu, tanh, sigmoid, leaky_relu
   dropout_rate: 0.0                    # Keep at 0 for consistent activations
-  vocab_size: 7                        # Number of tokens in vocabulary (A, B, C, ...)                      # Valid values: 5-26
-  sequence_length: 7                   # Length of generated sequences                                      # Valid values: 4-20
-  precision: "float32"                 # Model parameter precision                                          # Valid values: float32, float16, bfloat16
-  quantization: "none"                 # Post-training quantization                                         # Valid values: none, int8, int4, binary, ternary
+  vocab_size: 7                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
+  sequence_length: 7                   # Length of generated sequences                               # 4-20
+  precision: "float32"                 # Model parameter precision                                   # float32, float16, bfloat16
+  quantization: "none"                 # Post-training quantization                                  # none, int8, int4, binary, ternary
   learning_rate:
     min: 0.001
     max: 0.01

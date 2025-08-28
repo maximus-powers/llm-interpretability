@@ -416,7 +416,7 @@ class PatternDatasetSampler:
         logger.info(f"Pattern distribution: {baseline_dataset['pattern_coverage']}")
         return str(output_path)
     
-    def create_labeled_benchmark_dataset(self, samples_per_pattern: int = 35) -> Dict[str, Any]:
+    def create_labeled_benchmark_dataset(self, samples_per_pattern: int = 35, filename: str = None, patterns: List[str] = None) -> Dict[str, Any]:
         """
         Creates a benchmark dataset for evaluation of interpreter. Each example is labeled with the actual pattern it belongs to. 
         This is used to evaluate how well the interpreter's modified (output) models are able to classify sequences into the correct patterns. We can compare the subject (input) models' performance to see if the interpreter improved their understanding of patterns.
@@ -424,10 +424,18 @@ class PatternDatasetSampler:
         examples = []
         all_patterns = list(self.patterns.keys())
         
-        for pattern_name in all_patterns:
+        if patterns is not None:
+            invalid_patterns = [p for p in patterns if p not in all_patterns]
+            if invalid_patterns:
+                raise ValueError(f"Invalid patterns specified: {invalid_patterns}. Available patterns: {all_patterns}")
+            selected_patterns = patterns
+        else:
+            selected_patterns = all_patterns
+        
+        for pattern_name in selected_patterns:
             sequences = self.patterns[pattern_name]
             if len(sequences) == 0:
-                logger.warning(f"⚠️  Pattern '{pattern_name}' has no sequences, skipping")
+                logger.warning(f"Pattern '{pattern_name}' has no sequences, skipping")
                 continue
             num_samples = min(samples_per_pattern, len(sequences))
             sampled_sequences = random.sample(sequences, num_samples)
@@ -435,15 +443,23 @@ class PatternDatasetSampler:
                 examples.append({
                     'sequence': list(seq),
                     'pattern': pattern_name, 
-                    'pattern_id': all_patterns.index(pattern_name)
+                    'pattern_id': selected_patterns.index(pattern_name)
                 })
             logger.info(f"   {pattern_name}: {num_samples} examples")
         random.shuffle(examples)
         
-        logger.info(f"Created benchmark dataset: {len(examples)} total examples across {len(all_patterns)} patterns")
-        return {
+        benchmark_dataset = {
             'examples': examples,
             'total_examples': len(examples),
-            'patterns': all_patterns,
+            'patterns': selected_patterns,
             'samples_per_pattern': samples_per_pattern
         }
+        
+        if filename:
+            output_path = Path(filename)
+            with open(output_path, 'w') as f:
+                json.dump(benchmark_dataset, f, indent=2)
+            logger.info(f"Saved benchmark dataset to: {output_path}")
+        
+        logger.info(f"Created benchmark dataset: {len(examples)} total examples across {len(selected_patterns)} patterns")
+        return benchmark_dataset

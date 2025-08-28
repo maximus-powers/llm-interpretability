@@ -279,8 +279,9 @@ class DatasetGenerationPipeline:
             
             if degradation >= min_degradation:
                 # extract signature from degraded model
-                logger.info(f"Extracting activation signature from corrupted model using {self.signature_dataset['num_examples']} baseline examples...")
-                baseline_features = self.activation_signature_extractor.extract(noisy_model, self.signature_dataset)
+                num_sig_examples = len(self.activation_signature_extractor.signature_dataset['examples'])
+                logger.info(f"Extracting activation signature from corrupted model using {num_sig_examples} baseline examples...")
+                baseline_features = self.activation_signature_extractor.extract(noisy_model)
                 
                 # prepare metadata
                 metadata = {
