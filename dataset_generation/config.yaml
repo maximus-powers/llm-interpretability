@@ -105,6 +105,7 @@ pipeline:
   device: "auto"                       # auto, cpu, cuda, mps
   checkpoint_interval: 1000            # Save checkpoint every N examples
   examples_per_batch: 5                # Examples generated per batch iteration
+  max_threads: 4                       # Maximum number of threads for parallel batch processing
   num_workers: 4                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 
