@@ -56,7 +56,7 @@ class TrainingDataFormatter:
         # model architecture
         config = input_model.config
         sections.append("## Model Architecture")
-        sections.append(f"Input Size: {config['input_size']} (7 tokens by 7 positions, one-hot encoded)")
+        sections.append(f"Input Size: {config['input_size']} (integer indices for {config['input_size']} sequence positions, vocab size {config['vocab_size']})")
         sections.append(f"Hidden Layers: {config['num_layers']}")
         sections.append(f"Neurons per Layer: {config['neurons_per_layer']}")
         sections.append(f"Activation Function: {config['activation_type']}")

@@ -8,14 +8,15 @@ from pathlib import Path
 from typing import Dict, List, Any, Optional
 import torch
 import numpy as np
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, load_dataset
 from huggingface_hub import login
 import shutil
 import yaml
+import copy
 
 # import ds gen classes
 from pattern_sampler import PatternDatasetSampler
-from models import SequenceDataset, SubjectModelTrainer, create_subject_model, create_data_loaders
+from models import SubjectModelTrainer, create_subject_model, create_data_loaders
 from signature_extractor import ActivationSignatureExtractor
 from training_data_format import TrainingDataFormatter
 
@@ -101,7 +102,10 @@ class DatasetGenerationPipeline:
             sequence_length=self.config['model']['sequence_length'],
             enabled_patterns=self.config['dataset']['patterns']['enabled_patterns']
         )
-        self.model_trainer = SubjectModelTrainer(device=self.device)
+        self.model_trainer = SubjectModelTrainer(
+            device=self.device,
+            quantization_type=self.config['model'].get('quantization', 'none')
+        )
         self.interpreter_formatter = TrainingDataFormatter()
         
         logger.info("DatasetGenerationPipeline initialized with configuration")
@@ -207,6 +211,8 @@ class DatasetGenerationPipeline:
             except Exception as e:
                 logger.error(f"Failed final save: {e}")
         
+        self.cleanup_temp_files()
+
         logger.info(f"Generated {len(all_examples)} new training examples (total: {total_generated})")
         return all_examples
     
@@ -225,22 +231,18 @@ class DatasetGenerationPipeline:
         negative_ratio = self.config['dataset']['patterns']['negative_ratio']
         min_samples_per_pattern = self.config['dataset']['patterns']['samples_per_pattern']['min']
         
-        # Calculate samples per pattern to reach target total (accounting for negatives)
-        # With negative_ratio, total = positives * (1 + negative_ratio)
         target_positives = int(target_total_examples / (1 + negative_ratio))
         examples_per_pattern = max(min_samples_per_pattern, target_positives // num_patterns)
         
-        logger.info(f"📊 Dataset target: ~{target_total_examples} examples ({examples_per_pattern} per pattern × {num_patterns} patterns + negatives)")
+        logger.info(f"Dataset target: ~{target_total_examples} examples ({examples_per_pattern} per pattern x {num_patterns} patterns + negatives)")
         
-        # Generate training dataset
+        # sample training dataset + config (same for all models in batch)
         mixed_dataset_dict = self.pattern_sampler.create_dataset(
             include_patterns=selected_patterns,
             samples_per_pattern=examples_per_pattern,
             negative_ratio=negative_ratio,
             max_total_samples=max_total_examples
         )
-        
-        # Convert to format expected by rest of pipeline
         mixed_dataset = {
             'examples': mixed_dataset_dict['examples'],
             'dataset_size': mixed_dataset_dict['total_examples'],
@@ -248,34 +250,14 @@ class DatasetGenerationPipeline:
             'negative_examples': mixed_dataset_dict['negative_examples'],
             'target_patterns': selected_patterns
         }
-        
-        # generate model config (const across subject models' training)
         model_config = self._generate_model_config()
-        logger.info(f"🏗️  Model config: {model_config['num_layers']} layers, {model_config['neurons_per_layer']} neurons/layer, {model_config['activation_type']}, lr={model_config['learning_rate']}")
+        logger.info(f"Model config: {model_config['num_layers']} layers, {model_config['neurons_per_layer']} neurons/layer, {model_config['activation_type']}, lr={model_config['learning_rate']}")
         
-        # create clean validation set (~200 total examples)
-        val_target_total = 200
-        val_target_positives = int(val_target_total / 1.5)  # ~133 positives for 200 total
-        val_examples_per_pattern = max(5, val_target_positives // num_patterns)  # At least 5 per pattern
-        
-        clean_val_dataset_dict = self.pattern_sampler.create_dataset(
-            include_patterns=selected_patterns,
-            samples_per_pattern=val_examples_per_pattern,
-            negative_ratio=0.5,
-            max_total_samples=600
-        )
-        
-        # Convert to expected format
-        clean_val_dataset = {
-            'examples': clean_val_dataset_dict['examples']
-        }
-        clean_val_dataset_obj = SequenceDataset(clean_val_dataset['examples'])
-        clean_val_loader = torch.utils.data.DataLoader(clean_val_dataset_obj, batch_size=32, shuffle=False)
         
         # train clean subject model
-        logger.info("🧠 Training clean subject model...")
-        clean_model, clean_results = self._train_model_on_dataset(mixed_dataset, model_config, "clean", clean_val_loader)
-        logger.info(f"✅ Clean model trained: {clean_results['final_metrics']['val_acc']:.4f} validation accuracy")
+        logger.info("Training clean subject model...")
+        clean_model, clean_results = self._train_subject_model(mixed_dataset, model_config, "clean")
+        logger.info(f"Clean model trained: {clean_results['final_metrics']['val_acc']:.4f} validation accuracy")
         
         # train degraded subject models
         examples = []
@@ -283,22 +265,36 @@ class DatasetGenerationPipeline:
             target_pattern = random.choice(selected_patterns) # pick pattern to corrupt
             
             # create corrupted dataset by manipulating labels for target pattern
-            corrupted_dataset = self._create_corrupted_dataset(mixed_dataset, target_pattern, corruption_rate=0.5)
+            corrupted_dataset = self._corrupt_dataset(mixed_dataset, target_pattern, corruption_rate=0.5)
             corruption_stats = corrupted_dataset.get('corruption_stats', {})
             # train noisy subject model
-            logger.info(f"🧠 Training corrupted model {variant_id+1}/{batch_size} (corrupted: {target_pattern})...")
-            noisy_model, noisy_results = self._train_model_on_dataset(
-                corrupted_dataset, model_config, f"noisy_v{variant_id}", clean_val_loader
+            logger.info(f"Training corrupted model {variant_id+1}/{batch_size} (corrupted: {target_pattern})...")
+            noisy_model, noisy_results = self._train_subject_model(
+                corrupted_dataset, model_config, f"noisy_v{variant_id}"
             )
             # calc degredation
             degradation = clean_results['final_metrics']['val_acc'] - noisy_results['final_metrics']['val_acc']
             
-            logger.info(f"📊 Model degradation: {degradation:.4f} (clean: {clean_results['final_metrics']['val_acc']:.4f} → corrupted: {noisy_results['final_metrics']['val_acc']:.4f})")
+            logger.info(f"Model degradation: {degradation:.4f} (clean: {clean_results['final_metrics']['val_acc']:.4f} → corrupted: {noisy_results['final_metrics']['val_acc']:.4f})")
             
             if degradation >= min_degradation:
-                # extract signature (features) from degraded model
-                logger.info(f"🔍 Extracting features from corrupted model using {self.signature_dataset['num_examples']} baseline examples...")
+                # extract signature from degraded model
+                logger.info(f"Extracting activation signature from corrupted model using {self.signature_dataset['num_examples']} baseline examples...")
                 baseline_features = self.activation_signature_extractor.extract(noisy_model, self.signature_dataset)
+                
+                # prepare metadata
+                metadata = {
+                    'variant_id': variant_id,
+                    'corrupted_pattern': target_pattern,
+                    'clean_accuracy': clean_results['final_metrics']['val_acc'],
+                    'noisy_accuracy': noisy_results['final_metrics']['val_acc'],
+                    'accuracy_diff': degradation,
+                    'model_config': model_config,
+                    'corruption_stats': corruption_stats,
+                    'selected_patterns': selected_patterns,
+                    'precision': self.config['model'].get('precision', 'float32'),
+                    'quantization': self.config['model'].get('quantization', 'none')
+                }
                 
                 # build record for interpreter prompt
                 example = self.interpreter_formatter.create_training_example(
@@ -307,50 +303,35 @@ class DatasetGenerationPipeline:
                     baseline_features=baseline_features,
                     pattern_context=target_pattern,
                     pattern_description=self._get_pattern_description(target_pattern),
-                    metadata={
-                        'variant_id': variant_id,
-                        'corrupted_pattern': target_pattern,
-                        'clean_accuracy': clean_results['final_metrics']['val_acc'],
-                        'noisy_accuracy': noisy_results['final_metrics']['val_acc'],
-                        'accuracy_diff': degradation,
-                        'model_config': model_config,
-                        'corruption_stats': corruption_stats,
-                        'selected_patterns': selected_patterns
-                    }
+                    metadata=metadata
                 )
                 examples.append(example)
-                logger.info(f"✅ Quality example created (degradation: {degradation:.4f} ≥ {min_degradation})")
+                logger.info(f"Quality example created (degradation: {degradation:.4f} ≥ {min_degradation})")
         
         return examples
     
-    def _create_corrupted_dataset(self, dataset: Dict[str, Any], target_pattern: str, corruption_rate: float = 0.5) -> Dict[str, Any]:
-        """Create a corrupted version of the dataset by flipping labels for a specific pattern."""
-        import copy
+    def _corrupt_dataset(self, dataset: Dict[str, Any], target_pattern: str, corruption_rate: float = 0.5) -> Dict[str, Any]:
+        """Creates a corrupted version of the dataset by flipping labels for a specific pattern."""
         corrupted_dataset = copy.deepcopy(dataset)
         examples = corrupted_dataset['examples']
-        
-        # Find examples matching the target pattern
+
         target_examples = [ex for ex in examples if ex.get('pattern') == target_pattern]
-        
         if not target_examples:
             logger.warning(f"No examples found for pattern '{target_pattern}' to corrupt")
             return corrupted_dataset
         
-        # Randomly select examples to corrupt
+        # randomly select examples to corrupt
         num_to_corrupt = int(len(target_examples) * corruption_rate)
         rng = random.Random(random.randint(1000, 9999))
         examples_to_corrupt = rng.sample(target_examples, num_to_corrupt)
-        
-        # Flip labels for selected examples
         corrupted_count = 0
         for example in examples:
             if example in examples_to_corrupt:
-                example['label'] = 1 - example['label']  # Flip 0->1, 1->0
+                example['label'] = 1 - example['label']  # flip label
                 example['corrupted'] = True
                 example['original_label'] = 1 - example['label']
                 corrupted_count += 1
         
-        # Add corruption statistics
         corrupted_dataset['corruption_stats'] = {
             'target_pattern': target_pattern,
             'corruption_rate': corruption_rate,
@@ -359,7 +340,7 @@ class DatasetGenerationPipeline:
             'actual_corruption_rate': corrupted_count / len(target_examples) if target_examples else 0
         }
         
-        logger.info(f"🔧 Corrupted {corrupted_count}/{len(target_examples)} examples of pattern '{target_pattern}' ({corrupted_dataset['corruption_stats']['actual_corruption_rate']:.1%})")
+        logger.info(f"Corrupted {corrupted_count}/{len(target_examples)} examples of pattern '{target_pattern}' ({corrupted_dataset['corruption_stats']['actual_corruption_rate']:.1%})")
         return corrupted_dataset
     
     def _get_pattern_description(self, pattern_name: str) -> str:
@@ -384,47 +365,29 @@ class DatasetGenerationPipeline:
         return descriptions.get(pattern_name, f'Unknown pattern: {pattern_name}')
     
     def _generate_model_config(self) -> Dict[str, Any]:
-        """Generate random model configuration using ranges from config file."""
         model_config = self.config['model']
         training_config = self.config['training']
-        
-        # Generate architecture parameters
-        num_layers = random.randint(
-            model_config['num_layers']['min'], 
-            model_config['num_layers']['max']
-        )
-        neurons_per_layer = random.randint(
-            model_config['neurons_per_layer']['min'],
-            model_config['neurons_per_layer']['max']
-        )
+        num_layers = random.randint(model_config['num_layers']['min'], model_config['num_layers']['max'])
+        neurons_per_layer = random.randint(model_config['neurons_per_layer']['min'], model_config['neurons_per_layer']['max'])
         activation_type = random.choice(model_config['activation_types'])
-        
-        # Generate training parameters
-        learning_rate = random.uniform(
-            model_config['learning_rate']['min'],
-            model_config['learning_rate']['max']
-        )
-        
+        learning_rate = random.uniform(model_config['learning_rate']['min'], model_config['learning_rate']['max'])
         return {
-            # Architecture
+            # architecture
             'vocab_size': model_config.get('vocab_size', 7),
             'sequence_length': model_config.get('sequence_length', 7),
             'num_layers': num_layers,
             'neurons_per_layer': neurons_per_layer,
             'activation_type': activation_type,
             'dropout_rate': model_config.get('dropout_rate', 0.0),
-            
-            # Training
+            'random_seed': random.randint(1000, 9999),
+            # hyperparams
             'learning_rate': learning_rate,
             'batch_size': training_config.get('batch_size', 128),
             'num_epochs': training_config.get('epochs', 20),
             'patience': training_config['early_stopping'].get('patience', 5),
-            
-            # Reproducibility
-            'random_seed': random.randint(1000, 9999),
         }
     
-    def _train_model_on_dataset(self, dataset_info: Dict[str, Any], model_config: Dict[str, Any], model_type: str, clean_val_loader=None) -> tuple:
+    def _train_subject_model(self, dataset_info: Dict[str, Any], model_config: Dict[str, Any], model_type: str) -> tuple:
         # init subject model
         model_id = f"gen_{model_type}_{random.randint(1000, 9999)}"
         model, _ = create_subject_model(
@@ -447,92 +410,31 @@ class DatasetGenerationPipeline:
             pin_memory=self.config['pipeline'].get('pin_memory', False),
             vocab_size=self.config['model']['vocab_size']
         )
-        eval_val_loader = clean_val_loader if clean_val_loader is not None else val_loader
         
         # run training
         temp_save_path = self.output_dir / "temp_models" / f"{model_id}.pth"
         temp_save_path.parent.mkdir(exist_ok=True)
         
-        training_results = self.model_trainer.train_model(
+        training_results = self.model_trainer.train_and_evaluate(
             model=model,
             train_loader=train_loader,
-            val_loader=eval_val_loader,
+            val_loader=val_loader,
             num_epochs=model_config['num_epochs'],
             learning_rate=model_config['learning_rate'],
             early_stopping_patience=model_config['patience'],
-            save_path=str(temp_save_path),
-            verbose=False
+            save_path=str(temp_save_path)
         )
         
         return model, training_results
     
-    def save_dataset(self, examples: List[Dict[str, Any]], dataset_name: str = "llm_interpretability_dataset") -> str:
-        logger.info(f"Saving {len(examples)} examples as HuggingFace dataset...")
-        # format training units
-        formatted_examples = []
-        for i, example in enumerate(examples):
-            formatted_examples.append({
-                'text': example['prompt'] + example['completion'],
-                'prompt': example['prompt'],
-                'completion': example['completion'],
-                'metadata': json.dumps(example.get('metadata', {})),
-                'example_id': i
-            })
-        # create hf dataset
-        dataset = DatasetDict({
-            'train': Dataset.from_list(formatted_examples),
-        })
-        local_path = self.output_dir / dataset_name
-        dataset.save_to_disk(str(local_path))
-        # save stats
-        stats = {
-            'total_examples': len(examples),
-            'generation_time': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'average_degradation': np.mean([json.loads(ex['metadata']).get('accuracy_diff', 0) for ex in formatted_examples]),
-            'patterns_covered': list(set([json.loads(ex['metadata']).get('corrupted_pattern', 'unknown') for ex in formatted_examples]))
-        }
-        with open(local_path / "dataset_stats.json", 'w') as f:
-            json.dump(stats, f, indent=2)
-        logger.info(f"Dataset saved locally: {local_path}")
-        logger.info(f"Records: {len(formatted_examples)}")
-        logger.info(f"Average degradation: {stats['average_degradation']:.4f}")
-        logger.info(f"Patterns covered: {stats['patterns_covered']}")
-        return str(local_path)
-    
-    def upload_to_hub(self, local_dataset_path: str, hub_dataset_name: str, hub_token: Optional[str] = None, private: bool = False) -> str:
+    def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, private: bool = False) -> str:
+        """Save examples incrementally to HuggingFace, append to existing dataset if it exists."""
         try:
-            token = hub_token or os.environ.get('HF_TOKEN')
-            if not token:
-                logger.error("No HuggingFace token provided")
-                logger.error("Get token from: https://huggingface.co/settings/tokens")
-                raise ValueError("HuggingFace token required for upload")
-            login(token=token)
-            logger.info("Successfully logged in to HuggingFace Hub")
-            dataset = DatasetDict.load_from_disk(local_dataset_path)
-            logger.info(f"Uploading dataset to {hub_dataset_name}...")
-            dataset.push_to_hub(hub_dataset_name, private=private)
-            hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
-            logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
-            return hub_url
-        except Exception as e:
-            logger.error(f"Failed to upload to HuggingFace Hub: {e}")
-            raise
-    
-    def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, 
-                                hub_token: Optional[str] = None, private: bool = False) -> str:
-        """Save examples incrementally to HuggingFace Hub, appending to existing dataset if it exists."""
-        try:
-            from datasets import Dataset, DatasetDict, load_dataset
-            
-            token = hub_token or self.hub_token or os.environ.get('HF_TOKEN')
-            if not token:
+            if not self.hub_token:
                 logger.error("No HuggingFace token provided")
                 raise ValueError("HuggingFace token required for upload")
-            
-            login(token=token)
-            logger.info("Successfully logged in to HuggingFace Hub")
-            
-            # Format new examples
+            login(token=self.hub_token)
+            # format new examples
             formatted_examples = []
             for i, example in enumerate(examples):
                 formatted_examples.append({
@@ -540,39 +442,29 @@ class DatasetGenerationPipeline:
                     'prompt': example['prompt'],
                     'completion': example['completion'],
                     'metadata': json.dumps(example.get('metadata', {})),
-                    'example_id': i  # Will be updated below if appending
+                    'example_id': i
                 })
             
             existing_dataset = None
             try:
-                # Try to load existing dataset
                 logger.info(f"Checking for existing dataset: {hub_dataset_name}")
-                existing_dataset = load_dataset(hub_dataset_name, token=token)
+                existing_dataset = load_dataset(hub_dataset_name, token=self.hub_token)
                 logger.info(f"Found existing dataset with {len(existing_dataset['train'])} records")
-                
-                # Update example IDs to continue from existing dataset
                 start_id = len(existing_dataset['train'])
                 for i, example in enumerate(formatted_examples):
                     example['example_id'] = start_id + i
-                
-                # Combine existing and new data
-                combined_examples = list(existing_dataset['train']) + formatted_examples
-                logger.info(f"Combining {len(existing_dataset['train'])} existing + {len(formatted_examples)} new = {len(combined_examples)} total records")
-                
+                combined_examples = list(existing_dataset['train']) + formatted_examples                
             except Exception as e:
-                # Dataset doesn't exist or can't be loaded - create new one
                 logger.info(f"No existing dataset found or failed to load: {e}")
                 logger.info("Creating new dataset")
                 combined_examples = formatted_examples
             
-            # Create new dataset with combined data
             new_dataset = DatasetDict({
                 'train': Dataset.from_list(combined_examples),
             })
             
             logger.info(f"Uploading dataset with {len(combined_examples)} total records to {hub_dataset_name}...")
-            new_dataset.push_to_hub(hub_dataset_name, private=private, token=token)
-            
+            new_dataset.push_to_hub(hub_dataset_name, private=private, token=self.hub_token)
             hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
             logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
             return hub_url
@@ -582,7 +474,6 @@ class DatasetGenerationPipeline:
             raise
     
     def save_checkpoint(self, total_generated: int, completed_examples: List[Dict[str, Any]]):
-        """Save checkpoint information for recovery."""
         checkpoint_data = {
             'total_generated': total_generated,
             'last_save_time': time.strftime('%Y-%m-%d %H:%M:%S'),
@@ -590,14 +481,11 @@ class DatasetGenerationPipeline:
             'hub_dataset_name': self.hub_dataset_name,
             'random_seed': self.random_seed
         }
-        
         with open(self.checkpoint_file, 'w') as f:
             json.dump(checkpoint_data, f, indent=2)
-        
         logger.info(f"Checkpoint saved: {total_generated} examples generated")
     
     def load_checkpoint(self) -> Optional[Dict[str, Any]]:
-        """Load checkpoint data if it exists."""
         if self.checkpoint_file.exists():
             try:
                 with open(self.checkpoint_file, 'r') as f:
@@ -613,95 +501,6 @@ class DatasetGenerationPipeline:
         if temp_models_dir.exists():
             shutil.rmtree(temp_models_dir)
             logger.info("Cleaned up temporary model files")
-        
-        # Clean up checkpoint file on successful completion
         if self.checkpoint_file.exists():
             self.checkpoint_file.unlink()
             logger.info("Cleaned up checkpoint file")
-
-
-def main():
-    import argparse
-    parser = argparse.ArgumentParser(description='Generate LLM Interpretability Dataset')
-    parser.add_argument('--num_examples', type=int, default=1000, help='Number of examples to generate')
-    parser.add_argument('--dataset_name', default='llm_interpretability_dataset', help='Dataset name')
-    parser.add_argument('--upload_to_hub', action='store_true', help='Upload to HuggingFace Hub')
-    parser.add_argument('--hub_dataset_name', help='HuggingFace Hub dataset name (username/dataset-name)')
-    parser.add_argument('--hub_token', help='HuggingFace Hub token')
-    parser.add_argument('--private', action='store_true', help='Make dataset private on Hub')
-    parser.add_argument('--min_degradation', type=float, default=0.05, help='Minimum degradation threshold')
-    parser.add_argument('--seed', type=int, default=42, help='Random seed')
-    parser.add_argument('--verbose', action='store_true', help='Verbose logging')
-    parser.add_argument('--checkpoint_interval', type=int, default=1000, help='Save checkpoint every N examples')
-    parser.add_argument('--incremental_save', action='store_true', help='Enable incremental saving to HuggingFace Hub')
-    args = parser.parse_args()
-    
-    # set up logs
-    level = logging.INFO if args.verbose else logging.WARNING
-    logging.basicConfig(level=level, format='%(levelname)s: %(message)s')
-    
-    # Determine hub parameters for incremental saving
-    hub_dataset_name = None
-    hub_token = None
-    private = args.private
-    
-    if args.incremental_save or args.upload_to_hub:
-        hub_dataset_name = args.hub_dataset_name
-        hub_token = args.hub_token
-        
-        if not hub_dataset_name:
-            print("Error: --hub_dataset_name required when using --incremental_save or --upload_to_hub")
-            return
-        if not hub_token:
-            print("Error: --hub_token required when using --incremental_save or --upload_to_hub")
-            return
-    
-    # init pipeline
-    pipeline = DatasetGenerationPipeline(
-        random_seed=args.seed,
-        checkpoint_interval=args.checkpoint_interval,
-        hub_dataset_name=hub_dataset_name,
-        hub_token=hub_token,
-        private=private
-    )
-    try:
-        # run gen
-        examples = pipeline.generate_training_examples(
-            num_examples=args.num_examples,
-            min_degradation=args.min_degradation
-        )
-        
-        # Handle final local save and hub upload
-        local_path = None
-        if examples:  # Only save locally if there are new examples (not already saved incrementally)
-            local_path = pipeline.save_dataset(examples, args.dataset_name)
-        
-        # Handle traditional upload_to_hub (for backward compatibility)
-        if args.upload_to_hub and not args.incremental_save and local_path:
-            pipeline.upload_to_hub(
-                local_path, 
-                args.hub_dataset_name,
-                hub_token=args.hub_token,
-                private=args.private
-            )
-        
-        # clean
-        pipeline.cleanup_temp_files()
-        
-        print("✅ Dataset generation completed!")
-        if args.incremental_save:
-            print(f"   Examples saved incrementally to HuggingFace Hub: {hub_dataset_name}")
-            print(f"   Hub dataset: https://huggingface.co/datasets/{hub_dataset_name}")
-        else:
-            print(f"   Examples generated: {len(examples)}")
-            if local_path:
-                print(f"   Local path: {local_path}")
-            if args.upload_to_hub:
-                print(f"   Hub dataset: https://huggingface.co/datasets/{args.hub_dataset_name}")
-        
-    except Exception as e:
-        logger.error(f"Dataset generation failed: {e}")
-        raise
-
-if __name__ == "__main__":
-    main()

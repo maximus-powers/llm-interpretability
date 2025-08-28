@@ -3,34 +3,42 @@ import torch.nn as nn
 import torch.nn.functional as F
 import logging
 from typing import Dict, Any, Tuple, Optional
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
-
 
 class SubjectModel(nn.Module):
     """
     Simple neural network for sequence binary classification.
-    Takes one-hot encoded sequences (ex 7 tokens × 7 positions = 49 features) and outputs binary classification preds.
+    Takes integer token indices (e.g. 7 positions with vocab_size possible values each) and outputs binary classification preds.
     """
-    
-    def __init__(self, 
-                 vocab_size: int = 7,
-                 sequence_length: int = 7,
-                 num_layers: int = 6,
-                 neurons_per_layer: int = 25,
-                 activation_type: str = 'relu',
-                 dropout_rate: float = 0.1):
-
+    def __init__(self, vocab_size: int = 7, sequence_length: int = 7, num_layers: int = 6, neurons_per_layer: int = 25, activation_type: str = 'relu', dropout_rate: float = 0.1, precision: str = 'float32'):
         super().__init__()
         self.vocab_size = vocab_size
         self.sequence_length = sequence_length
-        self.input_size = vocab_size * sequence_length 
+        self.input_size = sequence_length 
         self.num_layers = num_layers
         self.neurons_per_layer = neurons_per_layer
         self.activation_type = activation_type
         self.dropout_rate = dropout_rate
-        self.activation = self._get_activation(activation_type)
+        self.precision = precision
+
+        # set dtype
+        if precision == 'float16':
+            self.dtype = torch.float16
+        elif precision == 'bfloat16':
+            self.dtype = torch.bfloat16
+        else:
+            self.dtype = torch.float32
+
+        # set activation fn
+        activations = {
+            'relu': nn.ReLU(),
+            'gelu': nn.GELU(),
+            'tanh': nn.Tanh(),
+            'sigmoid': nn.Sigmoid(),
+            'leaky_relu': nn.LeakyReLU()
+        }
+        self.activation = activations.get(activation_type.lower(), nn.ReLU())
         
         # build network
         layers = []
@@ -48,7 +56,9 @@ class SubjectModel(nn.Module):
         # ouput layer
         layers.append(nn.Linear(neurons_per_layer, 1))
         self.network = nn.Sequential(*layers)
-        
+        # apply precision setting
+        self.to(dtype=self.dtype)
+
         # store config
         self.config = {
             'vocab_size': vocab_size,
@@ -57,21 +67,12 @@ class SubjectModel(nn.Module):
             'neurons_per_layer': neurons_per_layer,
             'activation_type': activation_type,
             'dropout_rate': dropout_rate,
-            'input_size': self.input_size
+            'precision': precision,
+            'input_size': self.input_size,
+            'input_format': 'integer_indices'
         }
         
         logger.debug(f"Created SubjectModel: {num_layers} layers, " f"{neurons_per_layer} neurons/layer, {activation_type} activation")
-    
-    def _get_activation(self, activation_type: str):
-        # only using relu and gelu now
-        activations = {
-            'relu': nn.ReLU(),
-            'gelu': nn.GELU(),
-            'tanh': nn.Tanh(),
-            'sigmoid': nn.Sigmoid(),
-            'leaky_relu': nn.LeakyReLU()
-        }
-        return activations.get(activation_type.lower(), nn.ReLU())
     
     def forward(self, x):
         return self.network(x)
@@ -81,9 +82,38 @@ class SubjectModel(nn.Module):
             logits = self.forward(x)
             return torch.sigmoid(logits)
     
-    def predict_classes(self, x, threshold: float = 0.5):
-        probabilities = self.predict(x)
-        return (probabilities > threshold).float()
+    def quantize_weights(self, quantization_type: str):
+        if quantization_type == 'int8': # scale to [-127, 127] range and round
+            for param in self.parameters():
+                if param.requires_grad:
+                    max_val = param.abs().max()
+                    if max_val > 0:
+                        scale = 127.0 / max_val
+                        param.data = torch.round(param * scale).clamp(-127, 127) / scale
+        
+        elif quantization_type == 'int4': # scale to [-7, 7] range and round
+            for param in self.parameters():
+                if param.requires_grad:
+                    max_val = param.abs().max()
+                    if max_val > 0:
+                        scale = 7.0 / max_val
+                        param.data = torch.round(param * scale).clamp(-7, 7) / scale
+
+        elif quantization_type == 'ternary': # -1, 0, or +1
+            for param in self.parameters():
+                if param.requires_grad:
+                    threshold = param.abs().max() * 0.2 # if it's 20% of max away from 0, set to 0
+                    param.data = torch.where(param.abs() < threshold, torch.zeros_like(param), torch.sign(param))                    
+
+        elif quantization_type == 'binary':
+            for param in self.parameters(): # use sign to get +1/-1
+                if param.requires_grad:
+                    param.data = torch.sign(param.data)
+                    param.data[param.data == 0] = 1.0 # 0 gets +1
+
+        else:
+            logger.warning(f"Unknown quantization type '{quantization_type}', skipping quantization")
+        logger.info(f"Applied {quantization_type} quantization to model weights")
     
     def get_layer_activations(self, x, layer_names: Optional[list] = None):
         # for feature extraction
@@ -122,13 +152,7 @@ class SubjectModel(nn.Module):
         logger.info(f"Loaded model from {path}")
         return model
 
-# TODO: I think we can make smaller prompts if we don't use one hot encoding, big bang for buck on this fix
 class SequenceDataset(torch.utils.data.Dataset):
-    """
-    Dataset class for sequence classification.
-    Handles conversion from list of examples to PyTorch tensors.
-    """
-    
     def __init__(self, examples, vocab=None, vocab_size=None):
         self.examples = examples
         
@@ -155,16 +179,16 @@ class SequenceDataset(torch.utils.data.Dataset):
         return sequence_tensor, label_tensor
     
     def _sequence_to_tensor(self, sequence):
-        seq_length = len(sequence)
-        one_hot = torch.zeros(seq_length, self.vocab_size)
-        for i, token in enumerate(sequence):
+        indices = []
+        for token in sequence:
             if token in self.token_to_idx:
-                token_idx = self.token_to_idx[token]
-                one_hot[i, token_idx] = 1.0
-        return one_hot.view(-1)
+                indices.append(self.token_to_idx[token])
+            else:
+                indices.append(0)  # default to first token if unknown
+        return torch.tensor(indices, dtype=torch.float32)
 
 class SubjectModelTrainer:
-    def __init__(self, device: str = 'auto'):
+    def __init__(self, device: str = 'auto', quantization_type: str = 'none'):
         if device == 'auto':
             if torch.cuda.is_available():
                 self.device = 'cuda'
@@ -174,17 +198,13 @@ class SubjectModelTrainer:
                 self.device = 'cpu'
         else:
             self.device = device
-        logger.info(f"Initialized trainer with device: {self.device}")
+            
+        self.quantization_type = quantization_type
+        logger.info(f"Initialized trainer with device: {self.device}, quantization: {quantization_type}")
     
-    def train_model(self,
-                   model: SubjectModel,
-                   train_loader,
-                   val_loader,
-                   num_epochs: int = 30,
-                   learning_rate: float = 0.001,
-                   early_stopping_patience: int = 10,
-                   save_path: str = None,
-                   verbose: bool = True) -> Dict[str, Any]:
+    def train_and_evaluate(self, model: SubjectModel, train_loader, val_loader,
+                   num_epochs: int = 30, learning_rate: float = 0.001, early_stopping_patience: int = 10,
+                   save_path: str = None) -> Dict[str, Any]:
 
         model = model.to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -192,10 +212,7 @@ class SubjectModelTrainer:
         best_val_loss = float('inf')
         patience_counter = 0
         training_history = []
-        
-        if verbose:
-            logger.info(f"Starting training for {num_epochs} epochs")
-        
+                
         # train phase
         for epoch in range(num_epochs):
             model.train()
@@ -250,11 +267,6 @@ class SubjectModelTrainer:
             }
             training_history.append(epoch_metrics)
             
-            if verbose and (epoch % 10 == 0 or epoch < 5):
-                logger.info(f"Epoch {epoch}: train_loss={avg_train_loss:.4f}, "
-                           f"train_acc={train_acc:.4f}, val_loss={avg_val_loss:.4f}, "
-                           f"val_acc={val_acc:.4f}")
-            
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 patience_counter = 0
@@ -262,11 +274,11 @@ class SubjectModelTrainer:
                     model.save_model(save_path)
             else:
                 patience_counter += 1
-            
-            if patience_counter >= early_stopping_patience:
-                if verbose:
-                    logger.info(f"Early stopping at epoch {epoch}")
-                break
+        
+        if self.quantization_type != 'none':
+            model.quantize_weights(self.quantization_type)
+            if save_path:
+                model.save_model(save_path)
         
         final_metrics = training_history[-1] if training_history else {}
         
@@ -277,23 +289,12 @@ class SubjectModelTrainer:
             'epochs_trained': len(training_history),
             'early_stopped': patience_counter >= early_stopping_patience
         }
-        
-        if verbose:
-            logger.info(f"Training completed: {len(training_history)} epochs, "
-                       f"best_val_loss={best_val_loss:.4f}")
-        
+                
         return results
 
 
-def create_subject_model(model_id: str,
-                        num_layers: int = 6,
-                        neurons_per_layer: int = 25,
-                        activation_type: str = 'relu',
-                        random_seed: int = 42,
-                        dropout_rate: float = 0.1) -> Tuple[SubjectModel, Dict[str, Any]]:
-    """
-    Create a subject model with given config.
-    """
+def create_subject_model(model_id: str, num_layers: int = 6, neurons_per_layer: int = 25, activation_type: str = 'relu',
+                        random_seed: int = 42, dropout_rate: float = 0.1, precision: str = 'float32') -> Tuple[SubjectModel, Dict[str, Any]]:
     torch.manual_seed(random_seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(random_seed)
@@ -304,26 +305,24 @@ def create_subject_model(model_id: str,
         'neurons_per_layer': neurons_per_layer,
         'activation_type': activation_type,
         'random_seed': random_seed,
-        'dropout_rate': dropout_rate
+        'dropout_rate': dropout_rate,
+        'precision': precision
     }
     
     model = SubjectModel(
         num_layers=num_layers,
         neurons_per_layer=neurons_per_layer,
         activation_type=activation_type,
-        dropout_rate=dropout_rate
+        dropout_rate=dropout_rate,
+        precision=precision
     )
     
-    logger.info(f"Created model '{model_id}' with {num_layers} layers, "
-               f"{neurons_per_layer} neurons/layer")
+    logger.info(f"Initialized subject model '{model_id}' with {num_layers} layers, {neurons_per_layer} neurons/layer")
     
     return model, config
 
 
 def create_data_loaders(examples: list, batch_size: int = 32, train_ratio: float = 0.8, random_seed: int = 42, num_workers: int = 0, pin_memory: bool = False, vocab_size: int = None):
-    """
-    Create training and validation data loaders from examples.
-    """
     dataset = SequenceDataset(examples, vocab_size=vocab_size)
     
     # split dataset
