@@ -24,7 +24,7 @@ from training_data_format import TrainingDataFormatter
 
 logger = logging.getLogger(__name__)
 
-def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
+def load_config(config_path: str = "config/example_config.yaml") -> Dict[str, Any]:
     """
     Loads config options from YAML file.
     """

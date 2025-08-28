@@ -4,8 +4,8 @@ import sys
 import logging
 from pathlib import Path
 
-from dataset_generation_pipeline import DatasetGenerationPipeline
-from pattern_sampler import PatternDatasetSampler
+from pipeline.dataset_generation_pipeline import DatasetGenerationPipeline
+from pipeline.pattern_sampler import PatternDatasetSampler
 
 
 def setup_logging():
@@ -92,8 +92,8 @@ def main():
     run_parser.add_argument(
         '--config-path',
         type=str,
-        default='config.yaml',
-        help='Path to configuration YAML file (default: config.yaml)'
+        default='pipeline/config/example_config.yaml',
+        help='Path to configuration YAML file '
     )
     
     # Command 2: create-sig-dataset
