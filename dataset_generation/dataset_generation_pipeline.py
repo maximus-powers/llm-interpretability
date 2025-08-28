@@ -218,7 +218,7 @@ class DatasetGenerationPipeline:
     
     def _generate_example_batch(self, batch_size: int, min_degradation: float) -> List[Dict[str, Any]]:        
         # select patterns randomly using config ranges
-        available_patterns = [p for p in len(self.pattern_sampler.patterns) if len(self.pattern_sampler.patterns[p]) > 0]
+        available_patterns = [p for p in self.pattern_sampler.patterns.keys() if len(self.pattern_sampler.patterns[p]) > 0]
         min_patterns = self.config['dataset']['patterns']['min_patterns_per_batch']
         max_patterns = self.config['dataset']['patterns']['max_patterns_per_batch']
         num_patterns = random.randint(min_patterns, min(max_patterns, len(available_patterns)))
