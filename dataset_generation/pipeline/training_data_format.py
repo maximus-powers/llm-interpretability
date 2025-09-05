@@ -1,5 +1,6 @@
 import json
 import torch
+import torch.nn
 import numpy as np
 import logging
 from typing import Dict, List, Any
@@ -14,9 +15,12 @@ class TrainingDataFormatter:
     Converts model weights, baseline features, and pattern context into structured text that can be used to train an LLM interpreter.
     """
     
-    def __init__(self, precision: int = 6):
+    def __init__(self, precision: int = 6, format_style: str = 'separate'):
         self.precision = precision
-        logger.info(f"Initialized TrainingDataFormatter with precision={precision}")
+        self.format_style = format_style
+        if format_style not in ['separate', 'interwoven']:
+            raise ValueError(f"format_style must be 'separate' or 'interwoven', got {format_style}")
+        logger.info(f"Initialized TrainingDataFormatter with precision={precision}, format_style={format_style}")
     
     def create_training_example(self,
                               input_model: SubjectModel,
@@ -25,9 +29,14 @@ class TrainingDataFormatter:
                               pattern_context: str,
                               pattern_description: str,
                               metadata: Dict[str, Any] = None) -> Dict[str, str]:
-        prompt = self._create_prompt(
-            input_model, baseline_features, pattern_context, pattern_description
-        )
+        if self.format_style == 'interwoven':
+            prompt = self._create_interwoven_prompt(
+                input_model, baseline_features, pattern_context, pattern_description
+            )
+        else:
+            prompt = self._create_prompt(
+                input_model, baseline_features, pattern_context, pattern_description
+            )
         completion = self._serialize_model_weights(target_model)
         example = {
             'prompt': prompt,
@@ -70,26 +79,50 @@ class TrainingDataFormatter:
         sections.append(self._serialize_model_weights(input_model))
         sections.append("")
 
-        # neuron activation patterns
-        sections.append("## Individual Neuron Activations")
-        sections.append("Baseline activations for each neuron (statistics extracted by processing a standard baseline dataset through the model):\n")
-        layer_acts = baseline_features.get('layer_activations', {})
-        for layer_name in sorted(layer_acts.keys()):
-            if 'mean_activation' in layer_acts[layer_name]:
-                mean_acts = layer_acts[layer_name]['mean_activation']
-                std_acts = layer_acts[layer_name]['std_activation'] 
-                max_acts = layer_acts[layer_name]['max_activation']
-                min_acts = layer_acts[layer_name]['min_activation']
-                sparsity = layer_acts[layer_name]['sparsity']
-                sections.append(f"### {layer_name}")
-                sections.append(f"Neurons: {len(mean_acts)}")
-                sections.append("")
-                sections.append("Neuron | Mean    | Std     | Max     | Min     | Sparsity")
-                sections.append("-------|---------|---------|---------|---------|----------")
-                for i in range(len(mean_acts)):
-                    sections.append(f"{i:6d} | {mean_acts[i]:7.4f} | {std_acts[i]:7.4f} | "
-                                  f"{max_acts[i]:7.4f} | {min_acts[i]:7.4f} | {sparsity[i]:8.4f}")
-                sections.append("")
+        # neuron profile signatures
+        sections.append("## Neuron Profile Signatures")
+        neuron_activations = baseline_features.get('neuron_activations', {})
+        if neuron_activations:
+            sections.append("Baseline profile values extracted for each neuron (values per neuron may vary by layer):")
+            sections.append("")
+            
+            # create compact JSON structure
+            neuron_profiles_json = {}
+            for layer_name in sorted(neuron_activations.keys()):
+                layer_data = neuron_activations[layer_name]
+                if 'neuron_profiles' not in layer_data:
+                    continue
+                    
+                neuron_profiles = layer_data['neuron_profiles']
+                layer_values = []
+                
+                for neuron_id in sorted(neuron_profiles.keys()):
+                    profile = neuron_profiles[neuron_id]
+                    values = []
+                    
+                    # extract values in consistent order based on profile_methods
+                    if 'layer_info' in layer_data and 'profile_methods' in layer_data['layer_info']:
+                        methods_order = layer_data['layer_info']['profile_methods']
+                    else:
+                        methods_order = sorted(profile.keys())
+                    
+                    for method in methods_order:
+                        if method in profile:
+                            value = profile[method]
+                            if isinstance(value, list):
+                                values.extend(value)
+                            else:
+                                values.append(value)
+                    
+                    layer_values.append(values)
+                
+                neuron_profiles_json[layer_name] = layer_values
+            
+            sections.append(json.dumps(neuron_profiles_json, separators=(',', ':')))
+            sections.append("")
+        else:
+            sections.append("No neuron profile data available")
+            sections.append("")
         
         # task instruction
         sections.append("## Task")
@@ -101,6 +134,144 @@ class TrainingDataFormatter:
         sections.append("Provide the complete model weights in the same format as they were given above:")
         sections.append("")
         
+        return "\n".join(sections)
+    
+    def _create_interwoven_prompt(self,
+                                 input_model: SubjectModel,
+                                 baseline_features: Dict[str, Any],
+                                 pattern_context: str,
+                                 pattern_description: str) -> str:
+        sections = []
+        
+        # header
+        sections.append("# Neural Network Weight Modification Task\n")
+        sections.append("You are an expert neural network interpreter. Your task is to analyze the given model weights and baseline features, then generate improved weights that will make the model correctly classify the specified pattern\n")
+        
+        # pattern context
+        sections.append("## Target Pattern")
+        sections.append(f"Pattern Name: {pattern_context}\n Description: {pattern_description}\n")
+        sections.append("The model should classify sequences matching this pattern as POSITIVE (label=1).\n")
+        
+        # model architecture
+        config = input_model.config
+        sections.append("## Model Architecture")
+        sections.append(f"Input Size: {config['input_size']} (integer indices for {config['input_size']} sequence positions, vocab size {config['vocab_size']})")
+        sections.append(f"Hidden Layers: {config['num_layers']}")
+        sections.append(f"Neurons per Layer: {config['neurons_per_layer']}")
+        sections.append(f"Activation Function: {config['activation_type']}")
+        sections.append(f"Dropout Rate: {config['dropout_rate']}")
+        sections.append("")
+        
+        # interwoven weights and signatures
+        sections.append("## Model Weights and Neuron Signatures")
+        sections.append("Layer weights, biases, and activation signatures presented together:")
+        sections.append("")
+        sections.append(self._serialize_interwoven_model_and_signatures(input_model, baseline_features))
+        sections.append("")
+        
+        # task instruction
+        sections.append("## Task")
+        sections.append("Generate improved model weights with the same architecture that will:")
+        sections.append(f"1. Correctly classify sequences matching the '{pattern_context}' pattern as positive")
+        sections.append("2. Preserve good performance on other patterns where possible")
+        sections.append("3. Use the same layer structure and neuron counts")
+        sections.append("")
+        sections.append("Provide the complete model weights in the same format as they were given above:")
+        sections.append("")
+        
+        return "\n".join(sections)
+    
+    def _map_layer_names(self, model: SubjectModel) -> Dict[str, str]:
+        layer_mapping = {}
+        linear_layer_count = 0
+        
+        for name, module in model.network.named_modules():
+            if isinstance(module, torch.nn.Linear):
+                signature_layer_name = f"hidden_{linear_layer_count}"
+                layer_mapping[name] = signature_layer_name
+                linear_layer_count += 1
+        
+        return layer_mapping
+    
+    def _serialize_interwoven_model_and_signatures(self, model: SubjectModel, baseline_features: Dict[str, Any]) -> str:
+        sections = []
+        sections.append("```")
+        sections.append("MODEL_WEIGHTS_AND_SIGNATURES")
+        config = model.config
+        sections.append(f"CONFIG: layers={config['num_layers']}, neurons={config['neurons_per_layer']}, activation={config['activation_type']}")
+        sections.append("")
+        
+        neuron_activations = baseline_features.get('neuron_activations', {})
+        layer_mapping = self._map_layer_names(model)
+        
+        layer_params = {}
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                layer_name = name.split('.')[0]
+                if layer_name not in layer_params:
+                    layer_params[layer_name] = {}
+                
+                param_type = name.split('.')[1]  # "weight" or "bias"
+                layer_params[layer_name][param_type] = param
+        
+        for layer_name in sorted(layer_params.keys(), key=int):
+            layer_data = layer_params[layer_name]
+            signature_layer_name = layer_mapping.get(layer_name, f"hidden_{layer_name}")
+            
+            sections.append(f"LAYER: {layer_name} ({signature_layer_name})")
+            sections.append("")
+            
+            if 'weight' in layer_data:
+                weight_array = layer_data['weight'].detach().cpu().numpy()
+                sections.append(f"WEIGHTS_SHAPE: {list(weight_array.shape)}")
+                sections.append("WEIGHTS_VALUES:")
+                for row in weight_array:
+                    row_str = " ".join([f"{w:.{self.precision}f}" for w in row])
+                    sections.append(f"  [{row_str}]")
+                sections.append("")
+            
+            if 'bias' in layer_data:
+                bias_array = layer_data['bias'].detach().cpu().numpy()
+                sections.append(f"BIAS_SHAPE: {list(bias_array.shape)}")
+                bias_str = " ".join([f"{b:.{self.precision}f}" for b in bias_array])
+                sections.append(f"BIAS_VALUES: [{bias_str}]")
+                sections.append("")
+            
+            if signature_layer_name in neuron_activations:
+                layer_signature_data = neuron_activations[signature_layer_name]
+                if 'neuron_profiles' in layer_signature_data:
+                    neuron_profiles = layer_signature_data['neuron_profiles']
+                    layer_values = []
+                    
+                    for neuron_id in sorted(neuron_profiles.keys()):
+                        profile = neuron_profiles[neuron_id]
+                        values = []
+                        
+                        if 'layer_info' in layer_signature_data and 'profile_methods' in layer_signature_data['layer_info']:
+                            methods_order = layer_signature_data['layer_info']['profile_methods']
+                        else:
+                            methods_order = sorted(profile.keys())
+                        
+                        for method in methods_order:
+                            if method in profile:
+                                value = profile[method]
+                                if isinstance(value, list):
+                                    values.extend(value)
+                                else:
+                                    values.append(value)
+                        
+                        layer_values.append(values)
+                    
+                    sections.append(f"NEURON_SIGNATURES: {json.dumps(layer_values, separators=(',', ':'))}")
+                    sections.append("")
+                else:
+                    sections.append("NEURON_SIGNATURES: []")
+                    sections.append("")
+            else:
+                sections.append("NEURON_SIGNATURES: []")
+                sections.append("")
+        
+        sections.append("```")
         return "\n".join(sections)
     
     def _serialize_model_weights(self, model: SubjectModel) -> str:

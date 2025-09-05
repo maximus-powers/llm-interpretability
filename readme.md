@@ -1,6 +1,5 @@
 # Todo
 
-* Finish cleaning up data gen pipeline, hookup all of config.yaml, etc. 
 * Evaluation pipeline
     - Inference class
     - Evaluation scripts

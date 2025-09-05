@@ -53,7 +53,7 @@ class ActivationSignatureExtractor:
                 'sequence': example['sequence'],
                 'label': 1.0 # dummy, isn't used in anything here, dataset class just extracts it so we're avoiding type err
             })
-            example_patterns.append(example.get('patterns', []))
+            example_patterns.append(example.get('pattern', None))
         dataset = SequenceDataset(formatted_examples)
         loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False) # no shuffling for consistency in activations, shouldn't matter tho
         
@@ -168,7 +168,32 @@ class ActivationSignatureExtractor:
         except Exception:
             return [0.0] * n_frequencies
     
-    def _process_layer_activations(self, layer_activations: Dict[str, List[np.ndarray]], example_patterns: List[List[str]]) -> Dict[str, Any]:
+    def _compute_pattern_wise(self, neuron_activations: np.ndarray, example_patterns: List[str]) -> List[float]:
+        """Mean activation for each pattern in the signature dataset"""
+        if len(neuron_activations) != len(example_patterns):
+            logger.warning(f"Mismatch between activations ({len(neuron_activations)}) and patterns ({len(example_patterns)})")
+            return []
+        
+        pattern_activations = {}
+        for activation, pattern in zip(neuron_activations, example_patterns):
+            if pattern is None:
+                continue
+            if pattern not in pattern_activations:
+                pattern_activations[pattern] = []
+            pattern_activations[pattern].append(activation)
+        all_patterns = sorted(pattern_activations.keys())
+        
+        pattern_means = []
+        for pattern in all_patterns:
+            if pattern_activations[pattern]:
+                mean_activation = float(np.mean(pattern_activations[pattern]))
+                pattern_means.append(mean_activation)
+            else:
+                pattern_means.append(0.0)
+        
+        return pattern_means
+    
+    def _process_layer_activations(self, layer_activations: Dict[str, List[np.ndarray]], example_patterns: List[str]) -> Dict[str, Any]:
         """Orchestrates the computation of neuron profiles for each layer."""
         layer_profiles = {}
         
@@ -206,6 +231,8 @@ class ActivationSignatureExtractor:
                     elif method == 'fourier':
                         n_frequencies = params.get('n_frequencies', 1)
                         profile['fourier'] = self._compute_fourier(neuron_activations, n_frequencies)
+                    elif method == 'pattern_wise':
+                        profile['pattern_wise'] = self._compute_pattern_wise(neuron_activations, example_patterns)
                     else:
                         logger.warning(f"Unknown profiling method: {method}")
                         

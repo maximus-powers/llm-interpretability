@@ -94,8 +94,8 @@ class DatasetGenerationPipeline:
         logger.info(f"Random seed: {self.random_seed}")
         logger.info(f"Output directory: {self.output_dir}")
         
-        # validate pattern configuration
-        self._validate_pattern_config()
+        # validate configuration
+        self._validate_config()
         
         # init classes
         self.activation_signature_extractor = ActivationSignatureExtractor(
@@ -112,12 +112,17 @@ class DatasetGenerationPipeline:
             device=self.device,
             quantization_type=self.config['model'].get('quantization', 'none')
         )
-        self.interpreter_formatter = TrainingDataFormatter()
+        # get prompt format style from config
+        prompt_format_config = self.config['signature'].get('prompt_format', {})
+        format_style = prompt_format_config.get('style', 'separate')
+        self.interpreter_formatter = TrainingDataFormatter(format_style=format_style)
         
         logger.info("DatasetGenerationPipeline initialized with configuration")
     
-    def _validate_pattern_config(self):
-        """Validate pattern configuration in config.yaml"""
+    def _validate_config(self):
+        """Validate settings in config.yaml"""
+        
+        # pattern config
         enabled_patterns = self.config['dataset']['patterns']['enabled_patterns']
         available_patterns = [
             'all_same', 'palindrome', 'sorted_ascending', 'sorted_descending', 'alternating',
@@ -138,6 +143,16 @@ class DatasetGenerationPipeline:
             logger.info(f"Pattern validation passed: {len(enabled_patterns)} patterns enabled")
         else:
             logger.info("Pattern validation passed: all patterns enabled")
+        
+        # prompt format config
+        prompt_format_config = self.config['signature'].get('prompt_format', {})
+        format_style = prompt_format_config.get('style', 'separate')
+        
+        valid_styles = ['separate', 'interwoven']
+        if format_style not in valid_styles:
+            raise ValueError(f"Invalid prompt format style: '{format_style}'. Must be one of: {valid_styles}")
+        
+        logger.info(f"Prompt format validation passed: using '{format_style}' style")
     
     def generate_training_examples(self, num_examples: int = None, examples_per_batch: int = None, min_degradation: float = None):
         # allow overrides from method direct call
@@ -250,8 +265,8 @@ class DatasetGenerationPipeline:
         logger.info(f"Generated {len(all_examples)} new training examples (total: {total_generated})")
         return all_examples
     
-    def _generate_example_batch_threaded(self, batch_id: int, batch_size: int, min_degradation: float) -> tuple[List[Dict[str, Any]], float]:
-        """Thread-safe wrapper for _generate_example_batch with timing and logging."""
+    def _generate_example_batch_threaded(self, batch_id: int, batch_size: int, min_degradation: float) -> tuple[List[Dict[str, Any]], float]: 
+        # just a wrapper for threading
         batch_start_time = time.time()
         thread_random = random.Random()
         thread_random.seed(self.random_seed + batch_id * 1000)
@@ -460,7 +475,7 @@ class DatasetGenerationPipeline:
             'learning_rate': learning_rate,
             'batch_size': training_config.get('batch_size', 128),
             'num_epochs': training_config.get('epochs', 20),
-            'patience': training_config['early_stopping'].get('patience', 5),
+            'patience': training_config['early_stopping'].get('patience', 3),
         }
     
     def _train_subject_model(self, dataset_info: Dict[str, Any], model_config: Dict[str, Any], model_type: str, batch_id: int = 0) -> tuple:
