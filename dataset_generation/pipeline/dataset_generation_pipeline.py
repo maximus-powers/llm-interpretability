@@ -154,17 +154,15 @@ class DatasetGenerationPipeline:
         
         logger.info(f"Prompt format validation passed: using '{format_style}' style")
     
-    def generate_training_examples(self, num_examples: int = None, examples_per_batch: int = None, min_degradation: float = None):
+    def generate_training_examples(self, num_examples: int = None, min_degradation: float = None):
         # allow overrides from method direct call
         if num_examples is None:
             num_examples = 1000
-        if examples_per_batch is None:
-            examples_per_batch = self.config['pipeline']['examples_per_batch'] # examples per batch is how many models to create for a single model config
         if min_degradation is None:
             min_degradation = self.config['training']['min_degradation_threshold']
-            
-        logger.info(f"Starting training example generation: {num_examples} examples")
-        
+
+        logger.info(f"Starting independent training example generation: {num_examples} examples")
+
         # checkpointing for uploads during long runs
         checkpoint_data = self.load_checkpoint()
         if checkpoint_data:
@@ -177,222 +175,245 @@ class DatasetGenerationPipeline:
         else:
             start_from = 0
             remaining_examples = num_examples
-        
-        all_examples = []
-        batch_num = 0 
+
+        completed_examples = []
         total_generated = start_from
-        
-        with ThreadPoolExecutor(max_workers=self.max_threads) as executor: # batches can be processed in parallel
-            future_to_batch = {}
-            batches_submitted = 0
-            batches_completed = 0
-            
-            # initial batch submissions
-            while batches_submitted < self.max_threads and len(all_examples) < remaining_examples:
-                batch_id = batch_num + batches_submitted + 1
-                future = executor.submit(self._generate_example_batch_threaded, batch_id, examples_per_batch, min_degradation)
-                future_to_batch[future] = batch_id
-                batches_submitted += 1
-            
-            # loop for rest
-            while len(all_examples) < remaining_examples and (future_to_batch or batches_submitted == 0):
-                for future in as_completed(future_to_batch):
-                    batch_id = future_to_batch[future]
-                    batches_completed += 1
-                    
+
+        with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
+            futures = []
+            examples_submitted = 0
+
+            while len(completed_examples) < remaining_examples:
+                while (len(futures) < self.max_threads and
+                       examples_submitted < remaining_examples * 2):  # 2x buffer for rejections
+                    example_id = start_from + examples_submitted
+                    future = executor.submit(self._generate_single_example, example_id, min_degradation)
+                    futures.append(future)
+                    examples_submitted += 1
+
+                completed_futures = []
+                for future in as_completed(futures, timeout=1):
+                    completed_futures.append(future)
                     try:
-                        batch_examples, batch_time = future.result()
-                        quality_examples = [ex for ex in batch_examples if ex.get('metadata', {}).get('accuracy_diff', 0) >= min_degradation]
-                        all_examples.extend(quality_examples)
-                        with self._logging_lock:
-                            logger.info(f"BATCH {batch_id} COMPLETE: {len(quality_examples)}/{len(batch_examples)} quality examples in {batch_time/60:.1f}min")
-                            logger.info(f"Progress: {total_generated + len(all_examples)}/{num_examples} examples completed")
+                        example = future.result()
+                        if example and example.get('is_valid', False):
+                            completed_examples.append(example)
+                            with self._logging_lock:
+                                logger.info(f"EXAMPLE {len(completed_examples)}/{remaining_examples} completed (improvement: {example.get('metadata', {}).get('improvement', 0):.3f})")
+                        else:
+                            with self._logging_lock:
+                                logger.debug("Example rejected (insufficient improvement or validation failed)")
                     except Exception as e:
                         with self._logging_lock:
-                            logger.error(f"BATCH {batch_id} FAILED: {e}")
-                    
-                    del future_to_batch[future]
-                    
-                    # submit next batch
-                    if len(all_examples) < remaining_examples and batches_submitted < (remaining_examples // examples_per_batch) * 3:
-                        batch_id = batch_num + batches_submitted + 1
-                        future = executor.submit(self._generate_example_batch_threaded, batch_id, examples_per_batch, min_degradation)
-                        future_to_batch[future] = batch_id
-                        batches_submitted += 1
-                    
-                    # check if we should save to hf
-                    current_total = total_generated + len(all_examples)
-                    if (self.hub_dataset_name and 
-                        len(all_examples) >= self.checkpoint_interval and 
-                        len(all_examples) % self.checkpoint_interval < examples_per_batch * self.max_threads):
-                        with self._checkpoint_lock:
-                            logger.info(f"Checkpoint triggered: Saving {len(all_examples)} new examples to HuggingFace")
-                            try:
-                                self.incremental_save_to_hub(
-                                    all_examples,
-                                    self.hub_dataset_name,
-                                    self.hub_token,
-                                    self.private
-                                )
-                                self.save_checkpoint(current_total, all_examples)
-                                logger.info(f"Checkpoint saved successfully: {current_total} total examples")
-                                total_generated = current_total
-                                all_examples = []
-                            except Exception as e:
-                                logger.error(f"Failed to save checkpoint: {e}")
-                                logger.info("Continuing without checkpoint save...")
+                            logger.error(f"Example generation failed: {e}")
+
+                for future in completed_futures:
+                    futures.remove(future)
+
+                current_total = total_generated + len(completed_examples)
+                if (self.hub_dataset_name and
+                    len(completed_examples) >= self.checkpoint_interval and
+                    len(completed_examples) % self.checkpoint_interval < 50):  # Every ~checkpoint_interval examples
+                    with self._checkpoint_lock:
+                        logger.info(f"Checkpoint triggered: Saving {len(completed_examples)} new examples")
+                        try:
+                            self.incremental_save_to_hub(
+                                completed_examples,
+                                self.hub_dataset_name,
+                                self.hub_token,
+                                self.private
+                            )
+                            self.save_checkpoint(current_total, completed_examples)
+                            logger.info(f"Checkpoint saved successfully: {current_total} total examples")
+                            total_generated = current_total
+                            completed_examples = []
+                        except Exception as e:
+                            logger.error(f"Failed to save checkpoint: {e}")
+                            logger.info("Continuing without checkpoint save...")
+
+                if len(completed_examples) >= remaining_examples:
                     break
-            
-            batch_num = batches_completed
-        
+
         # final save
-        if all_examples and self.hub_dataset_name:
-            logger.info(f"Final save: {len(all_examples)} remaining examples")
+        if completed_examples and self.hub_dataset_name:
+            logger.info(f"Final save: {len(completed_examples)} remaining examples")
             try:
                 self.incremental_save_to_hub(
-                    all_examples,
+                    completed_examples,
                     self.hub_dataset_name,
                     self.hub_token,
                     self.private
                 )
-                total_generated += len(all_examples)
-                self.save_checkpoint(total_generated, all_examples)
+                total_generated += len(completed_examples)
+                self.save_checkpoint(total_generated, completed_examples)
             except Exception as e:
                 logger.error(f"Failed final save: {e}")
-        
+
         self.cleanup_temp_files()
 
-        logger.info(f"Generated {len(all_examples)} new training examples (total: {total_generated})")
-        return all_examples
+        logger.info(f"Generated {len(completed_examples)} new training examples (total: {total_generated})")
+        return completed_examples
     
-    def _generate_example_batch_threaded(self, batch_id: int, batch_size: int, min_degradation: float) -> tuple[List[Dict[str, Any]], float]: 
-        # just a wrapper for threading
-        batch_start_time = time.time()
+    def _generate_single_example(self, example_id: int, min_degradation: float) -> Dict[str, Any]:
         thread_random = random.Random()
-        thread_random.seed(self.random_seed + batch_id * 1000)
-        
+        thread_random.seed(self.random_seed + example_id * 1000)
+
+        start_time = time.time()
+
         with self._logging_lock:
-            logger.info(f"=== BATCH {batch_id} START ===")
-        
+            logger.info(f"=== EXAMPLE {example_id} START ===")
+
         try:
-            batch_examples = self._generate_example_batch(batch_size, min_degradation, thread_random, batch_id)
-            batch_time = time.time() - batch_start_time
-            return batch_examples, batch_time
-        except Exception as e:
-            batch_time = time.time() - batch_start_time
-            with self._logging_lock:
-                logger.error(f"BATCH {batch_id} ERROR: {e}")
-            raise
-    
-    def _generate_example_batch(self, batch_size: int, min_degradation: float, thread_random: random.Random = None, batch_id: int = 0) -> List[Dict[str, Any]]:        
-        if thread_random is None:
-            thread_random = random
-            
-        # select patterns randomly using config ranges
-        available_patterns = [p for p in self.pattern_sampler.patterns.keys() if len(self.pattern_sampler.patterns[p]) > 0]
-        min_patterns = self.config['dataset']['patterns']['min_patterns_per_batch']
-        max_patterns = self.config['dataset']['patterns']['max_patterns_per_batch']
-        num_patterns = thread_random.randint(min_patterns, min(max_patterns, len(available_patterns)))
-        selected_patterns = thread_random.sample(available_patterns, num_patterns)
-        
-        with self._logging_lock:
-            logger.info(f"Selected {num_patterns} patterns for batch {batch_id}: {selected_patterns}")
-        
-        # create dataset specification using config values
-        target_total_examples = self.config['dataset']['patterns']['target_total_examples']
-        max_total_examples = self.config['dataset']['patterns']['max_total_examples']
-        negative_ratio = self.config['dataset']['patterns']['negative_ratio']
-        min_samples_per_pattern = self.config['dataset']['patterns']['samples_per_pattern']['min']
-        
-        target_positives = int(target_total_examples / (1 + negative_ratio))
-        examples_per_pattern = max(min_samples_per_pattern, target_positives // num_patterns)
-        
-        with self._logging_lock:
-            logger.info(f"Dataset target: ~{target_total_examples} examples ({examples_per_pattern} per pattern x {num_patterns} patterns + negatives)")
-        
-        # sample training dataset + config (same for all models in batch)
-        mixed_dataset_dict = self.pattern_sampler.create_dataset(
-            include_patterns=selected_patterns,
-            samples_per_pattern=examples_per_pattern,
-            negative_ratio=negative_ratio,
-            max_total_samples=max_total_examples
-        )
-        mixed_dataset = {
-            'examples': mixed_dataset_dict['examples'],
-            'dataset_size': mixed_dataset_dict['total_examples'],
-            'positive_examples': mixed_dataset_dict['positive_examples'],
-            'negative_examples': mixed_dataset_dict['negative_examples'],
-            'target_patterns': selected_patterns
-        }
-        model_config = self._generate_model_config(thread_random, batch_id)
-        
-        with self._logging_lock:
-            logger.info(f"Model config: {model_config['num_layers']} layers, {model_config['neurons_per_layer']} neurons/layer, {model_config['activation_type']}, lr={model_config['learning_rate']}")
-        
-        # train clean subject model
-        with self._logging_lock:
-            logger.info(f"Training clean subject model for batch {batch_id}...")
-        clean_model, clean_results = self._train_subject_model(mixed_dataset, model_config, f"clean_b{batch_id}", batch_id)
-        
-        with self._logging_lock:
-            logger.info(f"Clean model trained: {clean_results['final_metrics']['val_acc']:.4f} validation accuracy")
-        
-        # train degraded subject models
-        examples = []
-        for variant_id in range(batch_size):
-            target_pattern = thread_random.choice(selected_patterns) # pick pattern to corrupt
-            
-            # create corrupted dataset by manipulating labels for target pattern
-            corrupted_dataset = self._corrupt_dataset(mixed_dataset, target_pattern, corruption_rate=0.5, thread_random=thread_random)
-            corruption_stats = corrupted_dataset.get('corruption_stats', {})
-            # train noisy subject model
-            with self._logging_lock:
-                logger.info(f"Training corrupted model {variant_id+1}/{batch_size} (corrupted: {target_pattern})...")
-            noisy_model, noisy_results = self._train_subject_model(
-                corrupted_dataset, model_config, f"noisy_b{batch_id}_v{variant_id}", batch_id
+            # select patterns for this example
+            available_patterns = [p for p in self.pattern_sampler.patterns.keys() if len(self.pattern_sampler.patterns[p]) > 0]
+            min_patterns = self.config['dataset']['patterns']['min_patterns_per_batch']
+            max_patterns = self.config['dataset']['patterns']['max_patterns_per_batch']
+            num_patterns = thread_random.randint(min_patterns, min(max_patterns, len(available_patterns)))
+            selected_patterns = thread_random.sample(available_patterns, num_patterns)
+
+            # create dataset
+            target_total_examples = self.config['dataset']['patterns']['target_total_examples']
+            max_total_examples = self.config['dataset']['patterns']['max_total_examples']
+            negative_ratio = self.config['dataset']['patterns']['negative_ratio']
+            min_samples_per_pattern = self.config['dataset']['patterns']['samples_per_pattern']['min']
+
+            target_positives = int(target_total_examples / (1 + negative_ratio))
+            examples_per_pattern = max(min_samples_per_pattern, target_positives // num_patterns)
+
+            clean_dataset_dict = self.pattern_sampler.create_dataset(
+                include_patterns=selected_patterns,
+                samples_per_pattern=examples_per_pattern,
+                negative_ratio=negative_ratio,
+                max_total_samples=max_total_examples
             )
-            # calc degredation
-            degradation = clean_results['final_metrics']['val_acc'] - noisy_results['final_metrics']['val_acc']
-            
+            clean_dataset = {
+                'examples': clean_dataset_dict['examples'],
+                'dataset_size': clean_dataset_dict['total_examples'],
+                'positive_examples': clean_dataset_dict['positive_examples'],
+                'negative_examples': clean_dataset_dict['negative_examples'],
+                'target_patterns': selected_patterns
+            }
+
+            # generate model config for this example
+            model_config = self._generate_model_config(thread_random, example_id)
+
+            # select target pattern to corrupt
+            target_pattern = thread_random.choice(selected_patterns)
+
+            # create corrupted dataset
+            corrupted_dataset = self._corrupt_dataset(clean_dataset, target_pattern, corruption_rate=0.5, thread_random=thread_random)
+            corruption_stats = corrupted_dataset.get('corruption_stats', {})
+
             with self._logging_lock:
-                logger.info(f"Model degradation: {degradation:.4f} (clean: {clean_results['final_metrics']['val_acc']:.4f} → corrupted: {noisy_results['final_metrics']['val_acc']:.4f})")
-            
-            if degradation >= min_degradation:
-                # extract signature from degraded model
-                num_sig_examples = len(self.activation_signature_extractor.signature_dataset['examples'])
+                logger.info(f"Example {example_id}: {num_patterns} patterns, corrupting '{target_pattern}'")
+
+            # run staged training
+            staged_results = self._train_staged_model(corrupted_dataset, clean_dataset, model_config, target_pattern)
+
+            # validate improvement
+            if not staged_results.get('improvement', 0) >= min_degradation:
                 with self._logging_lock:
-                    logger.info(f"Extracting activation signature from corrupted model using {num_sig_examples} baseline examples...")
-                baseline_features = self.activation_signature_extractor.extract(noisy_model)
-                
-                # prepare metadata
-                metadata = {
-                    'variant_id': variant_id,
-                    'corrupted_pattern': target_pattern,
-                    'clean_accuracy': clean_results['final_metrics']['val_acc'],
-                    'noisy_accuracy': noisy_results['final_metrics']['val_acc'],
-                    'accuracy_diff': degradation,
+                    logger.info(f"Example {example_id}: Insufficient improvement ({staged_results.get('improvement', 0):.4f} < {min_degradation})")
+                return None
+
+            # extract signature from degraded model
+            degraded_signature = self.activation_signature_extractor.extract(staged_results['degraded_model'])
+
+            # format training example
+            example = self._create_training_example_from_staged_results(
+                staged_results, degraded_signature, target_pattern, corruption_stats, model_config, selected_patterns
+            )
+            degraded_model = staged_results['degraded_model']
+            degraded_model.load_state_dict(staged_results['degraded']['weights'])
+
+            improved_model = copy.deepcopy(degraded_model)
+            improved_model.load_state_dict(staged_results['improved']['weights'])
+
+            # Use formatter to create training example
+            example = self.interpreter_formatter.create_training_example(
+                input_model=degraded_model,
+                target_model=improved_model,
+                baseline_features=degraded_signature,
+                pattern_context=target_pattern,
+                pattern_description=self._get_pattern_description(target_pattern),
+                metadata={
+                    'target_pattern': target_pattern,
+                    'degraded_accuracy': staged_results['degraded']['accuracy'],
+                    'improved_accuracy': staged_results['improved']['accuracy'],
+                    'improvement': staged_results['improvement'],
                     'model_config': model_config,
                     'corruption_stats': corruption_stats,
                     'selected_patterns': selected_patterns,
                     'precision': self.config['model'].get('precision', 'float32'),
                     'quantization': self.config['model'].get('quantization', 'none')
-                }
-                
-                # build record for interpreter prompt
-                example = self.interpreter_formatter.create_training_example(
-                    input_model=noisy_model,
-                    target_model=clean_model,
-                    baseline_features=baseline_features,
-                    pattern_context=target_pattern,
-                    pattern_description=self._get_pattern_description(target_pattern),
-                    metadata=metadata
-                )
-                examples.append(example)
-                with self._logging_lock:
-                    logger.info(f"Quality example created (degradation: {degradation:.4f} ≥ {min_degradation})")
-        
-        return examples
-    
+                },
+                is_valid=True
+            )
+
+            generation_time = time.time() - start_time
+            with self._logging_lock:
+                logger.info(f"Example {example_id} completed in {generation_time/60:.1f}min (improvement: {staged_results['improvement']:.4f})")
+
+            return example
+
+        except Exception as e:
+            generation_time = time.time() - start_time
+            with self._logging_lock:
+                logger.error(f"Example {example_id} failed after {generation_time/60:.1f}min: {e}")
+            return None
+
+    def _train_staged_model(self, corrupted_dataset: Dict[str, Any], clean_dataset: Dict[str, Any],
+                           model_config: Dict[str, Any], target_pattern: str) -> Dict[str, Any]:
+        model_id = f"staged_{threading.current_thread().ident}_{int(time.time())}"
+        model, _ = create_subject_model(
+            model_id,
+            num_layers=model_config['num_layers'],
+            neurons_per_layer=model_config['neurons_per_layer'],
+            activation_type=model_config['activation_type'],
+            random_seed=model_config['random_seed'],
+            dropout_rate=model_config['dropout_rate']
+        )
+
+        # data loaders
+        train_ratio = 1.0 - self.config['training']['validation_split']
+        corrupted_train_loader, corrupted_val_loader = create_data_loaders(
+            examples=corrupted_dataset['examples'],
+            batch_size=model_config['batch_size'],
+            train_ratio=train_ratio,
+            random_seed=model_config['random_seed'],
+            num_workers=self.config['pipeline'].get('num_workers', 0),
+            pin_memory=self.config['pipeline'].get('pin_memory', False),
+            vocab_size=self.config['model']['vocab_size']
+        )
+        clean_train_loader, clean_val_loader = create_data_loaders(
+            examples=clean_dataset['examples'],
+            batch_size=model_config['batch_size'],
+            train_ratio=train_ratio,
+            random_seed=model_config['random_seed'],
+            num_workers=self.config['pipeline'].get('num_workers', 0),
+            pin_memory=self.config['pipeline'].get('pin_memory', False),
+            vocab_size=self.config['model']['vocab_size']
+        )
+
+        # staged training
+        staged_results = self.model_trainer.train_staged_improvement(
+            model=model,
+            corrupted_train_loader=corrupted_train_loader,
+            corrupted_val_loader=corrupted_val_loader,
+            clean_train_loader=clean_train_loader,
+            clean_val_loader=clean_val_loader,
+            degraded_epochs=self.config.get('staged_training', {}).get('degraded_epochs', 10),
+            improvement_epochs=self.config.get('staged_training', {}).get('improvement_epochs', 10),
+            learning_rate=model_config['learning_rate'],
+            improvement_lr_factor=self.config.get('staged_training', {}).get('improvement_lr_factor', 0.1),
+            early_stopping_patience=model_config['patience']
+        )
+        staged_results['degraded_model'] = model
+        staged_results['model_config'] = model_config
+        staged_results['target_pattern'] = target_pattern
+
+        return staged_results
+
     def _corrupt_dataset(self, dataset: Dict[str, Any], target_pattern: str, corruption_rate: float = 0.5, thread_random: random.Random = None) -> Dict[str, Any]:
         """Creates a corrupted version of the dataset by flipping labels for a specific pattern."""
         if thread_random is None:
@@ -477,46 +498,6 @@ class DatasetGenerationPipeline:
             'num_epochs': training_config.get('epochs', 20),
             'patience': training_config['early_stopping'].get('patience', 3),
         }
-    
-    def _train_subject_model(self, dataset_info: Dict[str, Any], model_config: Dict[str, Any], model_type: str, batch_id: int = 0) -> tuple:
-        # init subject model with thread-specific ID
-        model_id = f"gen_{model_type}_{batch_id}_{threading.current_thread().ident}"
-        model, _ = create_subject_model(
-            model_id,
-            num_layers=model_config['num_layers'],
-            neurons_per_layer=model_config['neurons_per_layer'],
-            activation_type=model_config['activation_type'],
-            random_seed=model_config['random_seed'],
-            dropout_rate=model_config['dropout_rate']
-        )
-        
-        # init data loaders
-        train_ratio = 1.0 - self.config['training']['validation_split']
-        train_loader, val_loader = create_data_loaders(
-            examples=dataset_info['examples'],
-            batch_size=model_config['batch_size'],
-            train_ratio=train_ratio,
-            random_seed=model_config['random_seed'],
-            num_workers=self.config['pipeline'].get('num_workers', 0),
-            pin_memory=self.config['pipeline'].get('pin_memory', False),
-            vocab_size=self.config['model']['vocab_size']
-        )
-        
-        # run training
-        temp_save_path = self.output_dir / "temp_models" / f"{model_id}.pth"
-        temp_save_path.parent.mkdir(exist_ok=True)
-        
-        training_results = self.model_trainer.train_and_evaluate(
-            model=model,
-            train_loader=train_loader,
-            val_loader=val_loader,
-            num_epochs=model_config['num_epochs'],
-            learning_rate=model_config['learning_rate'],
-            early_stopping_patience=model_config['patience'],
-            save_path=str(temp_save_path)
-        )
-        
-        return model, training_results
     
     def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, private: bool = False) -> str:
         """Save examples incrementally to HuggingFace, append to existing dataset if it exists."""

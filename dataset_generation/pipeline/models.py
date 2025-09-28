@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import logging
+import copy
 from typing import Dict, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -290,6 +291,58 @@ class SubjectModelTrainer:
         }
                 
         return results
+
+    def train_staged_improvement(self, model: SubjectModel,
+                                corrupted_train_loader, corrupted_val_loader,
+                                clean_train_loader, clean_val_loader,
+                                degraded_epochs: int, improvement_epochs: int,
+                                learning_rate: float, improvement_lr_factor: float = 0.1,
+                                early_stopping_patience: int = 10) -> Dict[str, Any]:
+        model = model.to(self.device)
+
+        logger.info("Stage 1: Training on corrupted data...")
+        degraded_results = self.train_and_evaluate(
+            model=model,
+            train_loader=corrupted_train_loader,
+            val_loader=corrupted_val_loader,
+            num_epochs=degraded_epochs,
+            learning_rate=learning_rate,
+            early_stopping_patience=early_stopping_patience,
+            save_path=None
+        )
+        degraded_weights = copy.deepcopy(model.state_dict())
+
+        logger.info("Stage 2: Continuing training on clean data...")
+        improved_results = self.train_and_evaluate(
+            model=model,
+            train_loader=clean_train_loader,
+            val_loader=clean_val_loader,
+            num_epochs=improvement_epochs,
+            learning_rate=learning_rate * improvement_lr_factor,
+            early_stopping_patience=early_stopping_patience,
+            save_path=None
+        )
+
+        improved_weights = model.state_dict()
+
+        degraded_acc = degraded_results['final_metrics'].get('val_acc', 0)
+        improved_acc = improved_results['final_metrics'].get('val_acc', 0)
+        improvement = improved_acc - degraded_acc
+
+        return {
+            'degraded': {
+                'weights': degraded_weights,
+                'metrics': degraded_results,
+                'accuracy': degraded_acc
+            },
+            'improved': {
+                'weights': improved_weights,
+                'metrics': improved_results,
+                'accuracy': improved_acc
+            },
+            'improvement': improvement,
+            'stages_completed': 2
+        }
 
 
 def create_subject_model(model_id: str, num_layers: int = 6, neurons_per_layer: int = 25, activation_type: str = 'relu',

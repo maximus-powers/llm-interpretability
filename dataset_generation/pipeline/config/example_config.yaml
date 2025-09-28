@@ -97,8 +97,27 @@ training:
   batch_size: 128                      # Training batch size
   early_stopping:
     patience: 5                        # Epochs without improvement before stopping
-  min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/clean models
+  min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/improved models
   validation_split: 0.2                # Fraction of data for validation
+
+# ============================================================================
+# STAGED TRAINING CONFIGURATION
+# ============================================================================
+# Controls the two-stage training process for each example
+staged_training:
+  degraded_epochs: 10                  # Epochs for stage 1 (training on corrupted data)
+  improvement_epochs: 10               # Epochs for stage 2 (continuing on clean data)
+  improvement_lr_factor: 0.1           # Learning rate multiplier for stage 2 (lower for fine-tuning)
+
+# ============================================================================
+# VALIDATION CONFIGURATION
+# ============================================================================
+# Controls validation of training examples
+validation:
+  pattern_specific: true               # Validate improvements target the corrupted pattern
+  min_pattern_improvement: 0.05        # Required improvement on target pattern
+  max_other_degradation: 0.02          # Max performance loss allowed on other patterns
+  test_set_size: 100                   # Examples per pattern for validation testing
 
 # ============================================================================
 # PIPELINE EXECUTION CONFIGURATION
@@ -109,8 +128,7 @@ pipeline:
   random_seed: 42                      # Global random seed for reproducibility
   device: "auto"                       # auto, cpu, cuda, mps
   checkpoint_interval: 1000            # Save checkpoint every N examples
-  examples_per_batch: 5                # Examples generated per batch iteration
-  max_threads: 4                       # Maximum number of threads for parallel batch processing
+  max_threads: 4                       # Maximum number of threads for parallel example generation
   num_workers: 4                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 

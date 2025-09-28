@@ -32,37 +32,55 @@ We start by initializing the other classes we'll need during the generation:
 - `SubjectModelTrainer`: This class handles the actual training of subject models on pattern datasets. It supports various training configurations (learning rate, batch size, epochs), early stopping based on validation loss, and optional weight quantization (int8, int4, ternary, binary). The trainer can work with different devices (CPU, CUDA, MPS) and tracks training metrics throughout the process.
 - `TrainingDataFormatter`: This class formats the generated data into the specific prompt structure needed for training the interpreter model. It can handle different formatting styles (separate vs interwoven) for organizing model weights, activation signatures, and task specifications into training prompts.
 
-##### 2. Batch Generation
+##### 2. Independent Example Generation
 
-For each training example batch, the pipeline:
+Each training example is generated completely independently with:
 
-1. **Pattern Selection**: Randomly selects a subset of available patterns (between min_patterns_per_batch and max_patterns_per_batch from config) that will be used to create the training dataset for subject models in this batch.
+1. **Pattern Selection**: Each example randomly selects its own subset of available patterns (between min_patterns_per_batch and max_patterns_per_batch from config).
 
-2. **Dataset Creation**: Uses the PatternDatasetSampler to generate a mixed dataset containing positive examples of the selected patterns plus negative examples, following the specified ratios and sample counts from the config.
+2. **Dataset Creation**: Each example uses the PatternDatasetSampler to generate its own unique mixed dataset containing positive examples of the selected patterns plus negative examples.
 
-3. **Model Configuration**: Generates random model architecture parameters (number of layers, neurons per layer, activation type, learning rate) within the ranges specified in the config.
+3. **Model Configuration**: Each example generates its own random model architecture parameters (number of layers, neurons per layer, activation type, learning rate) within the config ranges.
 
-##### 3. Model Training
+4. **Target Pattern Selection**: Each example randomly chooses one of its selected patterns to corrupt for the staged training process.
 
-For each batch, the pipeline trains two types of models:
+The pipeline uses thread pooling to generate multiple examples in parallel, with each thread working on a completely independent example. This maximizes diversity in the training data and ensures efficient parallelization.
 
-1. **Clean Subject Model**: Trained on the original dataset without any corruption. This serves as the "target" model representing optimal performance on all patterns.
+##### 3. Staged Model Training
 
-2. **Degraded Subject Models**: For each example in the batch, a corrupted version of the dataset is created by flipping labels for a randomly selected pattern (at the specified corruption rate). Models trained on these corrupted datasets will have degraded performance on the corrupted pattern.
+Each example uses a single model trained in two consecutive stages:
 
-##### 4. Quality Filtering
+**Stage 1 - Degraded Training**: The model is trained on a corrupted dataset where the target pattern's labels are flipped (at the specified corruption rate). This creates a model with degraded performance specifically on that pattern while maintaining performance on other patterns.
 
-Only model pairs where the performance degradation meets the minimum threshold (min_degradation_threshold from config) are kept as training examples. This ensures the interpreter has meaningful signal to learn from.
+**Stage 2 - Improvement Training**: The SAME model continues training on the clean dataset with a reduced learning rate (improvement_lr_factor from config). This teaches the model to correct its mistakes on the target pattern while preserving the existing circuits and knowledge.
+
+This staged approach ensures the "improved" model is a genuine continuation of the degraded model, not an arbitrary replacement. The interpreter learns to make targeted improvements to fix specific issues rather than generate entirely new models.
+
+##### 4. Pattern-Specific Validation
+
+Each staged training example is validated to ensure the improvement is meaningful and targets the correct pattern:
+
+1. **Improvement Magnitude**: The performance improvement from stage 1 to stage 2 must meet the minimum threshold (min_degradation_threshold from config).
+
+2. **Pattern Specificity**: The improvement should specifically target the corrupted pattern, not just overall performance.
+
+3. **Stability Check**: Performance on other patterns should remain stable (not degrade significantly).
+
+Only examples passing all validation criteria are included in the final training dataset, ensuring the interpreter learns from high-quality improvement examples.
 
 ##### 5. Signature Extraction
 
-For each qualified degraded model, the ActivationSignatureExtractor processes the baseline signature dataset through the model to extract layer activations. These activations serve as a "fingerprint" that the interpreter can learn to associate with specific model behaviors and patterns.
+The ActivationSignatureExtractor processes the baseline signature dataset through the DEGRADED model only (after stage 1) to extract layer activations. This signature serves as a "fingerprint" that helps the interpreter understand the model's current behavior and identify what needs to be fixed.
+
+Note: We only extract signatures from the degraded model, not the improved model. The interpreter should learn to predict improvements based solely on the degraded state, making the task more challenging and realistic.
 
 ##### 6. Training Data Formatting
 
 The TrainingDataFormatter combines all components into structured training examples:
-- **Prompt**: Contains the degraded model weights, architecture config, activation signature, and task specification (which pattern to improve)
-- **Completion**: Contains the clean model weights representing the desired improvement
+- **Prompt**: Contains the degraded model weights (after stage 1), degraded activation signature, architecture config, and task specification (which pattern to improve)
+- **Completion**: Contains the improved model weights (after stage 2) representing the targeted improvement
+
+This approach teaches the interpreter to diagnose problems from the degraded state and generate appropriate weight modifications to fix specific pattern performance issues.
 
 ##### 7. Incremental Saving and Checkpointing
 
@@ -71,4 +89,4 @@ The pipeline supports long-running generation with:
 - **Incremental HuggingFace Upload**: Automatic uploading of completed batches to HuggingFace Hub datasets
 - **Cleanup**: Removal of temporary model files after processing
 
-The entire process is designed to run efficiently with configurable multi-threading, allowing multiple batches to be processed in parallel while maintaining thread safety for logging and checkpointing operations.
+The entire process is designed to run efficiently with configurable multi-threading, allowing multiple independent examples to be processed in parallel while maintaining thread safety for logging and checkpointing operations. Each example is completely independent, maximizing diversity and enabling efficient parallelization without complex batch coordination.
