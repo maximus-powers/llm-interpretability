@@ -116,8 +116,17 @@ class DatasetGenerationPipeline:
         prompt_format_config = self.config['signature'].get('prompt_format', {})
         format_style = prompt_format_config.get('style', 'separate')
         self.interpreter_formatter = TrainingDataFormatter(format_style=format_style)
-        
-        logger.info("DatasetGenerationPipeline initialized with configuration")
+
+        # task generation configuration
+        task_config = self.config.get('task_generation', {})
+        self.include_modification = task_config.get('include_modification', True)
+        self.include_classification = task_config.get('include_classification', False)
+
+        # validate at least one task is enabled
+        if not self.include_modification and not self.include_classification:
+            raise ValueError("At least one task type must be enabled in task_generation config")
+
+        logger.info(f"DatasetGenerationPipeline initialized with tasks: modification={self.include_modification}, classification={self.include_classification}")
     
     def _validate_config(self):
         """Validate settings in config.yaml"""
@@ -316,26 +325,48 @@ class DatasetGenerationPipeline:
                     logger.info(f"Example {example_id}: Insufficient improvement ({staged_results.get('improvement', 0):.4f} < {min_degradation})")
                 return None
 
-            # extract signature from degraded model
-            degraded_signature = self.activation_signature_extractor.extract(staged_results['degraded_model'])
+            # prepare models and signatures based on what's needed for efficiency
+            degraded_model = None
+            improved_model = None
+            degraded_signature = None
+            improved_signature = None
 
-            # format training example
-            example = self._create_training_example_from_staged_results(
-                staged_results, degraded_signature, target_pattern, corruption_stats, model_config, selected_patterns
-            )
-            degraded_model = staged_results['degraded_model']
-            degraded_model.load_state_dict(staged_results['degraded']['weights'])
+            if self.include_modification:
+                degraded_model = staged_results['degraded_model']
+                degraded_model.load_state_dict(staged_results['degraded']['weights'])
+                degraded_signature = self.activation_signature_extractor.extract(degraded_model)
 
-            improved_model = copy.deepcopy(degraded_model)
-            improved_model.load_state_dict(staged_results['improved']['weights'])
+            if self.include_classification or self.include_modification:
+                improved_model = copy.deepcopy(staged_results['degraded_model'])
+                improved_model.load_state_dict(staged_results['improved']['weights'])
 
-            # Use formatter to create training example
+                if self.include_classification:
+                    improved_signature = self.activation_signature_extractor.extract(improved_model)
+
+            # get pattern descriptions if classification
+            all_pattern_descriptions = None
+            if self.include_classification:
+                all_pattern_descriptions = {
+                    pattern: self._get_pattern_description(pattern)
+                    for pattern in ['all_same', 'palindrome', 'sorted_ascending',
+                                   'sorted_descending', 'alternating', 'contains_abc',
+                                   'starts_with', 'ends_with', 'no_repeats',
+                                   'has_majority', 'increasing_pairs', 'decreasing_pairs',
+                                   'vowel_consonant', 'first_last_match', 'mountain_pattern']
+                }
+
             example = self.interpreter_formatter.create_training_example(
                 input_model=degraded_model,
                 target_model=improved_model,
                 baseline_features=degraded_signature,
+                improved_model=improved_model if self.include_classification else None,
+                improved_signature=improved_signature,
                 pattern_context=target_pattern,
                 pattern_description=self._get_pattern_description(target_pattern),
+                actual_patterns=selected_patterns,
+                all_pattern_descriptions=all_pattern_descriptions,
+                include_modification=self.include_modification,
+                include_classification=self.include_classification,
                 metadata={
                     'target_pattern': target_pattern,
                     'degraded_accuracy': staged_results['degraded']['accuracy'],
@@ -345,10 +376,15 @@ class DatasetGenerationPipeline:
                     'corruption_stats': corruption_stats,
                     'selected_patterns': selected_patterns,
                     'precision': self.config['model'].get('precision', 'float32'),
-                    'quantization': self.config['model'].get('quantization', 'none')
-                },
-                is_valid=True
+                    'quantization': self.config['model'].get('quantization', 'none'),
+                    'tasks_included': {
+                        'modification': self.include_modification,
+                        'classification': self.include_classification
+                    }
+                }
             )
+
+            example['is_valid'] = True
 
             generation_time = time.time() - start_time
             with self._logging_lock:
@@ -498,9 +534,8 @@ class DatasetGenerationPipeline:
             'num_epochs': training_config.get('epochs', 20),
             'patience': training_config['early_stopping'].get('patience', 3),
         }
-    
+
     def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, private: bool = False) -> str:
-        """Save examples incrementally to HuggingFace, append to existing dataset if it exists."""
         try:
             if not self.hub_token:
                 logger.error("No HuggingFace token provided")
@@ -509,13 +544,23 @@ class DatasetGenerationPipeline:
             # format new examples
             formatted_examples = []
             for i, example in enumerate(examples):
-                formatted_examples.append({
-                    'text': example['prompt'] + example['completion'],
-                    'prompt': example['prompt'],
-                    'completion': example['completion'],
-                    'metadata': json.dumps(example.get('metadata', {})),
-                    'example_id': i
-                })
+                formatted = {
+                    'example_id': i,
+                    'metadata': json.dumps(example.get('metadata', {}))
+                }
+
+                if 'modification_prompt' in example:
+                    formatted['modification_prompt'] = example['modification_prompt']
+                    formatted['modification_completion'] = example['modification_completion']
+                    formatted['modification_text'] = example['modification_prompt'] + example['modification_completion']
+
+                if 'classification_prompt' in example:
+                    formatted['classification_prompt'] = example['classification_prompt']
+                    formatted['classification_completion'] = example['classification_completion']
+                    formatted['classification_text'] = example['classification_prompt'] + example['classification_completion']
+
+
+                formatted_examples.append(formatted)
             
             existing_dataset = None
             try:

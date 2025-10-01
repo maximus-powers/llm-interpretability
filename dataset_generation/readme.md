@@ -70,17 +70,26 @@ Only examples passing all validation criteria are included in the final training
 
 ##### 5. Signature Extraction
 
-The ActivationSignatureExtractor processes the baseline signature dataset through the DEGRADED model only (after stage 1) to extract layer activations. This signature serves as a "fingerprint" that helps the interpreter understand the model's current behavior and identify what needs to be fixed.
+The ActivationSignatureExtractor processes the baseline signature dataset through models based on task requirements:
 
-Note: We only extract signatures from the degraded model, not the improved model. The interpreter should learn to predict improvements based solely on the degraded state, making the task more challenging and realistic.
+- **For modification tasks**: Extracts signatures from the DEGRADED model (after stage 1) to help the interpreter understand the model's problematic behavior
+- **For classification tasks**: Extracts signatures from the IMPROVED model (after stage 2) to accurately represent what patterns the clean model identifies
+
+This approach ensures that modification tasks learn to diagnose problems from degraded states, while classification tasks learn to identify patterns from properly functioning models.
 
 ##### 6. Training Data Formatting
 
-The TrainingDataFormatter combines all components into structured training examples:
-- **Prompt**: Contains the degraded model weights (after stage 1), degraded activation signature, architecture config, and task specification (which pattern to improve)
-- **Completion**: Contains the improved model weights (after stage 2) representing the targeted improvement
+The TrainingDataFormatter creates structured training examples with configurable tasks:
 
-This approach teaches the interpreter to diagnose problems from the degraded state and generate appropriate weight modifications to fix specific pattern performance issues.
+**Modification Task** (when `include_modification: true`):
+- **modification_prompt**: Contains the degraded model weights (after stage 1), degraded activation signature, architecture config, and task specification (which pattern to improve)
+- **modification_completion**: Contains the improved model weights (after stage 2) representing the targeted improvement
+
+**Classification Task** (when `include_classification: true`):
+- **classification_prompt**: Contains the improved model weights, improved activation signature, architecture config, and all available pattern descriptions
+- **classification_completion**: Lists the pattern names that the improved model classifies as positive
+
+This dual-task approach enables training interpreters for both weight modification (diagnosing and fixing specific pattern issues) and pattern classification (identifying which patterns a model has learned).
 
 ##### 7. Incremental Saving and Checkpointing
 

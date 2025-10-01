@@ -30,7 +30,7 @@ signature:
     # fourier: {n_frequencies: 1}      # Periodic/rhythmic patterns in activations                      # n frequencies
     # pattern_wise: {}                  # Mean activation for each pattern in signature dataset          # n patterns
   
-  # Prompt formatting options
+  # Prompt formatting options (applies to both modification and classification tasks)
   prompt_format:
     style: "separate"                  # "separate" (model weights/biases in chunk, signature in following chunk), "interwoven" (layer signature after each layer's weights)
 
@@ -99,10 +99,7 @@ training:
     patience: 5                        # Epochs without improvement before stopping
   min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/improved models
   validation_split: 0.2                # Fraction of data for validation
-
-# ============================================================================
-# STAGED TRAINING CONFIGURATION
-# ============================================================================
+  
 # Controls the two-stage training process for each example
 staged_training:
   degraded_epochs: 10                  # Epochs for stage 1 (training on corrupted data)
@@ -132,11 +129,11 @@ pipeline:
   num_workers: 4                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 
-# ============================================================================
-# HUGGINGFACE HUB CONFIGURATION
-# ============================================================================
-# Controls automatic uploading to HuggingFace Hub (done at each checkpoint interval or end of training)
-hub:
+task_generation:                  # Controls which types of training tasks to generate in output dataset **IMPORTANT: At least one must be selected**
+  include_modification: true           # Generate modification_prompt/completion fields (degraded model + signature → improved weights)
+  include_classification: false        # Generate classification_prompt/completion fields (improved model + signature → pattern identification)
+
+hub:                              # Controls automatic uploading to HuggingFace Hub (done at each checkpoint interval or end of training)
   dataset_name: null                   # e.g., "username/interpreter-dataset", null to disable upload
   token: null                          # HuggingFace token
   private: false                       
