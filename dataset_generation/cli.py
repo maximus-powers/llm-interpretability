@@ -4,16 +4,55 @@ import sys
 import logging
 from pathlib import Path
 import yaml
+import threading
 
 from pipeline.dataset_generation_pipeline import DatasetGenerationPipeline
 from pipeline.pattern_sampler import PatternDatasetSampler
 
+# global storage for thread examples ids
+_thread_local = threading.local() 
+def set_example_id(example_id):
+    _thread_local.example_id = example_id
+def get_example_id():
+    return getattr(_thread_local, 'example_id', None)
+
+class ColoredExampleFormatter(logging.Formatter):
+    COLORS = [
+        '\033[94m',  # Blue
+        '\033[92m',  # Green
+        '\033[93m',  # Yellow
+        '\033[95m',  # Magenta
+        '\033[96m',  # Cyan
+        '\033[91m',  # Red
+        '\033[97m',  # White
+        '\033[90m',  # Gray
+    ]
+    RESET = '\033[0m'
+
+    def format(self, record):
+        example_id = get_example_id()
+        formatted = super().format(record)
+        if example_id is not None:
+            color = self.COLORS[example_id % len(self.COLORS)]
+            parts = formatted.split(' - ', 1)
+            if len(parts) == 2:
+                return f"{parts[0]} - {color}[Ex{example_id}] {parts[1]}{self.RESET}"
+            return f"{color}[Ex{example_id}] {formatted}{self.RESET}"
+        return formatted
 
 def setup_logging():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    formatter = ColoredExampleFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    root_logger.addHandler(handler)
 
 
 def run_data_gen(args):
@@ -21,11 +60,11 @@ def run_data_gen(args):
     if not config_path.exists():
         logging.error(f"Configuration file not found: {args.config_path}")
         sys.exit(1)
-    
+
     logging.info(f"Initializing pipeline with config: {args.config_path}")
-    
+
     try:
-        pipeline = DatasetGenerationPipeline(config_path=args.config_path)
+        pipeline = DatasetGenerationPipeline(config_path=args.config_path, example_id_setter=set_example_id)
         logging.info("Starting dataset generation...")
         examples = pipeline.generate_training_examples()
         logging.info(f"Dataset generation completed! Generated {len(examples)} examples.")

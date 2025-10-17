@@ -50,7 +50,7 @@ class DatasetGenerationPipeline:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
     """
     
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", example_id_setter=None):
         # init params from config
         self.config = load_config(config_path)
         pipeline_config = self.config['pipeline']
@@ -64,7 +64,8 @@ class DatasetGenerationPipeline:
         self.private = hub_config.get('private', False)
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         self.max_threads = pipeline_config.get('max_threads', 1)
-        
+        self.example_id_setter = example_id_setter
+
         # threading locks for thread safety
         self._logging_lock = threading.Lock()
         self._checkpoint_lock = threading.Lock()
@@ -269,6 +270,9 @@ class DatasetGenerationPipeline:
         return completed_examples
     
     def _generate_single_example(self, example_id: int, min_degradation: float) -> Dict[str, Any]:
+        if self.example_id_setter:
+            self.example_id_setter(example_id)
+
         thread_random = random.Random()
         thread_random.seed(self.random_seed + example_id * 1000)
 
@@ -323,7 +327,7 @@ class DatasetGenerationPipeline:
                 logger.info(f"Example {example_id}: {num_patterns} patterns, corrupting '{target_pattern}'")
 
             # run staged training
-            staged_results = self._train_staged_model(corrupted_dataset, clean_dataset, model_config, target_pattern)
+            staged_results = self._train_staged_model(corrupted_dataset, clean_dataset, model_config, target_pattern, example_id)
 
             # validate improvement
             if not staged_results.get('improvement', 0) >= min_degradation:
@@ -405,7 +409,7 @@ class DatasetGenerationPipeline:
             return None
 
     def _train_staged_model(self, corrupted_dataset: Dict[str, Any], clean_dataset: Dict[str, Any],
-                           model_config: Dict[str, Any], target_pattern: str) -> Dict[str, Any]:
+                           model_config: Dict[str, Any], target_pattern: str, example_id: int = None) -> Dict[str, Any]:
         model_id = f"staged_{threading.current_thread().ident}_{int(time.time())}"
         model, _ = create_subject_model(
             model_id,
@@ -450,7 +454,7 @@ class DatasetGenerationPipeline:
             improvement_epochs=self.config.get('staged_training', {}).get('improvement_epochs', 10),
             learning_rate=model_config['learning_rate'],
             improvement_lr_factor=self.config.get('staged_training', {}).get('improvement_lr_factor', 0.1),
-            early_stopping_patience=model_config['patience']
+            early_stopping_patience=model_config['patience'],
         )
         staged_results['degraded_model'] = model
         staged_results['model_config'] = model_config
