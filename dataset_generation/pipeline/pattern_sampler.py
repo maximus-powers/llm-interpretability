@@ -348,8 +348,8 @@ class PatternDatasetSampler:
         exclude_patterns = [p for p in self.patterns.keys() if p not in include_patterns]
         n_positives = len(examples)
         n_negatives = min(int(n_positives * negative_ratio), max_total_samples - n_positives)
-        if negative_ratio > 0:
-            negative_examples = []
+        negative_examples = []
+        if negative_ratio > 0 and exclude_patterns:
             for pattern in exclude_patterns:
                 available = self.patterns[pattern]
                 pattern_samples = min(n_negatives // len(exclude_patterns) + 1, len(available))
@@ -360,9 +360,9 @@ class PatternDatasetSampler:
                         'label': 0,
                         'excluded_pattern': pattern
                     })
-        
-        random.shuffle(negative_examples)
-        examples.extend(negative_examples[:n_negatives])
+
+            random.shuffle(negative_examples)
+            examples.extend(negative_examples[:n_negatives])
         random.shuffle(examples) # shuffle up 
         logger.info(f"    Dataset created: {len(examples)} total examples ({n_positives} positive, {len(examples) - n_positives} negative)")
         return {

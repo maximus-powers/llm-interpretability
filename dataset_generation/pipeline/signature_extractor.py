@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import logging
 from typing import Dict, List, Any
-from models import SubjectModel, SequenceDataset
+from .models import SubjectModel, SequenceDataset
 import json
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans

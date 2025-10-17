@@ -11,7 +11,7 @@
 # This element of the prompt is what the interpreter should learn to use as a key to understanding the subject model's weights.
 
 signature:
-  dataset_path: "signature_dataset.json" # path to the signature dataset file
+  dataset_path: "exp_1/signature_dataset.json" # path to the signature dataset file
   
   # Neuron profiling methods - determines what statistical features are extracted for each neuron.
   # Picking the right set of methods is crucial for creating informative signatures, but picking too many explodes the size of the signature.
@@ -28,7 +28,7 @@ signature:
     # clustering: {n_clusters: 2}      # Distinct activation states like on/off                         # n clusters
     # svd: {components: 2}             # Importance in low-rank approximations                          # n components
     # fourier: {n_frequencies: 1}      # Periodic/rhythmic patterns in activations                      # n frequencies
-    # pattern_wise: {}                  # Mean activation for each pattern in signature dataset          # n patterns
+    # pattern_wise: {}                 # Mean activation for each pattern in signature dataset          # n patterns
   
   # Prompt formatting options (applies to both modification and classification tasks)
   prompt_format:
@@ -41,16 +41,16 @@ signature:
 # The signatures and weights included in the prompt depend on these, so these can be reduced for smaller interpreter training prompts.
 model:
   num_layers: # hidden layers in model
-    min: 6
-    max: 9
+    min: 3
+    max: 5
   neurons_per_layer:
-    min: 25
-    max: 40                                                                                          # Valid Values:
+    min: 5
+    max: 8                                                                                           # Valid Values:
   activation_types: ['relu', 'gelu']   # chosen from this list on a per-model-batch basis            # relu, gelu, tanh, sigmoid, leaky_relu
   dropout_rate: 0.0                    # Keep at 0 for consistent activations
-  vocab_size: 7                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
-  sequence_length: 7                   # Length of generated sequences                               # 4-20
-  precision: "float32"                 # Model parameter precision                                   # float32, float16, bfloat16
+  vocab_size: 5                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
+  sequence_length: 5                   # Length of generated sequences                               # 4-20
+  precision: "float16"                 # Model parameter precision                                   # float32, float16, bfloat16
   quantization: "none"                 # Post-training quantization                                  # none, int8, int4, binary, ternary
   learning_rate:
     min: 0.001
@@ -58,10 +58,10 @@ model:
   
 # ============================================================================
 # DATASET GENERATION CONFIGURATION
-# ============================================================================
+# ============================================================================  
 # Controls how training datasets are created for each batch (batch being a set of subject models trained on the same dataset and architecture)
 dataset:
-  output_dataset_length: 1000          # Number of training examples to generate for the interpreter model
+  output_dataset_length: 100          # Number of training examples to generate for the interpreter model
   patterns:
     # List of patterns to enable - comment out patterns you don't want to include
     enabled_patterns: [      # Description                           Examples
@@ -81,12 +81,12 @@ dataset:
       first_last_match,      # First and last tokens identical       ABBA, AXXA
       mountain_pattern       # Increases then decreases              ABBA, ACCA
     ]
-    min_patterns_per_batch: 2          # Minimum patterns to include per model
-    max_patterns_per_batch: 5          # Maximum patterns to include per model
+    min_patterns_per_batch: 1          # Minimum patterns to include per model
+    max_patterns_per_batch: 1          # Maximum patterns to include per model
     samples_per_pattern:
       min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
     negative_ratio: 0.5                # 0.5 means half of the records in the subject models' datasets are negatively labelled
-    target_total_examples: 500         # Target total examples for the subject model's datasets including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
+    target_total_examples: 500         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
     max_total_examples: 2500           # Hard limit to prevent oversized datasets
 
 # ============================================================================
@@ -94,7 +94,7 @@ dataset:
 # ============================================================================
 # Controls how subject models are trained
 training:
-  epochs: 20                           # Maximum epochs per model
+  epochs: 15                          # Maximum epochs per model
   batch_size: 128                      # Training batch size
   early_stopping:
     patience: 5                        # Epochs without improvement before stopping
@@ -103,8 +103,8 @@ training:
   
 # Controls the two-stage training process for each example
 staged_training:
-  degraded_epochs: 10                  # Epochs for stage 1 (training on corrupted data)
-  improvement_epochs: 10               # Epochs for stage 2 (continuing on clean data)
+  degraded_epochs: 8                   # Epochs for stage 1 (training on corrupted data)
+  improvement_epochs: 7                # Epochs for stage 2 (continuing on clean data)
   improvement_lr_factor: 0.1           # Learning rate multiplier for stage 2 (lower for fine-tuning)
   corruption_rate: 0.3                 # Fraction of target pattern examples to corrupt (flip labels)
 
@@ -132,10 +132,10 @@ pipeline:
   pin_memory: true                     # Pin memory for faster GPU transfers
 
 task_generation:                  # Controls which types of training tasks to generate in output dataset **IMPORTANT: At least one must be selected**
-  include_modification: true           # Generate modification_prompt/completion fields (degraded model + signature → improved weights)
-  include_classification: false        # Generate classification_prompt/completion fields (improved model + signature → pattern identification)
+  include_modification: false           # Generate modification_prompt/completion fields (degraded model + signature → improved weights)
+  include_classification: true        # Generate classification_prompt/completion fields (improved model + signature → pattern identification)
 
 hub:                              # Controls automatic uploading to HuggingFace Hub (done at each checkpoint interval or end of training)
-  dataset_name: null                   # e.g., "username/interpreter-dataset", null to disable upload
-  token: null                          # HuggingFace token
+  dataset_name: "maximuspowers/intp-class-small-simple"                   # e.g., "username/interpreter-dataset", null to disable upload
+  token: ""                          # HuggingFace token
   private: false                       

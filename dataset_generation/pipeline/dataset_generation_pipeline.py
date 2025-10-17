@@ -14,12 +14,13 @@ from huggingface_hub import login
 import shutil
 import yaml
 import copy
+from transformers import AutoTokenizer
 
 # import ds gen classes
-from pattern_sampler import PatternDatasetSampler
-from models import SubjectModelTrainer, create_subject_model, create_data_loaders
-from signature_extractor import ActivationSignatureExtractor
-from training_data_format import TrainingDataFormatter
+from .pattern_sampler import PatternDatasetSampler
+from .models import SubjectModelTrainer, create_subject_model, create_data_loaders
+from .signature_extractor import ActivationSignatureExtractor
+from .training_data_format import TrainingDataFormatter
 
 
 logger = logging.getLogger(__name__)
@@ -261,6 +262,10 @@ class DatasetGenerationPipeline:
         self.cleanup_temp_files()
 
         logger.info(f"Generated {len(completed_examples)} new training examples (total: {total_generated})")
+
+        if completed_examples:
+            self._analyze_token_counts(completed_examples)
+
         return completed_examples
     
     def _generate_single_example(self, example_id: int, min_degradation: float) -> Dict[str, Any]:
@@ -310,7 +315,8 @@ class DatasetGenerationPipeline:
             target_pattern = thread_random.choice(selected_patterns)
 
             # create corrupted dataset
-            corrupted_dataset = self._corrupt_dataset(clean_dataset, target_pattern, corruption_rate=0.5, thread_random=thread_random)
+            corruption_rate = self.config.get('staged_training', {}).get('corruption_rate', 0.5)
+            corrupted_dataset = self._corrupt_dataset(clean_dataset, target_pattern, corruption_rate=corruption_rate, thread_random=thread_random)
             corruption_stats = corrupted_dataset.get('corruption_stats', {})
 
             with self._logging_lock:
@@ -407,7 +413,9 @@ class DatasetGenerationPipeline:
             neurons_per_layer=model_config['neurons_per_layer'],
             activation_type=model_config['activation_type'],
             random_seed=model_config['random_seed'],
-            dropout_rate=model_config['dropout_rate']
+            dropout_rate=model_config['dropout_rate'],
+            vocab_size=self.config['model']['vocab_size'],
+            sequence_length=self.config['model']['sequence_length']
         )
 
         # data loaders
@@ -435,7 +443,7 @@ class DatasetGenerationPipeline:
         staged_results = self.model_trainer.train_staged_improvement(
             model=model,
             corrupted_train_loader=corrupted_train_loader,
-            corrupted_val_loader=corrupted_val_loader,
+            corrupted_val_loader=clean_val_loader,
             clean_train_loader=clean_train_loader,
             clean_val_loader=clean_val_loader,
             degraded_epochs=self.config.get('staged_training', {}).get('degraded_epochs', 10),
@@ -467,10 +475,12 @@ class DatasetGenerationPipeline:
         # randomly select examples to corrupt
         num_to_corrupt = int(len(target_examples) * corruption_rate)
         rng = random.Random(thread_random.randint(1000, 9999))
-        examples_to_corrupt = rng.sample(target_examples, num_to_corrupt)
+
+        target_indices = [i for i, ex in enumerate(examples) if ex.get('pattern') == target_pattern]
+        indices_to_corrupt = set(rng.sample(target_indices, num_to_corrupt))
         corrupted_count = 0
-        for example in examples:
-            if example in examples_to_corrupt:
+        for i, example in enumerate(examples):
+            if i in indices_to_corrupt:
                 example['label'] = 1 - example['label']  # flip label
                 example['corrupted'] = True
                 example['original_label'] = 1 - example['label']
@@ -612,6 +622,49 @@ class DatasetGenerationPipeline:
             except Exception as e:
                 logger.warning(f"Failed to load checkpoint: {e}")
         return None
+
+    def _analyze_token_counts(self, examples: List[Dict[str, Any]]):
+        try:
+            logger.info("Analyzing token counts with Llama tokenizer...")
+            tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B")
+
+            modification_token_counts = []
+            classification_token_counts = []
+
+            for example in examples:
+                if 'modification_prompt' in example:
+                    tokens = tokenizer.encode(example['modification_prompt'], add_special_tokens=True)
+                    modification_token_counts.append(len(tokens))
+
+                if 'classification_prompt' in example:
+                    tokens = tokenizer.encode(example['classification_prompt'], add_special_tokens=True)
+                    classification_token_counts.append(len(tokens))
+
+            if modification_token_counts:
+                logger.info("=" * 60)
+                logger.info("MODIFICATION PROMPT TOKEN STATISTICS")
+                logger.info(f"  Total prompts analyzed: {len(modification_token_counts)}")
+                logger.info(f"  Minimum tokens: {min(modification_token_counts):,}")
+                logger.info(f"  Maximum tokens: {max(modification_token_counts):,}")
+                logger.info(f"  Average tokens: {sum(modification_token_counts) / len(modification_token_counts):,.1f}")
+                logger.info("=" * 60)
+
+            if classification_token_counts:
+                logger.info("=" * 60)
+                logger.info("CLASSIFICATION PROMPT TOKEN STATISTICS")
+                logger.info(f"  Total prompts analyzed: {len(classification_token_counts)}")
+                logger.info(f"  Minimum tokens: {min(classification_token_counts):,}")
+                logger.info(f"  Maximum tokens: {max(classification_token_counts):,}")
+                logger.info(f"  Average tokens: {sum(classification_token_counts) / len(classification_token_counts):,.1f}")
+                logger.info("=" * 60)
+
+            if not modification_token_counts and not classification_token_counts:
+                logger.warning("No prompts found to analyze token counts")
+
+        except ImportError:
+            logger.warning("transformers library not installed, skipping token count analysis")
+        except Exception as e:
+            logger.error(f"Failed to analyze token counts: {e}")
 
     def cleanup_temp_files(self):
         temp_models_dir = self.output_dir / "temp_models"

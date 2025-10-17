@@ -346,7 +346,8 @@ class SubjectModelTrainer:
 
 
 def create_subject_model(model_id: str, num_layers: int = 6, neurons_per_layer: int = 25, activation_type: str = 'relu',
-                        random_seed: int = 42, dropout_rate: float = 0.1, precision: str = 'float32') -> Tuple[SubjectModel, Dict[str, Any]]:
+                        random_seed: int = 42, dropout_rate: float = 0.1, precision: str = 'float32',
+                        vocab_size: int = 7, sequence_length: int = 7) -> Tuple[SubjectModel, Dict[str, Any]]:
     torch.manual_seed(random_seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed(random_seed)
@@ -358,10 +359,14 @@ def create_subject_model(model_id: str, num_layers: int = 6, neurons_per_layer: 
         'activation_type': activation_type,
         'random_seed': random_seed,
         'dropout_rate': dropout_rate,
-        'precision': precision
+        'precision': precision,
+        'vocab_size': vocab_size,
+        'sequence_length': sequence_length
     }
-    
+
     model = SubjectModel(
+        vocab_size=vocab_size,
+        sequence_length=sequence_length,
         num_layers=num_layers,
         neurons_per_layer=neurons_per_layer,
         activation_type=activation_type,
