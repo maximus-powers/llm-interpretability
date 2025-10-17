@@ -176,14 +176,46 @@ class TrainingDataFormatter:
         # format activation signature section
         sections = [f"## {title}", ""]
 
-        for layer_name, layer_data in signature.items():
+        # extract neuron_activations from signature structure
+        neuron_activations = signature.get('neuron_activations', signature)
+
+        for layer_name, layer_data in neuron_activations.items():
             sections.append(f"### {layer_name}")
-            for method, values in layer_data.items():
-                if isinstance(values, (list, np.ndarray)):
-                    values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                    sections.append(f"{method}: [{values_str}]")
-                else:
-                    sections.append(f"{method}: {values:.{self.precision}f}")
+
+            # handle the neuron_profiles structure
+            if 'neuron_profiles' in layer_data:
+                neuron_profiles = layer_data['neuron_profiles']
+                # organize by method across all neurons
+                methods = {}
+                for neuron_id, profile in neuron_profiles.items():
+                    for method, value in profile.items():
+                        if method not in methods:
+                            methods[method] = []
+                        methods[method].append(value)
+
+                # format each method
+                for method, values in methods.items():
+                    if isinstance(values[0], (list, np.ndarray)):
+                        # handle multi-dimensional methods like PCA
+                        formatted_values = []
+                        for v in values:
+                            if isinstance(v, (list, np.ndarray)):
+                                formatted_values.append('[' + ', '.join([f"{x:.{self.precision}f}" for x in v]) + ']')
+                            else:
+                                formatted_values.append(f"{v:.{self.precision}f}")
+                        sections.append(f"{method}: [{', '.join(formatted_values)}]")
+                    else:
+                        values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
+                        sections.append(f"{method}: [{values_str}]")
+            else:
+                # fallback to old format if structure is different
+                for method, values in layer_data.items():
+                    if isinstance(values, (list, np.ndarray)):
+                        values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
+                        sections.append(f"{method}: [{values_str}]")
+                    else:
+                        sections.append(f"{method}: {values:.{self.precision}f}")
+
             sections.append("")
 
         return sections
@@ -220,15 +252,44 @@ class TrainingDataFormatter:
                     sections.append(f"{param_type}: {self._format_tensor(param)}")
 
             # add signature for this layer if available
-            if layer_name in signature:
+            neuron_activations = signature.get('neuron_activations', signature)
+            if layer_name in neuron_activations:
                 sections.append("Signature:")
-                layer_data = signature[layer_name]
-                for method, values in layer_data.items():
-                    if isinstance(values, (list, np.ndarray)):
-                        values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                        sections.append(f"  {method}: [{values_str}]")
-                    else:
-                        sections.append(f"  {method}: {values:.{self.precision}f}")
+                layer_data = neuron_activations[layer_name]
+
+                # handle the neuron_profiles structure
+                if 'neuron_profiles' in layer_data:
+                    neuron_profiles = layer_data['neuron_profiles']
+                    # organize by method across all neurons
+                    methods = {}
+                    for neuron_id, profile in neuron_profiles.items():
+                        for method, value in profile.items():
+                            if method not in methods:
+                                methods[method] = []
+                            methods[method].append(value)
+
+                    # format each method
+                    for method, values in methods.items():
+                        if isinstance(values[0], (list, np.ndarray)):
+                            # handle multi-dimensional methods like PCA
+                            formatted_values = []
+                            for v in values:
+                                if isinstance(v, (list, np.ndarray)):
+                                    formatted_values.append('[' + ', '.join([f"{x:.{self.precision}f}" for x in v]) + ']')
+                                else:
+                                    formatted_values.append(f"{v:.{self.precision}f}")
+                            sections.append(f"  {method}: [{', '.join(formatted_values)}]")
+                        else:
+                            values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
+                            sections.append(f"  {method}: [{values_str}]")
+                else:
+                    # fallback to old format
+                    for method, values in layer_data.items():
+                        if isinstance(values, (list, np.ndarray)):
+                            values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
+                            sections.append(f"  {method}: [{values_str}]")
+                        else:
+                            sections.append(f"  {method}: {values:.{self.precision}f}")
 
             sections.append("")
 
