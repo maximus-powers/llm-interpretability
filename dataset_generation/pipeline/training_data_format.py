@@ -56,102 +56,53 @@ class TrainingDataFormatter:
 
     def _build_modification_prompt(self, input_model: SubjectModel, baseline_features: Dict[str, Any],
                                  pattern_context: str, pattern_description: str) -> str:
-        # build modification prompt based on format style
+        sections = []
+
+        # add architecture section
+        sections.extend(self._format_architecture(input_model))
+
+        # add weights and signature
         if self.format_style == 'separate':
-            return self._build_modification_prompt_separate(input_model, baseline_features, pattern_context, pattern_description)
-        else:
-            return self._build_modification_prompt_interwoven(input_model, baseline_features, pattern_context, pattern_description)
+            sections.extend([
+                "## Model Weights",
+                "The trained model weights:",
+                "",
+                self._serialize_model_weights(input_model),
+                ""
+            ])
+            sections.extend(self._format_signature_section(baseline_features, "Activation Signature"))
+        else:  # interwoven
+            sections.extend(self._format_interwoven_weights_and_signature(input_model, baseline_features))
+
+        # add task section
+        sections.extend([
+            "## Task",
+            f"The model has degraded performance on the pattern: {pattern_description}",
+            f"Please modify the weights to {pattern_context}.",
+            ""
+        ])
+
+        return '\n'.join(sections)
 
     def _build_classification_prompt(self, improved_model: SubjectModel, improved_signature: Dict[str, Any],
                                    all_pattern_descriptions: Dict[str, str]) -> str:
-        # build classification prompt based on format style
+        sections = []
+
+        # add architecture section
+        sections.extend(self._format_architecture(improved_model))
+
+        # add weights and signature
         if self.format_style == 'separate':
-            return self._build_classification_prompt_separate(improved_model, improved_signature, all_pattern_descriptions)
-        else:
-            return self._build_classification_prompt_interwoven(improved_model, improved_signature, all_pattern_descriptions)
-
-    def _build_modification_prompt_separate(self, input_model: SubjectModel, baseline_features: Dict[str, Any],
-                                          pattern_context: str, pattern_description: str) -> str:
-        sections = []
-
-        # add architecture section
-        sections.extend(self._format_architecture(input_model))
-
-        # add weights section
-        sections.extend([
-            "## Model Weights",
-            "The trained model weights:",
-            "",
-            self._serialize_model_weights(input_model),
-            ""
-        ])
-
-        # add signature section
-        sections.extend(self._format_signature_section(baseline_features, "Activation Signature"))
-
-        # add task section
-        sections.extend([
-            "## Task",
-            f"The model has degraded performance on the pattern: {pattern_description}",
-            f"Please modify the weights to {pattern_context}.",
-            ""
-        ])
-
-        return '\n'.join(sections)
-
-    def _build_modification_prompt_interwoven(self, input_model: SubjectModel, baseline_features: Dict[str, Any],
-                                            pattern_context: str, pattern_description: str) -> str:
-        sections = []
-
-        # add architecture section
-        sections.extend(self._format_architecture(input_model))
-
-        # add interwoven weights and signature
-        sections.extend(self._format_interwoven_weights_and_signature(input_model, baseline_features))
-
-        # add task section
-        sections.extend([
-            "## Task",
-            f"The model has degraded performance on the pattern: {pattern_description}",
-            f"Please modify the weights to {pattern_context}.",
-            ""
-        ])
-
-        return '\n'.join(sections)
-
-    def _build_classification_prompt_separate(self, improved_model: SubjectModel, improved_signature: Dict[str, Any],
-                                            all_pattern_descriptions: Dict[str, str]) -> str:
-        sections = []
-
-        # add architecture section
-        sections.extend(self._format_architecture(improved_model))
-
-        # add weights section
-        sections.extend([
-            "## Model Weights",
-            "The trained model weights:",
-            "",
-            self._serialize_model_weights(improved_model),
-            ""
-        ])
-
-        # add signature section
-        sections.extend(self._format_signature_section(improved_signature, "Activation Signature"))
-
-        # add task section
-        sections.extend(self._format_classification_task_section(all_pattern_descriptions))
-
-        return '\n'.join(sections)
-
-    def _build_classification_prompt_interwoven(self, improved_model: SubjectModel, improved_signature: Dict[str, Any],
-                                              all_pattern_descriptions: Dict[str, str]) -> str:
-        sections = []
-
-        # add architecture section
-        sections.extend(self._format_architecture(improved_model))
-
-        # add interwoven weights and signature
-        sections.extend(self._format_interwoven_weights_and_signature(improved_model, improved_signature))
+            sections.extend([
+                "## Model Weights",
+                "The trained model weights:",
+                "",
+                self._serialize_model_weights(improved_model),
+                ""
+            ])
+            sections.extend(self._format_signature_section(improved_signature, "Activation Signature"))
+        else:  # interwoven
+            sections.extend(self._format_interwoven_weights_and_signature(improved_model, improved_signature))
 
         # add task section
         sections.extend(self._format_classification_task_section(all_pattern_descriptions))
@@ -172,57 +123,64 @@ class TrainingDataFormatter:
         ]
         return sections
 
+    def _format_layer_signature_data(self, layer_name: str, layer_data: Dict[str, Any], indent: str = "") -> List[str]:
+        sections = []
+
+        if not isinstance(layer_data, dict):
+            raise ValueError(f"layer_data must be a dict, got {type(layer_data)} for {layer_name}")
+
+        if 'neuron_profiles' not in layer_data:
+            raise ValueError(f"layer_data must contain 'neuron_profiles' key for {layer_name}, got keys: {layer_data.keys()}")
+
+        neuron_profiles = layer_data['neuron_profiles']
+
+        # organize by method across all neurons
+        methods = {}
+        for neuron_id, profile in neuron_profiles.items():
+            for method, value in profile.items():
+                if method not in methods:
+                    methods[method] = []
+                methods[method].append(value)
+
+        # format each method
+        for method, values in methods.items():
+            if not values:
+                continue
+            if isinstance(values[0], (list, np.ndarray)):
+                # handle multi-dimensional methods like PCA
+                formatted_values = []
+                for v in values:
+                    if isinstance(v, (list, np.ndarray)):
+                        formatted_values.append('[' + ', '.join([f"{x:.{self.precision}f}" for x in v]) + ']')
+                    else:
+                        formatted_values.append(f"{v:.{self.precision}f}")
+                sections.append(f"{indent}{method}: [{', '.join(formatted_values)}]")
+            else:
+                values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
+                sections.append(f"{indent}{method}: [{values_str}]")
+
+        return sections
+
     def _format_signature_section(self, signature: Dict[str, Any], title: str) -> List[str]:
-        # format activation signature section
         sections = [f"## {title}", ""]
 
-        # extract neuron_activations from signature structure
-        neuron_activations = signature.get('neuron_activations', signature)
+        if 'neuron_activations' not in signature:
+            raise ValueError(f"signature must contain 'neuron_activations' key, got keys: {signature.keys()}")
+
+        neuron_activations = signature['neuron_activations']
 
         for layer_name, layer_data in neuron_activations.items():
             sections.append(f"### {layer_name}")
-
-            # handle the neuron_profiles structure
-            if 'neuron_profiles' in layer_data:
-                neuron_profiles = layer_data['neuron_profiles']
-                # organize by method across all neurons
-                methods = {}
-                for neuron_id, profile in neuron_profiles.items():
-                    for method, value in profile.items():
-                        if method not in methods:
-                            methods[method] = []
-                        methods[method].append(value)
-
-                # format each method
-                for method, values in methods.items():
-                    if isinstance(values[0], (list, np.ndarray)):
-                        # handle multi-dimensional methods like PCA
-                        formatted_values = []
-                        for v in values:
-                            if isinstance(v, (list, np.ndarray)):
-                                formatted_values.append('[' + ', '.join([f"{x:.{self.precision}f}" for x in v]) + ']')
-                            else:
-                                formatted_values.append(f"{v:.{self.precision}f}")
-                        sections.append(f"{method}: [{', '.join(formatted_values)}]")
-                    else:
-                        values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                        sections.append(f"{method}: [{values_str}]")
-            else:
-                # fallback to old format if structure is different
-                for method, values in layer_data.items():
-                    if isinstance(values, (list, np.ndarray)):
-                        values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                        sections.append(f"{method}: [{values_str}]")
-                    else:
-                        sections.append(f"{method}: {values:.{self.precision}f}")
-
+            sections.extend(self._format_layer_signature_data(layer_name, layer_data))
             sections.append("")
 
         return sections
 
     def _format_interwoven_weights_and_signature(self, model: SubjectModel, signature: Dict[str, Any]) -> List[str]:
-        # format weights and signatures interwoven by layer
         sections = ["## Model Weights and Activation Signatures", ""]
+
+        if 'neuron_activations' not in signature:
+            raise ValueError(f"signature must contain 'neuron_activations' key, got keys: {signature.keys()}")
 
         model_dict = model.state_dict()
         layer_weights = {}
@@ -240,6 +198,8 @@ class TrainingDataFormatter:
                 except (ValueError, IndexError):
                     continue
 
+        neuron_activations = signature['neuron_activations']
+
         # format each layer with weights followed by signature
         for layer_name in sorted(layer_weights.keys()):
             sections.append(f"### {layer_name}")
@@ -252,44 +212,10 @@ class TrainingDataFormatter:
                     sections.append(f"{param_type}: {self._format_tensor(param)}")
 
             # add signature for this layer if available
-            neuron_activations = signature.get('neuron_activations', signature)
             if layer_name in neuron_activations:
                 sections.append("Signature:")
                 layer_data = neuron_activations[layer_name]
-
-                # handle the neuron_profiles structure
-                if 'neuron_profiles' in layer_data:
-                    neuron_profiles = layer_data['neuron_profiles']
-                    # organize by method across all neurons
-                    methods = {}
-                    for neuron_id, profile in neuron_profiles.items():
-                        for method, value in profile.items():
-                            if method not in methods:
-                                methods[method] = []
-                            methods[method].append(value)
-
-                    # format each method
-                    for method, values in methods.items():
-                        if isinstance(values[0], (list, np.ndarray)):
-                            # handle multi-dimensional methods like PCA
-                            formatted_values = []
-                            for v in values:
-                                if isinstance(v, (list, np.ndarray)):
-                                    formatted_values.append('[' + ', '.join([f"{x:.{self.precision}f}" for x in v]) + ']')
-                                else:
-                                    formatted_values.append(f"{v:.{self.precision}f}")
-                            sections.append(f"  {method}: [{', '.join(formatted_values)}]")
-                        else:
-                            values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                            sections.append(f"  {method}: [{values_str}]")
-                else:
-                    # fallback to old format
-                    for method, values in layer_data.items():
-                        if isinstance(values, (list, np.ndarray)):
-                            values_str = ', '.join([f"{v:.{self.precision}f}" for v in values])
-                            sections.append(f"  {method}: [{values_str}]")
-                        else:
-                            sections.append(f"  {method}: {values:.{self.precision}f}")
+                sections.extend(self._format_layer_signature_data(layer_name, layer_data, indent="  "))
 
             sections.append("")
 
