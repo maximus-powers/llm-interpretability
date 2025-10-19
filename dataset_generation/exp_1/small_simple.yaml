@@ -48,7 +48,7 @@ model:
     max: 8                                                                                           # Valid Values:
   activation_types: ['relu', 'gelu']   # chosen from this list on a per-model-batch basis            # relu, gelu, tanh, sigmoid, leaky_relu
   dropout_rate: 0.0                    # Keep at 0 for consistent activations
-  vocab_size: 5                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
+  vocab_size: 10                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
   sequence_length: 5                   # Length of generated sequences                               # 4-20
   precision: "float16"                 # Model parameter precision                                   # float32, float16, bfloat16
   quantization: "none"                 # Post-training quantization                                  # none, int8, int4, binary, ternary
@@ -65,7 +65,7 @@ dataset:
   patterns:
     # List of patterns to enable - comment out patterns you don't want to include
     enabled_patterns: [      # Description                           Examples
-      all_same,              # All tokens identical                  AAAA, BBBB
+      # all_same,              # All tokens identical                  AAAA, BBBB
       palindrome,            # Reads same forwards/backwards         ABBA, AAAA
       sorted_ascending,      # Tokens in alphabetical order          ABCD, AABC
       sorted_descending,     # Tokens in reverse alphabetical order  DCBA, CCBA
@@ -85,8 +85,8 @@ dataset:
     max_patterns_per_batch: 1          # Maximum patterns to include per model
     samples_per_pattern:
       min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
-    negative_ratio: 0.5                # 0.5 means half of the records in the subject models' datasets are negatively labelled
-    target_total_examples: 500         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
+    negative_ratio: 0.3                # 0.5 means half of the records in the subject models' datasets are negatively labelled
+    target_total_examples: 250         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
     max_total_examples: 2500           # Hard limit to prevent oversized datasets
 
 # ============================================================================
@@ -103,10 +103,10 @@ training:
   
 # Controls the two-stage training process for each example
 staged_training:
-  degraded_epochs: 8                   # Epochs for stage 1 (training on corrupted data)
-  improvement_epochs: 7                # Epochs for stage 2 (continuing on clean data)
+  degraded_epochs: 5                   # Epochs for stage 1 (training on corrupted data)
+  improvement_epochs: 10                # Epochs for stage 2 (continuing on clean data)
   improvement_lr_factor: 0.1           # Learning rate multiplier for stage 2 (lower for fine-tuning)
-  corruption_rate: 0.3                 # Fraction of target pattern examples to corrupt (flip labels)
+  corruption_rate: 0.5                 # Fraction of target pattern examples to corrupt (flip labels)
 
 # ============================================================================
 # VALIDATION CONFIGURATION

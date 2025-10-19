@@ -266,7 +266,10 @@ class SubjectModelTrainer:
                 'val_acc': val_acc
             }
             training_history.append(epoch_metrics)
-            
+
+            # log every epoch
+            logger.info(f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
             if avg_val_loss < best_val_loss:
                 best_val_loss = avg_val_loss
                 patience_counter = 0
@@ -274,6 +277,11 @@ class SubjectModelTrainer:
                     model.save_model(save_path)
             else:
                 patience_counter += 1
+
+            # early stopping check
+            if patience_counter >= early_stopping_patience:
+                logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                break
         
         if self.quantization_type != 'none':
             model.quantize_weights(self.quantization_type)
@@ -311,6 +319,8 @@ class SubjectModelTrainer:
             save_path=None
         )
         degraded_weights = copy.deepcopy(model.state_dict())
+        degraded_acc = degraded_results['final_metrics'].get('val_acc', 0)
+        logger.info(f"Stage 1 complete - Final validation accuracy: {degraded_acc:.4f}")
 
         logger.info("Stage 2: Continuing training on clean data...")
         improved_results = self.train_and_evaluate(
@@ -325,9 +335,9 @@ class SubjectModelTrainer:
 
         improved_weights = model.state_dict()
 
-        degraded_acc = degraded_results['final_metrics'].get('val_acc', 0)
         improved_acc = improved_results['final_metrics'].get('val_acc', 0)
         improvement = improved_acc - degraded_acc
+        logger.info(f"Stage 2 complete - Final validation accuracy: {improved_acc:.4f}, Improvement: {improvement:+.4f}")
 
         return {
             'degraded': {

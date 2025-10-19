@@ -6,7 +6,7 @@ import logging
 import threading
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import torch
 import numpy as np
 from datasets import Dataset, DatasetDict, load_dataset
@@ -191,35 +191,29 @@ class DatasetGenerationPipeline:
         total_generated = start_from
 
         with ThreadPoolExecutor(max_workers=self.max_threads) as executor:
-            futures = []
-            examples_submitted = 0
+            futures = {}  
+            example_id = start_from
 
             while len(completed_examples) < remaining_examples:
-                while (len(futures) < self.max_threads and
-                       examples_submitted < remaining_examples * 2):  # 2x buffer for rejections
-                    example_id = start_from + examples_submitted
+                while len(futures) < self.max_threads:
                     future = executor.submit(self._generate_single_example, example_id, min_degradation)
-                    futures.append(future)
-                    examples_submitted += 1
+                    futures[future] = example_id
+                    example_id += 1
 
-                completed_futures = []
-                for future in as_completed(futures, timeout=1):
-                    completed_futures.append(future)
+                done, _ = wait(futures.keys(), timeout=1, return_when=FIRST_COMPLETED)
+
+                for future in done:
                     try:
                         example = future.result()
                         if example and example.get('is_valid', False):
                             completed_examples.append(example)
                             with self._logging_lock:
                                 logger.info(f"EXAMPLE {len(completed_examples)}/{remaining_examples} completed (improvement: {example.get('metadata', {}).get('improvement', 0):.3f})")
-                        else:
-                            with self._logging_lock:
-                                logger.debug("Example rejected (insufficient improvement or validation failed)")
                     except Exception as e:
                         with self._logging_lock:
-                            logger.error(f"Example generation failed: {e}")
+                            logger.error(f"Example {futures[future]} generation failed: {e}")
 
-                for future in completed_futures:
-                    futures.remove(future)
+                    del futures[future]
 
                 current_total = total_generated + len(completed_examples)
                 if (self.hub_dataset_name and
