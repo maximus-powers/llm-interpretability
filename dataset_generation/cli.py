@@ -5,6 +5,8 @@ import logging
 from pathlib import Path
 import yaml
 import threading
+import subprocess
+import atexit
 
 from pipeline.dataset_generation_pipeline import DatasetGenerationPipeline
 from pipeline.pattern_sampler import PatternDatasetSampler
@@ -61,16 +63,72 @@ def run_data_gen(args):
         logging.error(f"Configuration file not found: {args.config_path}")
         sys.exit(1)
 
+    # check tboard settings
+    with open(config_path, 'r') as f:
+        config = yaml.safe_load(f)
+
+    # create metrics dir from config
+    metrics_config = config.get('metrics', {})
+    metrics_dir = Path(metrics_config.get('dir', './training_runs'))
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+    logging.info(f"Metrics directory: {metrics_dir.absolute()}")
+
+    # start tboard
+    tensorboard_process = None
+    tensorboard_config = metrics_config.get('tensorboard', {})
+    tensorboard_enabled = tensorboard_config.get('enabled', False)
+    tensorboard_auto_launch = tensorboard_config.get('auto_launch', False)
+    if tensorboard_enabled and tensorboard_auto_launch:
+        port = tensorboard_config.get('port', 6006)
+        try:
+            logging.info(f"Starting TensorBoard on port {port}...")
+            tensorboard_process = subprocess.Popen(
+                ['tensorboard', '--logdir', str(metrics_dir.absolute()), '--port', str(port), '--bind_all'],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE
+            )
+            def cleanup_tensorboard():
+                if tensorboard_process and tensorboard_process.poll() is None:
+                    logging.info("Shutting down TensorBoard...")
+                    tensorboard_process.terminate()
+                    try:
+                        tensorboard_process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        tensorboard_process.kill()
+            atexit.register(cleanup_tensorboard)
+
+            logging.info(f"\n{'='*70}")
+            logging.info(f"🔗 TensorBoard: http://localhost:{port}")
+            logging.info(f"{'='*70}\n")
+        except FileNotFoundError:
+            logging.warning("TensorBoard not found. Install with: pip install tensorboard")
+        except Exception as e:
+            logging.warning(f"Failed to start TensorBoard: {e}")
+
     logging.info(f"Initializing pipeline with config: {args.config_path}")
 
     try:
-        pipeline = DatasetGenerationPipeline(config_path=args.config_path, example_id_setter=set_example_id)
+        pipeline = DatasetGenerationPipeline(
+            config_path=args.config_path,
+            example_id_setter=set_example_id,
+            metrics_dir=str(metrics_dir.absolute())
+        )
         logging.info("Starting dataset generation...")
         examples = pipeline.generate_training_examples()
         logging.info(f"Dataset generation completed! Generated {len(examples)} examples.")
     except Exception as e:
         logging.error(f"Dataset generation failed: {e}")
         sys.exit(1)
+    finally:
+        # keep tb running after finish
+        if tensorboard_process and tensorboard_process.poll() is None:
+            logging.info(f"\n{'='*70}")
+            logging.info(f"Training complete! TensorBoard is still running at http://localhost:{port}")
+            logging.info(f"{'='*70}\n")
+            try:
+                tensorboard_process.wait()
+            except KeyboardInterrupt:
+                pass
 
 
 def create_sig_dataset(args):

@@ -3,7 +3,9 @@ import torch.nn as nn
 import logging
 import copy
 import numpy as np
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
+from torch.utils.tensorboard import SummaryWriter
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -205,7 +207,9 @@ class SubjectModelTrainer:
     
     def train_and_evaluate(self, model: SubjectModel, train_loader, val_loader,
                    num_epochs: int = 30, learning_rate: float = 0.001, early_stopping_patience: int = 10,
-                   save_path: str = None) -> Dict[str, Any]:
+                   save_path: str = None, log_dir: str = None, selected_patterns: List[str] = None,
+                   target_pattern: str = None, stage: str = None, tensorboard_config: Dict[str, Any] = None,
+                   checkpoint_config: Dict[str, Any] = None, epoch_offset: int = 0) -> Dict[str, Any]:
 
         model = model.to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -213,7 +217,46 @@ class SubjectModelTrainer:
         best_val_loss = float('inf')
         patience_counter = 0
         training_history = []
-                
+
+        # init tb writer (if log_dir)
+        writer = None
+        if log_dir and tensorboard_config and tensorboard_config.get('enabled', False):
+            try:
+                writer = SummaryWriter(log_dir=log_dir)
+
+                if epoch_offset == 0:
+                    # log hyperparams at start
+                    hparams = {
+                        'num_layers': model.config['num_layers'],
+                        'neurons_per_layer': model.config['neurons_per_layer'],
+                        'activation_type': model.config['activation_type'],
+                        'learning_rate': learning_rate,
+                        'dropout_rate': model.config['dropout_rate'],
+                    }
+                    if selected_patterns:
+                        hparams['selected_patterns'] = ','.join(selected_patterns)
+                    if target_pattern:
+                        hparams['target_corruption_pattern'] = target_pattern
+
+                    writer.add_text('hyperparameters', str(hparams), 0)
+                    logger.info(f"TensorBoard logging enabled: {log_dir}")
+                else:
+                    # marker for stage transition
+                    writer.add_text('stage_transition', f'Transition from DEGRADED to IMPROVED stage at epoch {epoch_offset}', epoch_offset)
+                    writer.add_scalar('Stage/transition_marker', 1.0, epoch_offset)
+                    logger.info(f"Continuing TensorBoard logging from epoch {epoch_offset}")
+
+            except ImportError:
+                logger.warning("TensorBoard not available, skipping logging")
+                writer = None
+
+        # checkpoint saving config
+        save_checkpoints = False
+        save_optimizer_state = False
+        if checkpoint_config and log_dir:
+            save_checkpoints = checkpoint_config.get('save_every_epoch', False)
+            save_optimizer_state = checkpoint_config.get('save_optimizer_state', False)
+
         # train phase
         for epoch in range(num_epochs):
             model.train()
@@ -284,15 +327,49 @@ class SubjectModelTrainer:
                     val_total += targets.size(0)
             avg_val_loss = val_loss / len(val_loader)
             val_acc = val_correct / val_total if val_total > 0 else 0
-            
+        
+            global_epoch = epoch + epoch_offset # offset = degraded epochs if in improvement stage
+
             epoch_metrics = {
                 'epoch': epoch,
+                'global_epoch': global_epoch,
                 'train_loss': avg_train_loss,
                 'train_acc': train_acc,
                 'val_loss': avg_val_loss,
                 'val_acc': val_acc
             }
             training_history.append(epoch_metrics)
+
+            # log to tb
+            if writer:
+                writer.add_scalar('Loss/train', avg_train_loss, global_epoch)
+                writer.add_scalar('Loss/val', avg_val_loss, global_epoch)
+                writer.add_scalar('Accuracy/train', train_acc, global_epoch)
+                writer.add_scalar('Accuracy/val', val_acc, global_epoch)
+                writer.add_scalar('Learning_rate', learning_rate, global_epoch)
+                stage_value = 0.0 if stage == 'degraded' else 1.0
+                writer.add_scalar('Stage/current_stage', stage_value, global_epoch)
+
+            # checkpoint saving
+            if save_checkpoints and log_dir:
+                checkpoint_subdir = f"checkpoints_{stage}" if stage else "checkpoints"
+                checkpoint_dir = Path(log_dir) / checkpoint_subdir
+                checkpoint_path = checkpoint_dir / f"epoch_{global_epoch+1}.pt"
+                checkpoint_data = {
+                    'epoch': epoch,
+                    'global_epoch': global_epoch,
+                    'stage': stage,
+                    'model_state_dict': model.state_dict(),
+                    'model_config': model.config,
+                    'train_loss': avg_train_loss,
+                    'train_acc': train_acc,
+                    'val_loss': avg_val_loss,
+                    'val_acc': val_acc
+                }
+                if save_optimizer_state:
+                    checkpoint_data['optimizer_state_dict'] = optimizer.state_dict()
+
+                torch.save(checkpoint_data, checkpoint_path)
 
             # log every epoch
             logger.info(f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
@@ -314,9 +391,12 @@ class SubjectModelTrainer:
             model.quantize_weights(self.quantization_type)
             if save_path:
                 model.save_model(save_path)
-        
+
+        # close tb writer
+        if writer:
+            writer.close()
+
         final_metrics = training_history[-1] if training_history else {}
-        
         results = {
             'training_history': training_history,
             'final_metrics': final_metrics,
@@ -324,7 +404,6 @@ class SubjectModelTrainer:
             'epochs_trained': len(training_history),
             'early_stopped': patience_counter >= early_stopping_patience
         }
-                
         return results
 
     def train_staged_improvement(self, model: SubjectModel,
@@ -332,7 +411,11 @@ class SubjectModelTrainer:
                                 clean_train_loader, clean_val_loader,
                                 degraded_epochs: int, improvement_epochs: int,
                                 learning_rate: float, improvement_lr_factor: float = 0.1,
-                                early_stopping_patience: int = 10) -> Dict[str, Any]:
+                                early_stopping_patience: int = 10,
+                                degraded_log_dir: str = None, improved_log_dir: str = None,
+                                selected_patterns: List[str] = None, target_pattern: str = None,
+                                tensorboard_config: Dict[str, Any] = None,
+                                checkpoint_config: Dict[str, Any] = None) -> Dict[str, Any]:
         model = model.to(self.device)
 
         logger.info("Stage 1: Training on corrupted data...")
@@ -343,10 +426,18 @@ class SubjectModelTrainer:
             num_epochs=degraded_epochs,
             learning_rate=learning_rate,
             early_stopping_patience=early_stopping_patience,
-            save_path=None
+            save_path=None,
+            log_dir=degraded_log_dir,
+            selected_patterns=selected_patterns,
+            target_pattern=target_pattern,
+            stage='degraded',
+            tensorboard_config=tensorboard_config,
+            checkpoint_config=checkpoint_config,
+            epoch_offset=0
         )
         degraded_weights = copy.deepcopy(model.state_dict())
         degraded_acc = degraded_results['final_metrics'].get('val_acc', 0)
+        degraded_epochs_trained = degraded_results['epochs_trained']
         logger.info(f"Stage 1 complete - Final validation accuracy: {degraded_acc:.4f}")
 
         logger.info("Stage 2: Continuing training on clean data...")
@@ -357,7 +448,14 @@ class SubjectModelTrainer:
             num_epochs=improvement_epochs,
             learning_rate=learning_rate * improvement_lr_factor,
             early_stopping_patience=early_stopping_patience,
-            save_path=None
+            save_path=None,
+            log_dir=improved_log_dir,
+            selected_patterns=selected_patterns,
+            target_pattern=target_pattern,
+            stage='improved',
+            tensorboard_config=tensorboard_config,
+            checkpoint_config=checkpoint_config,
+            epoch_offset=degraded_epochs_trained  # continues from epoch where degraded ended
         )
 
         improved_weights = model.state_dict()

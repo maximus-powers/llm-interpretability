@@ -131,6 +131,25 @@ pipeline:
   num_workers: 4                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 
+# ============================================================================
+# METRICS CONFIGURATION
+# ============================================================================
+# Controls training metrics logging, visualization, and checkpointing
+metrics:
+  dir: "./training_runs"               # Directory for TensorBoard logs and model checkpoints
+
+  # TensorBoard visualization settings
+  tensorboard:
+    enabled: true                      # Enable TensorBoard logging
+    auto_launch: true                  # Automatically start TensorBoard server
+    port: 6006                         # TensorBoard server port
+    update_freq: "epoch"               # Logging frequency: "epoch" or "batch"
+
+  # Model checkpoint settings
+  checkpoint:
+    save_every_epoch: true             # Save model checkpoint after each epoch
+    save_optimizer_state: false        # Include optimizer state in checkpoints (increases size)
+
 task_generation:                  # Controls which types of training tasks to generate in output dataset **IMPORTANT: At least one must be selected**
   include_modification: true           # Generate modification_prompt/completion fields (degraded model + signature → improved weights)
   include_classification: false        # Generate classification_prompt/completion fields (improved model + signature → pattern identification)

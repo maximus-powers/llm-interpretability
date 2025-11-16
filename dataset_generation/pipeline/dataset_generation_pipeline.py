@@ -50,7 +50,7 @@ class DatasetGenerationPipeline:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
     """
     
-    def __init__(self, config_path: str = "config.yaml", example_id_setter=None):
+    def __init__(self, config_path: str = "config.yaml", example_id_setter=None, metrics_dir: str = None):
         # init params from config
         self.config = load_config(config_path)
         pipeline_config = self.config['pipeline']
@@ -65,6 +65,13 @@ class DatasetGenerationPipeline:
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         self.max_threads = pipeline_config.get('max_threads', 1)
         self.example_id_setter = example_id_setter
+        metrics_config = self.config.get('metrics', {})
+        if metrics_dir:
+            self.metrics_dir = Path(metrics_dir)
+        elif 'dir' in metrics_config:
+            self.metrics_dir = Path(metrics_config['dir'])
+        else:
+            self.metrics_dir = None
 
         # threading locks for thread safety
         self._logging_lock = threading.Lock()
@@ -437,6 +444,36 @@ class DatasetGenerationPipeline:
             vocab_size=self.config['model']['vocab_size']
         )
 
+        # create metrics subdir (if tb enabled)
+        degraded_log_dir = None
+        improved_log_dir = None
+        metrics_config = self.config.get('metrics', {})
+        tensorboard_enabled = metrics_config.get('tensorboard', {}).get('enabled', False)
+
+        if tensorboard_enabled and self.metrics_dir:
+            # degraded and improved in same subdir
+            example_prefix = f"example_{example_id}" if example_id is not None else f"example_{int(time.time())}"
+            patterns_str = "_".join(sorted(corrupted_dataset.get('target_patterns', []))[:3])  # First 3 patterns
+            target_pattern_short = target_pattern[:8] if target_pattern else "unknown"
+            log_dir = self.metrics_dir / f"{example_prefix}_target-{target_pattern_short}_patterns-{patterns_str}"
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            # checkpoints subsubdirs for both stages
+            (log_dir / "checkpoints_degraded").mkdir(exist_ok=True)
+            (log_dir / "checkpoints_improved").mkdir(exist_ok=True)
+            metadata = {
+                'example_id': example_id,
+                'selected_patterns': corrupted_dataset.get('target_patterns', []),
+                'target_corruption_pattern': target_pattern,
+                'model_config': model_config,
+                'corruption_stats': corrupted_dataset.get('corruption_stats', {})
+            }
+            with open(log_dir / "metadata.json", 'w') as f:
+                json.dump(metadata, f, indent=2)
+
+            degraded_log_dir = log_dir
+            improved_log_dir = log_dir
+
         # staged training
         staged_results = self.model_trainer.train_staged_improvement(
             model=model,
@@ -449,6 +486,12 @@ class DatasetGenerationPipeline:
             learning_rate=model_config['learning_rate'],
             improvement_lr_factor=self.config.get('staged_training', {}).get('improvement_lr_factor', 0.1),
             early_stopping_patience=model_config['patience'],
+            degraded_log_dir=str(degraded_log_dir) if degraded_log_dir else None,
+            improved_log_dir=str(improved_log_dir) if improved_log_dir else None,
+            selected_patterns=corrupted_dataset.get('target_patterns', []),
+            target_pattern=target_pattern,
+            tensorboard_config=metrics_config.get('tensorboard', {}),
+            checkpoint_config=metrics_config.get('checkpoint', {}),
         )
         staged_results['degraded_model'] = model
         staged_results['model_config'] = model_config
