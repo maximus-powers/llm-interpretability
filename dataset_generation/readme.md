@@ -99,3 +99,11 @@ The pipeline supports long-running generation with:
 - **Cleanup**: Removal of temporary model files after processing
 
 The entire process is designed to run efficiently with configurable multi-threading, allowing multiple independent examples to be processed in parallel while maintaining thread safety for logging and checkpointing operations. Each example is completely independent, maximizing diversity and enabling efficient parallelization without complex batch coordination.
+
+------
+
+# TODO
+
+- Fix early stopping to select the best version of the model instead of just the last one
+- Store all of the training stats so we can plot their loss curves later (different colors for each pattern)
+- Instead of having degradation switch after a set number of epochs, wait until we see an improvement from local minima, and cancel the rest of the run if it doesn't move from local minima after a maximum num of epochs

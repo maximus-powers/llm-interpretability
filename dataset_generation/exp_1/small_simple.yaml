@@ -41,11 +41,11 @@ signature:
 # The signatures and weights included in the prompt depend on these, so these can be reduced for smaller interpreter training prompts.
 model:
   num_layers: # hidden layers in model
-    min: 3
-    max: 5
+    min: 4
+    max: 6
   neurons_per_layer:
     min: 5
-    max: 8                                                                                           # Valid Values:
+    max: 8                                                                                          # Valid Values:
   activation_types: ['relu', 'gelu']   # chosen from this list on a per-model-batch basis            # relu, gelu, tanh, sigmoid, leaky_relu
   dropout_rate: 0.0                    # Keep at 0 for consistent activations
   vocab_size: 10                        # Number of tokens in vocabulary (A, B, C, ...)               # 5-26
@@ -53,8 +53,8 @@ model:
   precision: "float16"                 # Model parameter precision                                   # float32, float16, bfloat16
   quantization: "none"                 # Post-training quantization                                  # none, int8, int4, binary, ternary
   learning_rate:
-    min: 0.001
-    max: 0.01
+    min: 0.01
+    max: 0.1
   
 # ============================================================================
 # DATASET GENERATION CONFIGURATION
@@ -85,7 +85,7 @@ dataset:
     max_patterns_per_batch: 1          # Maximum patterns to include per model
     samples_per_pattern:
       min: 10                          # Minimum examples per pattern, need to be careful with this, it will automatically do it's best to get even distributions, but setting this too high can result in lots of duplicates for patterns with few potential sequences
-    negative_ratio: 0.3                # 0.5 means half of the records in the subject models' datasets are negatively labelled
+    negative_ratio: 1                  # 1 means 1:1 negative labels to positive
     target_total_examples: 250         # Target total examples including negatives - actual size varies because of how we sample patterns (if the don't have enough sequences we resample for duplicates)
     max_total_examples: 2500           # Hard limit to prevent oversized datasets
 
@@ -97,16 +97,16 @@ training:
   epochs: 15                          # Maximum epochs per model
   batch_size: 128                      # Training batch size
   early_stopping:
-    patience: 5                        # Epochs without improvement before stopping
+    patience: 3                        # Epochs without improvement before stopping
   min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/improved models
   validation_split: 0.2                # Fraction of data for validation
   
 # Controls the two-stage training process for each example
 staged_training:
-  degraded_epochs: 5                   # Epochs for stage 1 (training on corrupted data)
-  improvement_epochs: 10                # Epochs for stage 2 (continuing on clean data)
-  improvement_lr_factor: 0.1           # Learning rate multiplier for stage 2 (lower for fine-tuning)
-  corruption_rate: 0.5                 # Fraction of target pattern examples to corrupt (flip labels)
+  degraded_epochs: 3                   # Epochs for stage 1 (training on corrupted data)
+  improvement_epochs: 10               # Epochs for stage 2 (continuing on clean data)
+  improvement_lr_factor: 1             # Learning rate multiplier for stage 2 (lower for fine-tuning)
+  corruption_rate: 0.15                 # Fraction of target pattern examples to corrupt (flip labels)
 
 # ============================================================================
 # VALIDATION CONFIGURATION
@@ -127,8 +127,8 @@ pipeline:
   random_seed: 42                      # Global random seed for reproducibility
   device: "auto"                       # auto, cpu, cuda, mps
   checkpoint_interval: 1000            # Save checkpoint every N examples
-  max_threads: 4                       # Maximum number of threads for parallel example generation
-  num_workers: 4                       # DataLoader workers for training
+  max_threads: 2                       # Maximum number of threads for parallel example generation
+  num_workers: 2                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
 
 task_generation:                  # Controls which types of training tasks to generate in output dataset **IMPORTANT: At least one must be selected**

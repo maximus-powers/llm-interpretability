@@ -48,9 +48,9 @@ class TrainingDataFormatter:
             )
             example['classification_completion'] = ', '.join(actual_patterns) if actual_patterns else ""
 
-        # add metadata if provided
+        # add metadata if provided (keep as dict, will be serialized when saving to hub)
         if metadata:
-            example['metadata'] = json.dumps(metadata, indent=2)
+            example['metadata'] = metadata
 
         return example
 

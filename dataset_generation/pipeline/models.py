@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import logging
 import copy
+import numpy as np
 from typing import Dict, Any, Tuple, Optional
 
 logger = logging.getLogger(__name__)
@@ -219,6 +220,12 @@ class SubjectModelTrainer:
             train_loss = 0.0
             train_correct = 0
             train_total = 0
+
+            # track predictions for first epoch to debug
+            if epoch == 0:
+                all_predictions = []
+                all_targets = []
+
             for batch_idx, (data, targets) in enumerate(train_loader):
                 data, targets = data.to(self.device), targets.to(self.device)
                 optimizer.zero_grad()
@@ -229,11 +236,31 @@ class SubjectModelTrainer:
                     targets = targets.unsqueeze(0)
                 loss = criterion(outputs, targets)
                 loss.backward()
+
+                # check for gradient issues on first batch of first epoch
+                if epoch == 0 and batch_idx == 0:
+                    total_grad_norm = 0.0
+                    for p in model.parameters():
+                        if p.grad is not None:
+                            total_grad_norm += p.grad.data.norm(2).item() ** 2
+                    total_grad_norm = total_grad_norm ** 0.5
+                    logger.info(f"First batch gradient norm: {total_grad_norm:.6f}")
+
                 optimizer.step()
                 train_loss += loss.item()
                 predicted = (torch.sigmoid(outputs) > 0.5).float()
                 train_correct += (predicted == targets).sum().item()
                 train_total += targets.size(0)
+
+                if epoch == 0:
+                    all_predictions.extend(predicted.cpu().numpy())
+                    all_targets.extend(targets.cpu().numpy())
+
+            # log prediction distribution for first epoch
+            if epoch == 0:
+                unique, counts = np.unique(all_predictions, return_counts=True)
+                pred_dist = dict(zip(unique, counts))
+                logger.info(f"First epoch prediction distribution: {pred_dist}")
             avg_train_loss = train_loss / len(train_loader)
             train_acc = train_correct / train_total if train_total > 0 else 0
             
