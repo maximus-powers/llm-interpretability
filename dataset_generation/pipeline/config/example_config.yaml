@@ -103,7 +103,8 @@ training:
   
 # Controls the two-stage training process for each example
 staged_training:
-  degraded_epochs: 10                  # Epochs for stage 1 (training on corrupted data)
+  max_degraded_epochs: 10              # Maximum epochs to wait for first validation loss improvement (stage 1)
+  min_improvement_threshold: 0.05      # Minimum validation loss improvement (5%) to trigger stage switch
   improvement_epochs: 10               # Epochs for stage 2 (continuing on clean data)
   improvement_lr_factor: 1             # Learning rate multiplier for stage 2 (lower for fine-tuning)
   corruption_rate: 0.3                 # Fraction of target pattern examples to corrupt (flip labels)

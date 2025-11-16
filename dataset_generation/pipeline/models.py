@@ -209,14 +209,22 @@ class SubjectModelTrainer:
                    num_epochs: int = 30, learning_rate: float = 0.001, early_stopping_patience: int = 10,
                    save_path: str = None, log_dir: str = None, selected_patterns: List[str] = None,
                    target_pattern: str = None, stage: str = None, tensorboard_config: Dict[str, Any] = None,
-                   checkpoint_config: Dict[str, Any] = None, epoch_offset: int = 0) -> Dict[str, Any]:
+                   checkpoint_config: Dict[str, Any] = None, epoch_offset: int = 0,
+                   wait_for_first_improvement: bool = False, min_improvement_threshold: float = 0.0) -> Dict[str, Any]:
 
         model = model.to(self.device)
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         criterion = nn.BCEWithLogitsLoss()
         best_val_loss = float('inf')
+        best_val_accuracy = 0.0
+        best_accuracy_checkpoint = None
         patience_counter = 0
         training_history = []
+
+        # dynamic stage switching
+        initial_val_loss = None
+        first_improvement_epoch = None
+        improved_at_least_once = False
 
         # init tb writer (if log_dir)
         writer = None
@@ -327,7 +335,43 @@ class SubjectModelTrainer:
                     val_total += targets.size(0)
             avg_val_loss = val_loss / len(val_loader)
             val_acc = val_correct / val_total if val_total > 0 else 0
-        
+
+            if epoch == 0:
+                initial_val_loss = avg_val_loss
+                logger.info(f"Initial validation loss: {initial_val_loss:.4f}")
+
+            # check for first improvement
+            if wait_for_first_improvement and initial_val_loss is not None and not improved_at_least_once:
+                improvement_pct = (initial_val_loss - avg_val_loss) / initial_val_loss if initial_val_loss > 0 else 0.0
+
+                if improvement_pct >= min_improvement_threshold:
+                    first_improvement_epoch = epoch
+                    improved_at_least_once = True
+                    logger.info(f"First significant improvement detected at epoch {epoch+1} "
+                               f"Val loss: {avg_val_loss:.4f} < {initial_val_loss:.4f} "
+                               f"({improvement_pct*100:.1f}% improvement, threshold: {min_improvement_threshold*100:.1f}%)")
+                    if writer:
+                        global_epoch_temp = epoch + epoch_offset
+                        writer.add_scalar('Markers/first_improvement', 1.0, global_epoch_temp)
+                        writer.add_text('first_improvement',
+                                       f'First significant improvement: {avg_val_loss:.4f} < {initial_val_loss:.4f} ({improvement_pct*100:.1f}%)',
+                                       global_epoch_temp)
+                elif avg_val_loss < initial_val_loss:
+                    logger.info(f"Small improvement at epoch {epoch+1}: {improvement_pct*100:.1f}% "
+                               f"(below {min_improvement_threshold*100:.1f}% threshold)")
+
+            # best val accuracy checkpoint
+            if val_acc > best_val_accuracy:
+                best_val_accuracy = val_acc
+                best_accuracy_checkpoint = copy.deepcopy(model.state_dict())
+                logger.info(f"New best accuracy: {val_acc:.4f} at epoch {epoch+1}")
+                if writer:
+                    global_epoch_temp = epoch + epoch_offset
+                    writer.add_scalar('Markers/best_accuracy', val_acc, global_epoch_temp)
+                    writer.add_text('best_accuracy',
+                                   f'New best validation accuracy: {val_acc:.4f}',
+                                   global_epoch_temp)
+
             global_epoch = epoch + epoch_offset # offset = degraded epochs if in improvement stage
 
             epoch_metrics = {
@@ -382,6 +426,11 @@ class SubjectModelTrainer:
             else:
                 patience_counter += 1
 
+            # Check for early return if waiting for first improvement and it was detected
+            if wait_for_first_improvement and improved_at_least_once:
+                logger.info(f"Returning early after first improvement at epoch {epoch+1}")
+                break
+
             # early stopping check
             if patience_counter >= early_stopping_patience:
                 logger.info(f"Early stopping triggered after {epoch+1} epochs")
@@ -397,33 +446,44 @@ class SubjectModelTrainer:
             writer.close()
 
         final_metrics = training_history[-1] if training_history else {}
+
+        # use best accuracy checkpoint
+        if best_accuracy_checkpoint is None:
+            best_accuracy_checkpoint = model.state_dict()
+
         results = {
             'training_history': training_history,
             'final_metrics': final_metrics,
             'best_val_loss': best_val_loss,
+            'best_val_accuracy': best_val_accuracy,
+            'best_accuracy_checkpoint': best_accuracy_checkpoint,
             'epochs_trained': len(training_history),
-            'early_stopped': patience_counter >= early_stopping_patience
+            'early_stopped': patience_counter >= early_stopping_patience,
+            'improved_at_least_once': improved_at_least_once,
+            'first_improvement_epoch': first_improvement_epoch,
+            'initial_val_loss': initial_val_loss,
         }
         return results
 
     def train_staged_improvement(self, model: SubjectModel,
                                 corrupted_train_loader, corrupted_val_loader,
                                 clean_train_loader, clean_val_loader,
-                                degraded_epochs: int, improvement_epochs: int,
+                                max_degraded_epochs: int, improvement_epochs: int,
                                 learning_rate: float, improvement_lr_factor: float = 0.1,
                                 early_stopping_patience: int = 10,
                                 degraded_log_dir: str = None, improved_log_dir: str = None,
                                 selected_patterns: List[str] = None, target_pattern: str = None,
                                 tensorboard_config: Dict[str, Any] = None,
-                                checkpoint_config: Dict[str, Any] = None) -> Dict[str, Any]:
+                                checkpoint_config: Dict[str, Any] = None,
+                                min_improvement_threshold: float = 0.0) -> Dict[str, Any]:
         model = model.to(self.device)
 
-        logger.info("Stage 1: Training on corrupted data...")
+        logger.info(f"Stage 1: Training on corrupted data (waiting for {min_improvement_threshold*100:.1f}% improvement)...")
         degraded_results = self.train_and_evaluate(
             model=model,
             train_loader=corrupted_train_loader,
             val_loader=corrupted_val_loader,
-            num_epochs=degraded_epochs,
+            num_epochs=max_degraded_epochs,
             learning_rate=learning_rate,
             early_stopping_patience=early_stopping_patience,
             save_path=None,
@@ -433,12 +493,25 @@ class SubjectModelTrainer:
             stage='degraded',
             tensorboard_config=tensorboard_config,
             checkpoint_config=checkpoint_config,
-            epoch_offset=0
+            epoch_offset=0,
+            wait_for_first_improvement=True,
+            min_improvement_threshold=min_improvement_threshold
         )
+
+        # check if model improved during degraded stage
+        if not degraded_results['improved_at_least_once']:
+            logger.warning(f"Model never improved during degraded stage ({degraded_results['epochs_trained']} epochs)")
+            return {
+                'success': False,
+                'reason': 'no_improvement_in_degraded_stage',
+                'epochs_waited': degraded_results['epochs_trained'],
+                'initial_val_loss': degraded_results['initial_val_loss'],
+            }
+
+        first_improvement_epoch = degraded_results['first_improvement_epoch']
         degraded_weights = copy.deepcopy(model.state_dict())
         degraded_acc = degraded_results['final_metrics'].get('val_acc', 0)
-        degraded_epochs_trained = degraded_results['epochs_trained']
-        logger.info(f"Stage 1 complete - Final validation accuracy: {degraded_acc:.4f}")
+        logger.info(f"Stage 1 complete - First improvement at epoch {first_improvement_epoch + 1}, Val accuracy: {degraded_acc:.4f}")
 
         logger.info("Stage 2: Continuing training on clean data...")
         improved_results = self.train_and_evaluate(
@@ -455,16 +528,24 @@ class SubjectModelTrainer:
             stage='improved',
             tensorboard_config=tensorboard_config,
             checkpoint_config=checkpoint_config,
-            epoch_offset=degraded_epochs_trained  # continues from epoch where degraded ended
+            epoch_offset=first_improvement_epoch + 1,  # start from first improvement epoch
+            wait_for_first_improvement=False
         )
 
-        improved_weights = model.state_dict()
+        # best accuracy checkpoint for final weights
+        improved_weights = improved_results['best_accuracy_checkpoint']
+        improved_acc = improved_results['best_val_accuracy']
+        best_epoch_offset = None
+        for idx, metrics in enumerate(improved_results['training_history']):
+            if abs(metrics.get('val_acc', 0) - improved_acc) < 0.0001:  # Float comparison tolerance
+                best_epoch_offset = metrics['global_epoch']
+                break
 
-        improved_acc = improved_results['final_metrics'].get('val_acc', 0)
         improvement = improved_acc - degraded_acc
-        logger.info(f"Stage 2 complete - Final validation accuracy: {improved_acc:.4f}, Improvement: {improvement:+.4f}")
+        logger.info(f"Stage 2 complete - Best validation accuracy: {improved_acc:.4f} (epoch {best_epoch_offset}), Improvement: {improvement:+.4f}")
 
         return {
+            'success': True,
             'degraded': {
                 'weights': degraded_weights,
                 'metrics': degraded_results,
@@ -473,10 +554,12 @@ class SubjectModelTrainer:
             'improved': {
                 'weights': improved_weights,
                 'metrics': improved_results,
-                'accuracy': improved_acc
+                'accuracy': improved_acc,
+                'best_epoch': best_epoch_offset
             },
             'improvement': improvement,
-            'stages_completed': 2
+            'stages_completed': 2,
+            'first_improvement_epoch': first_improvement_epoch,
         }
 
 

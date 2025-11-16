@@ -481,7 +481,7 @@ class DatasetGenerationPipeline:
             corrupted_val_loader=clean_val_loader,
             clean_train_loader=clean_train_loader,
             clean_val_loader=clean_val_loader,
-            degraded_epochs=self.config.get('staged_training', {}).get('degraded_epochs', 10),
+            max_degraded_epochs=self.config.get('staged_training', {}).get('max_degraded_epochs', 10),
             improvement_epochs=self.config.get('staged_training', {}).get('improvement_epochs', 10),
             learning_rate=model_config['learning_rate'],
             improvement_lr_factor=self.config.get('staged_training', {}).get('improvement_lr_factor', 0.1),
@@ -492,7 +492,16 @@ class DatasetGenerationPipeline:
             target_pattern=target_pattern,
             tensorboard_config=metrics_config.get('tensorboard', {}),
             checkpoint_config=metrics_config.get('checkpoint', {}),
+            min_improvement_threshold=self.config.get('staged_training', {}).get('min_improvement_threshold', 0.05),
         )
+
+        # check if training succeeded
+        if not staged_results.get('success', False):
+            reason = staged_results.get('reason', 'unknown')
+            with self._logging_lock:
+                logger.warning(f"Example {example_id} training failed: {reason}")
+            return None 
+
         staged_results['degraded_model'] = model
         staged_results['model_config'] = model_config
         staged_results['target_pattern'] = target_pattern
