@@ -177,9 +177,10 @@ class SequenceDataset(torch.utils.data.Dataset):
         example = self.examples[idx]
         sequence = example['sequence']
         label = float(example['label'])
+        pattern = example.get('pattern', example.get('excluded_pattern', 'unknown'))
         sequence_tensor = self._sequence_to_tensor(sequence)
         label_tensor = torch.tensor(label, dtype=torch.float32)
-        return sequence_tensor, label_tensor
+        return sequence_tensor, label_tensor, pattern
     
     def _sequence_to_tensor(self, sequence):
         indices = []
@@ -226,6 +227,9 @@ class SubjectModelTrainer:
         first_improvement_epoch = None
         improved_at_least_once = False
 
+        # calculate pattern combination for metric prefixing
+        pattern_combo = '+'.join(sorted(selected_patterns))
+
         # init tb writer (if log_dir)
         writer = None
         if log_dir and tensorboard_config and tensorboard_config.get('enabled', False):
@@ -250,8 +254,8 @@ class SubjectModelTrainer:
                     logger.info(f"TensorBoard logging enabled: {log_dir}")
                 else:
                     # marker for stage transition
-                    writer.add_text('stage_transition', f'Transition from DEGRADED to IMPROVED stage at epoch {epoch_offset}', epoch_offset)
-                    writer.add_scalar('Stage/transition_marker', 1.0, epoch_offset)
+                    writer.add_text(f'{'+'.join(sorted(selected_patterns))}/stage_transition', f'Transition from DEGRADED to IMPROVED stage at epoch {epoch_offset}', epoch_offset)
+                    writer.add_scalar(f'{'+'.join(sorted(selected_patterns))}/Stage/transition_marker', 1.0, epoch_offset)
                     logger.info(f"Continuing TensorBoard logging from epoch {epoch_offset}")
 
             except ImportError:
@@ -266,6 +270,9 @@ class SubjectModelTrainer:
             save_optimizer_state = checkpoint_config.get('save_optimizer_state', False)
 
         # train phase - wrap in try-finally to ensure writer cleanup
+        # initialize per_pattern_accuracy to track across epochs
+        per_pattern_accuracy = {}
+
         try:
             for epoch in range(num_epochs):
                 model.train()
@@ -278,8 +285,9 @@ class SubjectModelTrainer:
                     all_predictions = []
                     all_targets = []
 
-                for batch_idx, (data, targets) in enumerate(train_loader):
+                for batch_idx, (data, targets, patterns) in enumerate(train_loader):
                     data, targets = data.to(self.device), targets.to(self.device)
+                    # patterns is a tuple of pattern strings, one per example in the batch
                     optimizer.zero_grad()
                     outputs = model(data).squeeze()
                     if outputs.dim() == 0:
@@ -321,8 +329,12 @@ class SubjectModelTrainer:
                 val_loss = 0.0
                 val_correct = 0
                 val_total = 0
+                # track per-pattern accuracy
+                per_pattern_stats = {pattern: {'correct': 0, 'total': 0} for pattern in selected_patterns}
+                per_pattern_stats['negative'] = {'correct': 0, 'total': 0}  # for negative examples
+
                 with torch.no_grad():
-                    for data, targets in val_loader:
+                    for data, targets, patterns in val_loader:
                         data, targets = data.to(self.device), targets.to(self.device)
                         outputs = model(data).squeeze()
                         if outputs.dim() == 0:
@@ -334,8 +346,29 @@ class SubjectModelTrainer:
                         predicted = (torch.sigmoid(outputs) > 0.5).float()
                         val_correct += (predicted == targets).sum().item()
                         val_total += targets.size(0)
+
+                        # track per-pattern accuracy
+                        for i, (pred, target, pattern) in enumerate(zip(predicted, targets, patterns)):
+                            is_correct = (pred == target).item()
+                            # positive examples belong to specific pattern, negative examples are labeled with excluded_pattern
+                            if target.item() == 1.0 and pattern in per_pattern_stats:
+                                per_pattern_stats[pattern]['correct'] += int(is_correct)
+                                per_pattern_stats[pattern]['total'] += 1
+                            elif target.item() == 0.0:
+                                # negative examples - track separately
+                                per_pattern_stats['negative']['correct'] += int(is_correct)
+                                per_pattern_stats['negative']['total'] += 1
+
                 avg_val_loss = val_loss / len(val_loader)
                 val_acc = val_correct / val_total if val_total > 0 else 0
+
+                # calculate per-pattern accuracies
+                per_pattern_accuracy = {}
+                for pattern, stats in per_pattern_stats.items():
+                    if stats['total'] > 0:
+                        per_pattern_accuracy[pattern] = stats['correct'] / stats['total']
+                    else:
+                        per_pattern_accuracy[pattern] = 0.0
 
                 if epoch == 0:
                     initial_val_loss = avg_val_loss
@@ -353,8 +386,8 @@ class SubjectModelTrainer:
                                    f"({improvement_pct*100:.1f}% improvement, threshold: {min_improvement_threshold*100:.1f}%)")
                         if writer:
                             global_epoch_temp = epoch + epoch_offset
-                            writer.add_scalar('Markers/first_improvement', 1.0, global_epoch_temp)
-                            writer.add_text('first_improvement',
+                            writer.add_scalar(f'{pattern_combo}/Markers/first_improvement', 1.0, global_epoch_temp)
+                            writer.add_text(f'{pattern_combo}/first_improvement',
                                            f'First significant improvement: {avg_val_loss:.4f} < {initial_val_loss:.4f} ({improvement_pct*100:.1f}%)',
                                            global_epoch_temp)
                     elif avg_val_loss < initial_val_loss:
@@ -368,8 +401,8 @@ class SubjectModelTrainer:
                     logger.info(f"New best accuracy: {val_acc:.4f} at epoch {epoch+1}")
                     if writer:
                         global_epoch_temp = epoch + epoch_offset
-                        writer.add_scalar('Markers/best_accuracy', val_acc, global_epoch_temp)
-                        writer.add_text('best_accuracy',
+                        writer.add_scalar(f'{pattern_combo}/Markers/best_accuracy', val_acc, global_epoch_temp)
+                        writer.add_text(f'{pattern_combo}/best_accuracy',
                                        f'New best validation accuracy: {val_acc:.4f}',
                                        global_epoch_temp)
 
@@ -387,13 +420,18 @@ class SubjectModelTrainer:
 
                 # log to tb
                 if writer:
-                    writer.add_scalar('Loss/train', avg_train_loss, global_epoch)
-                    writer.add_scalar('Loss/val', avg_val_loss, global_epoch)
-                    writer.add_scalar('Accuracy/train', train_acc, global_epoch)
-                    writer.add_scalar('Accuracy/val', val_acc, global_epoch)
-                    writer.add_scalar('Learning_rate', learning_rate, global_epoch)
+                    # prefix all metrics with pattern combination for grouping in tensorboard
+                    writer.add_scalar(f'{pattern_combo}/Loss/train', avg_train_loss, global_epoch)
+                    writer.add_scalar(f'{pattern_combo}/Loss/val', avg_val_loss, global_epoch)
+                    writer.add_scalar(f'{pattern_combo}/Accuracy/train', train_acc, global_epoch)
+                    writer.add_scalar(f'{pattern_combo}/Accuracy/val', val_acc, global_epoch)
+                    writer.add_scalar(f'{pattern_combo}/Learning_rate', learning_rate, global_epoch)
                     stage_value = 0.0 if stage == 'degraded' else 1.0
-                    writer.add_scalar('Stage/current_stage', stage_value, global_epoch)
+                    writer.add_scalar(f'{pattern_combo}/Stage/current_stage', stage_value, global_epoch)
+
+                    # log per-pattern accuracies
+                    for pattern, accuracy in per_pattern_accuracy.items():
+                        writer.add_scalar(f'{pattern_combo}/Accuracy/pattern-{pattern}', accuracy, global_epoch)
 
                 # checkpoint saving
                 if save_checkpoints and log_dir:
@@ -441,6 +479,42 @@ class SubjectModelTrainer:
                 model.quantize_weights(self.quantization_type)
                 if save_path:
                     model.save_model(save_path)
+
+            # log hyperparameters and final metrics to tb
+            if writer and training_history:
+                try:
+                    # prepare hyperparameters (use pattern_combo calculated earlier)
+                    hparam_dict = {
+                        'pattern_combination': pattern_combo,
+                        'target_corruption_pattern': target_pattern,
+                        'num_patterns': len(selected_patterns),
+                        'stage': stage,
+                        'learning_rate': learning_rate,
+                        'num_layers': model.num_layers,
+                        'neurons_per_layer': model.neurons_per_layer,
+                        'activation_type': model.activation_type,
+                    }
+
+                    # prepare final metrics
+                    final_metrics_dict = {
+                        'hparam/accuracy_val': training_history[-1]['val_acc'],
+                        'hparam/loss_val': training_history[-1]['val_loss'],
+                        'hparam/accuracy_train': training_history[-1]['train_acc'],
+                        'hparam/loss_train': training_history[-1]['train_loss'],
+                        'hparam/best_val_accuracy': best_val_accuracy,
+                    }
+
+                    # add per-pattern final accuracies to metrics
+                    # use the last per_pattern_accuracy calculated in the final epoch
+                    if per_pattern_accuracy:
+                        for pattern, accuracy in per_pattern_accuracy.items():
+                            final_metrics_dict[f'hparam/accuracy_pattern-{pattern}'] = accuracy
+
+                    # log to hparams
+                    writer.add_hparams(hparam_dict, final_metrics_dict)
+                    logger.info(f"Logged hyperparameters to TensorBoard: {pattern_combo} (stage: {stage})")
+                except Exception as e:
+                    logger.warning(f"Error logging hyperparameters to TensorBoard: {e}")
 
         finally:
             # ensure tb writer is always closed
