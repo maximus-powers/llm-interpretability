@@ -212,10 +212,12 @@ class TrainingDataFormatter:
                     sections.append(f"{param_type}: {self._format_tensor(param)}")
 
             # add signature for this layer if available
-            if layer_name in neuron_activations:
+            # signature keys are like "0", "2", "4" while layer_name is like "layer_0", "layer_2", "layer_4"
+            layer_num = layer_name.split('_')[1]  # extract "0" from "layer_0"
+            if layer_num in neuron_activations:
                 sections.append("Signature:")
-                layer_data = neuron_activations[layer_name]
-                sections.extend(self._format_layer_signature_data(layer_name, layer_data, indent="  "))
+                layer_data = neuron_activations[layer_num]
+                sections.extend(self._format_layer_signature_data(layer_num, layer_data, indent="  "))
 
             sections.append("")
 
