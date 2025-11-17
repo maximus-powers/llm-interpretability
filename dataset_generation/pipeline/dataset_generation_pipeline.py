@@ -9,32 +9,20 @@ from typing import Dict, List, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import torch
 import numpy as np
-from datasets import Dataset, DatasetDict, load_dataset
-from huggingface_hub import login
 import shutil
+import os
 import yaml
 import copy
-from transformers import AutoTokenizer
 
 # import ds gen classes
 from .pattern_sampler import PatternDatasetSampler
 from .models import SubjectModelTrainer, create_subject_model, create_data_loaders
 from .signature_extractor import ActivationSignatureExtractor
 from .training_data_format import TrainingDataFormatter
+from .upload_utils import incremental_save_to_hub
 
 
 logger = logging.getLogger(__name__)
-
-def load_config(config_path: str = "config/example_config.yaml") -> Dict[str, Any]:
-    """
-    Loads config options from YAML file.
-    """
-    config_file = Path(config_path)
-    if not config_file.exists():
-        raise FileNotFoundError(f"Configuration file not found: {config_path}")
-    with open(config_file, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
 
 class DatasetGenerationPipeline:
     """
@@ -52,7 +40,11 @@ class DatasetGenerationPipeline:
     
     def __init__(self, config_path: str = "config.yaml", example_id_setter=None, metrics_dir: str = None):
         # init params from config
-        self.config = load_config(config_path)
+        config_file = Path(config_path)
+        if not config_file.exists():
+            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+        with open(config_file, 'r') as f:
+            self.config = yaml.safe_load(f)
         pipeline_config = self.config['pipeline']
         hub_config = self.config['hub']
         self.output_dir = Path(pipeline_config['output_dir'])
@@ -60,7 +52,8 @@ class DatasetGenerationPipeline:
         self.random_seed = pipeline_config['random_seed']
         self.checkpoint_interval = pipeline_config['checkpoint_interval']
         self.hub_dataset_name = hub_config.get('dataset_name')
-        self.hub_token = hub_config.get('token')
+        # check for token in config, then environment variable
+        self.hub_token = hub_config.get('token') or os.environ.get('HF_TOKEN')
         self.private = hub_config.get('private', False)
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         self.max_threads = pipeline_config.get('max_threads', 1)
@@ -175,7 +168,7 @@ class DatasetGenerationPipeline:
     def generate_training_examples(self, num_examples: int = None, min_degradation: float = None):
         # allow overrides from method direct call
         if num_examples is None:
-            num_examples = 1000
+            num_examples = self.config['dataset'].get('output_dataset_length', 1000)
         if min_degradation is None:
             min_degradation = self.config['training']['min_degradation_threshold']
 
@@ -201,8 +194,9 @@ class DatasetGenerationPipeline:
             futures = {}  
             example_id = start_from
 
-            while len(completed_examples) < remaining_examples:
-                while len(futures) < self.max_threads:
+            while total_generated + len(completed_examples) < num_examples:
+                # only submit new futures if we haven't reached the target
+                while len(futures) < self.max_threads and example_id < num_examples:
                     future = executor.submit(self._generate_single_example, example_id, min_degradation)
                     futures[future] = example_id
                     example_id += 1
@@ -215,7 +209,8 @@ class DatasetGenerationPipeline:
                         if example and example.get('is_valid', False):
                             completed_examples.append(example)
                             with self._logging_lock:
-                                logger.info(f"EXAMPLE {len(completed_examples)}/{remaining_examples} completed (improvement: {example.get('metadata', {}).get('improvement', 0):.3f})")
+                                current_progress = total_generated + len(completed_examples)
+                                logger.info(f"EXAMPLE {current_progress}/{num_examples} completed (improvement: {example.get('metadata', {}).get('improvement', 0):.3f})")
                     except Exception as e:
                         with self._logging_lock:
                             logger.error(f"Example {futures[future]} generation failed: {e}")
@@ -223,17 +218,19 @@ class DatasetGenerationPipeline:
                     del futures[future]
 
                 current_total = total_generated + len(completed_examples)
+                # upload checkpoint when we've accumulated checkpoint_interval examples
                 if (self.hub_dataset_name and
-                    len(completed_examples) >= self.checkpoint_interval and
-                    len(completed_examples) % self.checkpoint_interval < 50):  # Every ~checkpoint_interval examples
+                    len(completed_examples) >= self.checkpoint_interval):
                     with self._checkpoint_lock:
                         logger.info(f"Checkpoint triggered: Saving {len(completed_examples)} new examples")
                         try:
-                            self.incremental_save_to_hub(
-                                completed_examples,
-                                self.hub_dataset_name,
-                                self.hub_token,
-                                self.private
+                            incremental_save_to_hub(
+                                examples=completed_examples,
+                                hub_dataset_name=self.hub_dataset_name,
+                                hub_token=self.hub_token,
+                                private=self.private,
+                                config=self.config,
+                                metrics_dir=self.metrics_dir
                             )
                             self.save_checkpoint(current_total, completed_examples)
                             logger.info(f"Checkpoint saved successfully: {current_total} total examples")
@@ -243,18 +240,27 @@ class DatasetGenerationPipeline:
                             logger.error(f"Failed to save checkpoint: {e}")
                             logger.info("Continuing without checkpoint save...")
 
-                if len(completed_examples) >= remaining_examples:
+                # check if we've reached the target
+                if total_generated + len(completed_examples) >= num_examples:
+                    logger.info(f"Target reached: {total_generated + len(completed_examples)}/{num_examples} examples")
+                    break
+
+                # if no more futures to wait for and we haven't reached target, something went wrong
+                if len(futures) == 0:
+                    logger.warning(f"No more futures but target not reached. Generated: {total_generated + len(completed_examples)}/{num_examples}")
                     break
 
         # final save
         if completed_examples and self.hub_dataset_name:
             logger.info(f"Final save: {len(completed_examples)} remaining examples")
             try:
-                self.incremental_save_to_hub(
-                    completed_examples,
-                    self.hub_dataset_name,
-                    self.hub_token,
-                    self.private
+                incremental_save_to_hub(
+                    examples=completed_examples,
+                    hub_dataset_name=self.hub_dataset_name,
+                    hub_token=self.hub_token,
+                    private=self.private,
+                    config=self.config,
+                    metrics_dir=self.metrics_dir
                 )
                 total_generated += len(completed_examples)
                 self.save_checkpoint(total_generated, completed_examples)
@@ -264,9 +270,6 @@ class DatasetGenerationPipeline:
         self.cleanup_temp_files()
 
         logger.info(f"Generated {len(completed_examples)} new training examples (total: {total_generated})")
-
-        if completed_examples:
-            self._analyze_token_counts(completed_examples)
 
         return completed_examples
     
@@ -556,7 +559,32 @@ class DatasetGenerationPipeline:
             reason = staged_results.get('reason', 'unknown')
             with self._logging_lock:
                 logger.warning(f"Example {example_id} training failed: {reason}")
-            return None 
+            return None
+
+        # update metadata with training results
+        if tensorboard_enabled and self.metrics_dir and degraded_log_dir:
+            try:
+                metadata_path = degraded_log_dir / "metadata.json"
+                with open(metadata_path, 'r') as f:
+                    metadata = json.load(f)
+
+                # add training results from the nested metrics dictionaries
+                degraded_metrics = staged_results['degraded'].get('metrics', {})
+                improved_metrics = staged_results['improved'].get('metrics', {})
+
+                metadata['degraded_loss'] = degraded_metrics.get('best_val_loss', None)
+                metadata['degraded_accuracy'] = staged_results['degraded'].get('accuracy', None)
+                metadata['degraded_epochs'] = degraded_metrics.get('epochs_trained', None)
+                metadata['improved_loss'] = improved_metrics.get('best_val_loss', None)
+                metadata['improved_accuracy'] = staged_results['improved'].get('accuracy', None)
+                metadata['improved_epochs'] = improved_metrics.get('epochs_trained', None)
+                metadata['improvement'] = staged_results.get('improvement', None)
+
+                with open(metadata_path, 'w') as f:
+                    json.dump(metadata, f, indent=2)
+            except Exception as e:
+                with self._logging_lock:
+                    logger.warning(f"Failed to update metadata with training results: {e}")
 
         staged_results['degraded_model'] = model
         staged_results['model_config'] = model_config
@@ -651,61 +679,6 @@ class DatasetGenerationPipeline:
             'patience': training_config['early_stopping'].get('patience', 3),
         }
 
-    def incremental_save_to_hub(self, examples: List[Dict[str, Any]], hub_dataset_name: str, private: bool = False) -> str:
-        try:
-            if not self.hub_token:
-                logger.error("No HuggingFace token provided")
-                raise ValueError("HuggingFace token required for upload")
-            login(token=self.hub_token)
-            # format new examples
-            formatted_examples = []
-            for i, example in enumerate(examples):
-                formatted = {
-                    'example_id': i,
-                    'metadata': json.dumps(example.get('metadata', {}))
-                }
-
-                if 'modification_prompt' in example:
-                    formatted['modification_prompt'] = example['modification_prompt']
-                    formatted['modification_completion'] = example['modification_completion']
-                    formatted['modification_text'] = example['modification_prompt'] + example['modification_completion']
-
-                if 'classification_prompt' in example:
-                    formatted['classification_prompt'] = example['classification_prompt']
-                    formatted['classification_completion'] = example['classification_completion']
-                    formatted['classification_text'] = example['classification_prompt'] + example['classification_completion']
-
-
-                formatted_examples.append(formatted)
-            
-            existing_dataset = None
-            try:
-                logger.info(f"Checking for existing dataset: {hub_dataset_name}")
-                existing_dataset = load_dataset(hub_dataset_name, token=self.hub_token)
-                logger.info(f"Found existing dataset with {len(existing_dataset['train'])} records")
-                start_id = len(existing_dataset['train'])
-                for i, example in enumerate(formatted_examples):
-                    example['example_id'] = start_id + i
-                combined_examples = list(existing_dataset['train']) + formatted_examples                
-            except Exception as e:
-                logger.info(f"No existing dataset found or failed to load: {e}")
-                logger.info("Creating new dataset")
-                combined_examples = formatted_examples
-            
-            new_dataset = DatasetDict({
-                'train': Dataset.from_list(combined_examples),
-            })
-            
-            logger.info(f"Uploading dataset with {len(combined_examples)} total records to {hub_dataset_name}...")
-            new_dataset.push_to_hub(hub_dataset_name, private=private, token=self.hub_token)
-            hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
-            logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
-            return hub_url
-            
-        except Exception as e:
-            logger.error(f"Failed to incrementally save to HuggingFace Hub: {e}")
-            raise
-    
     def save_checkpoint(self, total_generated: int, completed_examples: List[Dict[str, Any]]):
         checkpoint_data = {
             'total_generated': total_generated,
@@ -728,49 +701,6 @@ class DatasetGenerationPipeline:
             except Exception as e:
                 logger.warning(f"Failed to load checkpoint: {e}")
         return None
-
-    def _analyze_token_counts(self, examples: List[Dict[str, Any]]):
-        try:
-            logger.info("Analyzing token counts with Llama tokenizer...")
-            tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B")
-
-            modification_token_counts = []
-            classification_token_counts = []
-
-            for example in examples:
-                if 'modification_prompt' in example:
-                    tokens = tokenizer.encode(example['modification_prompt'], add_special_tokens=True)
-                    modification_token_counts.append(len(tokens))
-
-                if 'classification_prompt' in example:
-                    tokens = tokenizer.encode(example['classification_prompt'], add_special_tokens=True)
-                    classification_token_counts.append(len(tokens))
-
-            if modification_token_counts:
-                logger.info("=" * 60)
-                logger.info("MODIFICATION PROMPT TOKEN STATISTICS")
-                logger.info(f"  Total prompts analyzed: {len(modification_token_counts)}")
-                logger.info(f"  Minimum tokens: {min(modification_token_counts):,}")
-                logger.info(f"  Maximum tokens: {max(modification_token_counts):,}")
-                logger.info(f"  Average tokens: {sum(modification_token_counts) / len(modification_token_counts):,.1f}")
-                logger.info("=" * 60)
-
-            if classification_token_counts:
-                logger.info("=" * 60)
-                logger.info("CLASSIFICATION PROMPT TOKEN STATISTICS")
-                logger.info(f"  Total prompts analyzed: {len(classification_token_counts)}")
-                logger.info(f"  Minimum tokens: {min(classification_token_counts):,}")
-                logger.info(f"  Maximum tokens: {max(classification_token_counts):,}")
-                logger.info(f"  Average tokens: {sum(classification_token_counts) / len(classification_token_counts):,.1f}")
-                logger.info("=" * 60)
-
-            if not modification_token_counts and not classification_token_counts:
-                logger.warning("No prompts found to analyze token counts")
-
-        except ImportError:
-            logger.warning("transformers library not installed, skipping token count analysis")
-        except Exception as e:
-            logger.error(f"Failed to analyze token counts: {e}")
 
     def cleanup_temp_files(self):
         temp_models_dir = self.output_dir / "temp_models"

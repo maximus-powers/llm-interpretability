@@ -9,6 +9,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+def _format_pattern_combination(patterns: List[str]) -> str:
+    if not patterns:
+        return "no_patterns"
+    return '+'.join(sorted(patterns))
+
 class SubjectModel(nn.Module):
     """
     Simple neural network for sequence binary classification.
@@ -228,7 +233,7 @@ class SubjectModelTrainer:
         improved_at_least_once = False
 
         # calculate pattern combination for metric prefixing
-        pattern_combo = '+'.join(sorted(selected_patterns))
+        pattern_combo = _format_pattern_combination(selected_patterns)
 
         # init tb writer (if log_dir)
         writer = None
@@ -254,8 +259,8 @@ class SubjectModelTrainer:
                     logger.info(f"TensorBoard logging enabled: {log_dir}")
                 else:
                     # marker for stage transition
-                    writer.add_text(f'{'+'.join(sorted(selected_patterns))}/stage_transition', f'Transition from DEGRADED to IMPROVED stage at epoch {epoch_offset}', epoch_offset)
-                    writer.add_scalar(f'{'+'.join(sorted(selected_patterns))}/Stage/transition_marker', 1.0, epoch_offset)
+                    writer.add_text(f'{pattern_combo}/stage_transition', f'Transition from DEGRADED to IMPROVED stage at epoch {epoch_offset}', epoch_offset)
+                    writer.add_scalar(f'{pattern_combo}/Stage/transition_marker', 1.0, epoch_offset)
                     logger.info(f"Continuing TensorBoard logging from epoch {epoch_offset}")
 
             except ImportError:
@@ -480,12 +485,13 @@ class SubjectModelTrainer:
                 if save_path:
                     model.save_model(save_path)
 
-            # log hyperparameters and final metrics to tb
+            # log hyperparameters and final metrics to TensorBoard
             if writer and training_history:
                 try:
-                    # prepare hyperparameters (use pattern_combo calculated earlier)
+                    # prepare hyperparameters
+                    pattern_combination = _format_pattern_combination(selected_patterns)
                     hparam_dict = {
-                        'pattern_combination': pattern_combo,
+                        'pattern_combination': pattern_combination,
                         'target_corruption_pattern': target_pattern,
                         'num_patterns': len(selected_patterns),
                         'stage': stage,
@@ -512,7 +518,7 @@ class SubjectModelTrainer:
 
                     # log to hparams
                     writer.add_hparams(hparam_dict, final_metrics_dict)
-                    logger.info(f"Logged hyperparameters to TensorBoard: {pattern_combo} (stage: {stage})")
+                    logger.info(f"Logged hyperparameters to TensorBoard: {pattern_combination} (stage: {stage})")
                 except Exception as e:
                     logger.warning(f"Error logging hyperparameters to TensorBoard: {e}")
 

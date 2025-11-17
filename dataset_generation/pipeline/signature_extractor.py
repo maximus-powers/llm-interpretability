@@ -61,7 +61,7 @@ class ActivationSignatureExtractor:
         predictions = []
         prediction_confidences = []
         with torch.no_grad():
-            for data, _ in loader:
+            for data, _labels, _patterns in loader:  # SequenceDataset now returns (data, labels, patterns)
                 data = data.to(self.device)
                 logits = model(data)
                 probs = torch.sigmoid(logits)
