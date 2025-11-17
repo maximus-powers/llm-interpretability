@@ -2,6 +2,29 @@
 
 To do experiments of LLM interpretation of other neural nets, we can deterministically generate examples of subject models, activation signatures, and modified models.
 
+## Quick Start
+
+```bash
+# Install dependencies
+pip install -r pipeline/requirements.txt
+
+# Create signature dataset (one-time setup)
+python3 cli.py create-sig-dataset --config-path exp_1/small_simple.yaml --filename exp_1/signature_dataset.json --size 200
+
+# Run dataset generation with TensorBoard
+python3 cli.py run-data-gen --config-path exp_1/small_simple.yaml
+
+# TensorBoard will auto-launch at http://localhost:6006
+# View training metrics, filter by patterns, and monitor progress in real-time
+```
+
+**Configuration**: Edit `exp_1/small_simple.yaml` or `pipeline/config/example_config.yaml` to customize:
+- Model architectures (layers, neurons, activations)
+- Training parameters (epochs, learning rate, early stopping)
+- Pattern selection and corruption rates
+- TensorBoard and checkpoint settings
+- Output dataset length and HuggingFace upload
+
 ---
 
 ## Dataset Record:
@@ -46,15 +69,38 @@ Each training example is generated completely independently with:
 
 The pipeline uses thread pooling to generate multiple examples in parallel, with each thread working on a completely independent example. This maximizes diversity in the training data and ensures efficient parallelization.
 
-##### 3. Staged Model Training
+##### 3. Dynamic Staged Model Training
 
-Each example uses a single model trained in two consecutive stages:
+Each example uses a single model trained in two consecutive stages with **intelligent stage switching**:
 
-**Stage 1 - Degraded Training**: The model is trained on a corrupted dataset where the target pattern's labels are flipped (at the specified corruption rate). This creates a model with degraded performance specifically on that pattern while maintaining performance on other patterns.
+**Stage 1 - Degraded Training (Dynamic Duration)**: The model is trained on a corrupted dataset where the target pattern's labels are flipped (at the specified corruption rate). Training continues until the model shows **first significant improvement** in validation loss:
 
-**Stage 2 - Improvement Training**: The SAME model continues training on the clean dataset with a reduced learning rate (improvement_lr_factor from config). This teaches the model to correct its mistakes on the target pattern while preserving the existing circuits and knowledge.
+- Monitors validation loss each epoch against initial baseline
+- Requires minimum improvement threshold (e.g., 5%) to ensure circuits are actually forming, not just noise
+- If no significant improvement within `max_degraded_epochs`, the example is **discarded** (model stuck at local minima)
+- Prevents premature switching on small fluctuations that don't represent real learning
 
-This staged approach ensures the "improved" model is a genuine continuation of the degraded model, not an arbitrary replacement. The interpreter learns to make targeted improvements to fix specific issues rather than generate entirely new models.
+**Stage 2 - Improvement Training**: Once significant improvement is detected, the SAME model continues training on the clean dataset with a reduced learning rate (improvement_lr_factor from config). This teaches the model to correct its mistakes on the target pattern while preserving the existing circuits and knowledge.
+
+**Best Checkpoint Selection**: Instead of using the final model weights (which may be overtrained), the pipeline automatically selects the **epoch with best validation accuracy** from Stage 2. This prevents overfitting and ensures the interpreter learns from optimally-trained models.
+
+This adaptive approach ensures:
+- Models only switch stages when actual circuit formation is detected
+- Failed examples (stuck at local minima) are filtered out
+- Each pattern naturally gets the "warmup" time it needs before improvement
+- Final weights represent peak performance, not overtrained states
+- The "improved" model is a genuine continuation of the degraded model with targeted fixes
+
+**Example Training Flow**:
+```
+Epoch 0: val_loss=0.700 (baseline) → Stage 1 (degraded data)
+Epoch 1: val_loss=0.695 (0.7% improvement) → Below 5% threshold, continue
+Epoch 2: val_loss=0.680 (2.9% improvement) → Below 5% threshold, continue
+Epoch 3: val_loss=0.650 (7.1% improvement) → 🎯 Threshold met! Switch to Stage 2
+Epoch 4-13: → Stage 2 (clean data, continuous epoch numbering)
+Epoch 8: val_acc=0.982 → ⭐ Best checkpoint (used in final weights)
+Epoch 13: val_acc=0.975 → Final epoch (slightly overtrained, not used)
+```
 
 ##### 4. Pattern-Specific Validation
 
@@ -91,7 +137,50 @@ The TrainingDataFormatter creates structured training examples with configurable
 
 This dual-task approach enables training interpreters for both weight modification (diagnosing and fixing specific pattern issues) and pattern classification (identifying which patterns a model has learned).
 
-##### 7. Incremental Saving and Checkpointing
+##### 7. Real-Time TensorBoard Visualization
+
+The pipeline includes comprehensive **TensorBoard integration** for monitoring training progress in real-time:
+
+**Automatic Metrics Logging**:
+- Loss curves (train/val) and accuracy metrics for every epoch
+- Continuous visualization across both degraded and improved stages
+- Epoch numbering continues from degraded→improved for seamless transition view
+- Learning rate tracking and stage indicators
+
+**Visual Markers**:
+- **First Improvement Marker**: Shows exact epoch when significant improvement was detected (stage switch)
+- **Best Accuracy Marker**: Highlights which epoch produced the best model (used in final weights)
+- **Stage Transition**: Clear visual indicator of degraded→improved transition
+
+**Pattern-Based Filtering**:
+- Directory names include pattern information for easy filtering
+- Filter by target corruption pattern (e.g., `target-palindr`)
+- Filter by selected patterns or specific examples
+- View all models training simultaneously or filter to specific subsets
+
+**Model Checkpoints**:
+- Saves model checkpoints at every epoch (configurable)
+- Separate directories for degraded and improved stage checkpoints
+- Includes all metrics and model state for reproducibility
+
+**Auto-Launch**: TensorBoard server starts automatically when training begins, accessible at `http://localhost:6006` (configurable port).
+
+**Using TensorBoard**:
+```bash
+# View in browser after auto-launch
+open http://localhost:6006
+
+# Filter examples by pattern in the filter box (top-left):
+target-palindr         # Show only palindrome corruption examples
+patterns-sorted        # Show examples with "sorted" patterns
+degraded$             # Show only degraded stage runs (not used with continuous viz)
+example_5_            # Show specific example
+
+# Adjust smoothing slider (top-left) to 0.2-0.3 to clearly see stage transitions
+# Check "Markers" section for first_improvement and best_accuracy indicators
+```
+
+##### 8. Incremental Saving and Checkpointing
 
 The pipeline supports long-running generation with:
 - **Checkpointing**: Periodic saves of progress to resume interrupted runs
@@ -102,8 +191,45 @@ The entire process is designed to run efficiently with configurable multi-thread
 
 ------
 
-# TODO
+## Key Configuration Parameters
 
-- Fix early stopping to select the best version of the model instead of just the last one
-- Store all of the training stats so we can plot their loss curves later (different colors for each pattern)
-- Instead of having degradation switch after a set number of epochs, wait until we see an improvement from local minima, and cancel the rest of the run if it doesn't move from local minima after a maximum num of epochs
+The pipeline behavior is controlled through YAML configuration files (e.g., `pipeline/config/example_config.yaml`):
+
+**Staged Training**:
+- `max_degraded_epochs`: Maximum epochs to wait for first improvement before discarding example
+- `min_improvement_threshold`: Minimum validation loss improvement (e.g., 0.05 = 5%) to trigger stage switch
+- `improvement_epochs`: Epochs for clean data training after stage switch
+- `improvement_lr_factor`: Learning rate multiplier for Stage 2 (e.g., 1.0 = same LR)
+- `corruption_rate`: Fraction of target pattern examples to corrupt (e.g., 0.3 = 30%)
+
+**TensorBoard & Metrics**:
+- `metrics.dir`: Directory for TensorBoard logs and checkpoints
+- `metrics.tensorboard.enabled`: Enable/disable TensorBoard logging
+- `metrics.tensorboard.auto_launch`: Automatically start TensorBoard server
+- `metrics.checkpoint.save_every_epoch`: Save model state after each epoch
+
+**Training**:
+- `epochs`: Maximum epochs per training stage
+- `early_stopping.patience`: Epochs without improvement before stopping
+- `min_degradation_threshold`: Minimum accuracy improvement from degraded→improved to keep example
+
+---
+
+## Recent Improvements
+
+✅ **Dynamic Stage Switching**: Models now wait for significant improvement before switching stages, preventing premature transitions on noise
+
+✅ **Best Checkpoint Selection**: Final weights are selected from the epoch with best validation accuracy, preventing overfitting
+
+✅ **Real-Time Visualization**: TensorBoard integration provides live monitoring of all training metrics with pattern-based filtering
+
+✅ **Intelligent Filtering**: Automatically discards examples where models get stuck at local minima
+
+---
+
+## Future Enhancements
+
+- Per-pattern accuracy tracking during training for more granular analysis
+- Adaptive learning rate scheduling based on improvement velocity
+- Multi-pattern corruption experiments (degrading multiple patterns simultaneously)
+- Curriculum learning: order examples by pattern complexity
