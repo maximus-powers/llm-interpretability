@@ -374,13 +374,10 @@ class DatasetGenerationPipeline:
             # get pattern descriptions if classification
             all_pattern_descriptions = None
             if self.include_classification:
+                enabled_patterns = self.config['dataset']['patterns']['enabled_patterns']
                 all_pattern_descriptions = {
                     pattern: self._get_pattern_description(pattern)
-                    for pattern in ['all_same', 'palindrome', 'sorted_ascending',
-                                   'sorted_descending', 'alternating', 'contains_abc',
-                                   'starts_with', 'ends_with', 'no_repeats',
-                                   'has_majority', 'increasing_pairs', 'decreasing_pairs',
-                                   'vowel_consonant', 'first_last_match', 'mountain_pattern']
+                    for pattern in enabled_patterns
                 }
 
             example = self.interpreter_formatter.create_training_example(
