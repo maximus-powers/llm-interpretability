@@ -265,185 +265,191 @@ class SubjectModelTrainer:
             save_checkpoints = checkpoint_config.get('save_every_epoch', False)
             save_optimizer_state = checkpoint_config.get('save_optimizer_state', False)
 
-        # train phase
-        for epoch in range(num_epochs):
-            model.train()
-            train_loss = 0.0
-            train_correct = 0
-            train_total = 0
+        # train phase - wrap in try-finally to ensure writer cleanup
+        try:
+            for epoch in range(num_epochs):
+                model.train()
+                train_loss = 0.0
+                train_correct = 0
+                train_total = 0
 
-            # track predictions for first epoch to debug
-            if epoch == 0:
-                all_predictions = []
-                all_targets = []
-
-            for batch_idx, (data, targets) in enumerate(train_loader):
-                data, targets = data.to(self.device), targets.to(self.device)
-                optimizer.zero_grad()
-                outputs = model(data).squeeze()
-                if outputs.dim() == 0:
-                    outputs = outputs.unsqueeze(0)
-                if targets.dim() == 0:
-                    targets = targets.unsqueeze(0)
-                loss = criterion(outputs, targets)
-                loss.backward()
-
-                # check for gradient issues on first batch of first epoch
-                if epoch == 0 and batch_idx == 0:
-                    total_grad_norm = 0.0
-                    for p in model.parameters():
-                        if p.grad is not None:
-                            total_grad_norm += p.grad.data.norm(2).item() ** 2
-                    total_grad_norm = total_grad_norm ** 0.5
-                    logger.info(f"First batch gradient norm: {total_grad_norm:.6f}")
-
-                optimizer.step()
-                train_loss += loss.item()
-                predicted = (torch.sigmoid(outputs) > 0.5).float()
-                train_correct += (predicted == targets).sum().item()
-                train_total += targets.size(0)
-
+                # track predictions for first epoch to debug
                 if epoch == 0:
-                    all_predictions.extend(predicted.cpu().numpy())
-                    all_targets.extend(targets.cpu().numpy())
+                    all_predictions = []
+                    all_targets = []
 
-            # log prediction distribution for first epoch
-            if epoch == 0:
-                unique, counts = np.unique(all_predictions, return_counts=True)
-                pred_dist = dict(zip(unique, counts))
-                logger.info(f"First epoch prediction distribution: {pred_dist}")
-            avg_train_loss = train_loss / len(train_loader)
-            train_acc = train_correct / train_total if train_total > 0 else 0
-            
-            # val phase
-            model.eval()
-            val_loss = 0.0
-            val_correct = 0
-            val_total = 0
-            with torch.no_grad():
-                for data, targets in val_loader:
+                for batch_idx, (data, targets) in enumerate(train_loader):
                     data, targets = data.to(self.device), targets.to(self.device)
+                    optimizer.zero_grad()
                     outputs = model(data).squeeze()
                     if outputs.dim() == 0:
                         outputs = outputs.unsqueeze(0)
                     if targets.dim() == 0:
                         targets = targets.unsqueeze(0)
                     loss = criterion(outputs, targets)
-                    val_loss += loss.item()
+                    loss.backward()
+
+                    # check for gradient issues on first batch of first epoch
+                    if epoch == 0 and batch_idx == 0:
+                        total_grad_norm = 0.0
+                        for p in model.parameters():
+                            if p.grad is not None:
+                                total_grad_norm += p.grad.data.norm(2).item() ** 2
+                        total_grad_norm = total_grad_norm ** 0.5
+                        logger.info(f"First batch gradient norm: {total_grad_norm:.6f}")
+
+                    optimizer.step()
+                    train_loss += loss.item()
                     predicted = (torch.sigmoid(outputs) > 0.5).float()
-                    val_correct += (predicted == targets).sum().item()
-                    val_total += targets.size(0)
-            avg_val_loss = val_loss / len(val_loader)
-            val_acc = val_correct / val_total if val_total > 0 else 0
+                    train_correct += (predicted == targets).sum().item()
+                    train_total += targets.size(0)
 
-            if epoch == 0:
-                initial_val_loss = avg_val_loss
-                logger.info(f"Initial validation loss: {initial_val_loss:.4f}")
+                    if epoch == 0:
+                        all_predictions.extend(predicted.cpu().numpy())
+                        all_targets.extend(targets.cpu().numpy())
 
-            # check for first improvement
-            if wait_for_first_improvement and initial_val_loss is not None and not improved_at_least_once:
-                improvement_pct = (initial_val_loss - avg_val_loss) / initial_val_loss if initial_val_loss > 0 else 0.0
+                # log prediction distribution for first epoch
+                if epoch == 0:
+                    unique, counts = np.unique(all_predictions, return_counts=True)
+                    pred_dist = dict(zip(unique, counts))
+                    logger.info(f"First epoch prediction distribution: {pred_dist}")
+                avg_train_loss = train_loss / len(train_loader)
+                train_acc = train_correct / train_total if train_total > 0 else 0
 
-                if improvement_pct >= min_improvement_threshold:
-                    first_improvement_epoch = epoch
-                    improved_at_least_once = True
-                    logger.info(f"First significant improvement detected at epoch {epoch+1} "
-                               f"Val loss: {avg_val_loss:.4f} < {initial_val_loss:.4f} "
-                               f"({improvement_pct*100:.1f}% improvement, threshold: {min_improvement_threshold*100:.1f}%)")
+                # val phase
+                model.eval()
+                val_loss = 0.0
+                val_correct = 0
+                val_total = 0
+                with torch.no_grad():
+                    for data, targets in val_loader:
+                        data, targets = data.to(self.device), targets.to(self.device)
+                        outputs = model(data).squeeze()
+                        if outputs.dim() == 0:
+                            outputs = outputs.unsqueeze(0)
+                        if targets.dim() == 0:
+                            targets = targets.unsqueeze(0)
+                        loss = criterion(outputs, targets)
+                        val_loss += loss.item()
+                        predicted = (torch.sigmoid(outputs) > 0.5).float()
+                        val_correct += (predicted == targets).sum().item()
+                        val_total += targets.size(0)
+                avg_val_loss = val_loss / len(val_loader)
+                val_acc = val_correct / val_total if val_total > 0 else 0
+
+                if epoch == 0:
+                    initial_val_loss = avg_val_loss
+                    logger.info(f"Initial validation loss: {initial_val_loss:.4f}")
+
+                # check for first improvement
+                if wait_for_first_improvement and initial_val_loss is not None and not improved_at_least_once:
+                    improvement_pct = (initial_val_loss - avg_val_loss) / initial_val_loss if initial_val_loss > 0 else 0.0
+
+                    if improvement_pct >= min_improvement_threshold:
+                        first_improvement_epoch = epoch
+                        improved_at_least_once = True
+                        logger.info(f"First significant improvement detected at epoch {epoch+1} "
+                                   f"Val loss: {avg_val_loss:.4f} < {initial_val_loss:.4f} "
+                                   f"({improvement_pct*100:.1f}% improvement, threshold: {min_improvement_threshold*100:.1f}%)")
+                        if writer:
+                            global_epoch_temp = epoch + epoch_offset
+                            writer.add_scalar('Markers/first_improvement', 1.0, global_epoch_temp)
+                            writer.add_text('first_improvement',
+                                           f'First significant improvement: {avg_val_loss:.4f} < {initial_val_loss:.4f} ({improvement_pct*100:.1f}%)',
+                                           global_epoch_temp)
+                    elif avg_val_loss < initial_val_loss:
+                        logger.info(f"Small improvement at epoch {epoch+1}: {improvement_pct*100:.1f}% "
+                                   f"(below {min_improvement_threshold*100:.1f}% threshold)")
+
+                # best val accuracy checkpoint
+                if val_acc > best_val_accuracy:
+                    best_val_accuracy = val_acc
+                    best_accuracy_checkpoint = copy.deepcopy(model.state_dict())
+                    logger.info(f"New best accuracy: {val_acc:.4f} at epoch {epoch+1}")
                     if writer:
                         global_epoch_temp = epoch + epoch_offset
-                        writer.add_scalar('Markers/first_improvement', 1.0, global_epoch_temp)
-                        writer.add_text('first_improvement',
-                                       f'First significant improvement: {avg_val_loss:.4f} < {initial_val_loss:.4f} ({improvement_pct*100:.1f}%)',
+                        writer.add_scalar('Markers/best_accuracy', val_acc, global_epoch_temp)
+                        writer.add_text('best_accuracy',
+                                       f'New best validation accuracy: {val_acc:.4f}',
                                        global_epoch_temp)
-                elif avg_val_loss < initial_val_loss:
-                    logger.info(f"Small improvement at epoch {epoch+1}: {improvement_pct*100:.1f}% "
-                               f"(below {min_improvement_threshold*100:.1f}% threshold)")
 
-            # best val accuracy checkpoint
-            if val_acc > best_val_accuracy:
-                best_val_accuracy = val_acc
-                best_accuracy_checkpoint = copy.deepcopy(model.state_dict())
-                logger.info(f"New best accuracy: {val_acc:.4f} at epoch {epoch+1}")
-                if writer:
-                    global_epoch_temp = epoch + epoch_offset
-                    writer.add_scalar('Markers/best_accuracy', val_acc, global_epoch_temp)
-                    writer.add_text('best_accuracy',
-                                   f'New best validation accuracy: {val_acc:.4f}',
-                                   global_epoch_temp)
+                global_epoch = epoch + epoch_offset # offset = degraded epochs if in improvement stage
 
-            global_epoch = epoch + epoch_offset # offset = degraded epochs if in improvement stage
-
-            epoch_metrics = {
-                'epoch': epoch,
-                'global_epoch': global_epoch,
-                'train_loss': avg_train_loss,
-                'train_acc': train_acc,
-                'val_loss': avg_val_loss,
-                'val_acc': val_acc
-            }
-            training_history.append(epoch_metrics)
-
-            # log to tb
-            if writer:
-                writer.add_scalar('Loss/train', avg_train_loss, global_epoch)
-                writer.add_scalar('Loss/val', avg_val_loss, global_epoch)
-                writer.add_scalar('Accuracy/train', train_acc, global_epoch)
-                writer.add_scalar('Accuracy/val', val_acc, global_epoch)
-                writer.add_scalar('Learning_rate', learning_rate, global_epoch)
-                stage_value = 0.0 if stage == 'degraded' else 1.0
-                writer.add_scalar('Stage/current_stage', stage_value, global_epoch)
-
-            # checkpoint saving
-            if save_checkpoints and log_dir:
-                checkpoint_subdir = f"checkpoints_{stage}" if stage else "checkpoints"
-                checkpoint_dir = Path(log_dir) / checkpoint_subdir
-                checkpoint_path = checkpoint_dir / f"epoch_{global_epoch+1}.pt"
-                checkpoint_data = {
+                epoch_metrics = {
                     'epoch': epoch,
                     'global_epoch': global_epoch,
-                    'stage': stage,
-                    'model_state_dict': model.state_dict(),
-                    'model_config': model.config,
                     'train_loss': avg_train_loss,
                     'train_acc': train_acc,
                     'val_loss': avg_val_loss,
                     'val_acc': val_acc
                 }
-                if save_optimizer_state:
-                    checkpoint_data['optimizer_state_dict'] = optimizer.state_dict()
+                training_history.append(epoch_metrics)
 
-                torch.save(checkpoint_data, checkpoint_path)
+                # log to tb
+                if writer:
+                    writer.add_scalar('Loss/train', avg_train_loss, global_epoch)
+                    writer.add_scalar('Loss/val', avg_val_loss, global_epoch)
+                    writer.add_scalar('Accuracy/train', train_acc, global_epoch)
+                    writer.add_scalar('Accuracy/val', val_acc, global_epoch)
+                    writer.add_scalar('Learning_rate', learning_rate, global_epoch)
+                    stage_value = 0.0 if stage == 'degraded' else 1.0
+                    writer.add_scalar('Stage/current_stage', stage_value, global_epoch)
 
-            # log every epoch
-            logger.info(f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+                # checkpoint saving
+                if save_checkpoints and log_dir:
+                    checkpoint_subdir = f"checkpoints_{stage}" if stage else "checkpoints"
+                    checkpoint_dir = Path(log_dir) / checkpoint_subdir
+                    checkpoint_path = checkpoint_dir / f"epoch_{global_epoch+1}.pt"
+                    checkpoint_data = {
+                        'epoch': epoch,
+                        'global_epoch': global_epoch,
+                        'stage': stage,
+                        'model_state_dict': model.state_dict(),
+                        'model_config': model.config,
+                        'train_loss': avg_train_loss,
+                        'train_acc': train_acc,
+                        'val_loss': avg_val_loss,
+                        'val_acc': val_acc
+                    }
+                    if save_optimizer_state:
+                        checkpoint_data['optimizer_state_dict'] = optimizer.state_dict()
 
-            if avg_val_loss < best_val_loss:
-                best_val_loss = avg_val_loss
-                patience_counter = 0
+                    torch.save(checkpoint_data, checkpoint_path)
+
+                # log every epoch
+                logger.info(f"Epoch {epoch+1}/{num_epochs} - Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc:.4f}, Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc:.4f}")
+
+                if avg_val_loss < best_val_loss:
+                    best_val_loss = avg_val_loss
+                    patience_counter = 0
+                    if save_path:
+                        model.save_model(save_path)
+                else:
+                    patience_counter += 1
+
+                # Check for early return if waiting for first improvement and it was detected
+                if wait_for_first_improvement and improved_at_least_once:
+                    logger.info(f"Returning early after first improvement at epoch {epoch+1}")
+                    break
+
+                # early stopping check
+                if patience_counter >= early_stopping_patience:
+                    logger.info(f"Early stopping triggered after {epoch+1} epochs")
+                    break
+
+            if self.quantization_type != 'none':
+                model.quantize_weights(self.quantization_type)
                 if save_path:
                     model.save_model(save_path)
-            else:
-                patience_counter += 1
 
-            # Check for early return if waiting for first improvement and it was detected
-            if wait_for_first_improvement and improved_at_least_once:
-                logger.info(f"Returning early after first improvement at epoch {epoch+1}")
-                break
-
-            # early stopping check
-            if patience_counter >= early_stopping_patience:
-                logger.info(f"Early stopping triggered after {epoch+1} epochs")
-                break
-        
-        if self.quantization_type != 'none':
-            model.quantize_weights(self.quantization_type)
-            if save_path:
-                model.save_model(save_path)
-
-        # close tb writer
-        if writer:
-            writer.close()
+        finally:
+            # ensure tb writer is always closed
+            if writer:
+                try:
+                    writer.flush()
+                    writer.close()
+                except Exception as e:
+                    logger.warning(f"Error closing TensorBoard writer: {e}")
 
         final_metrics = training_history[-1] if training_history else {}
 

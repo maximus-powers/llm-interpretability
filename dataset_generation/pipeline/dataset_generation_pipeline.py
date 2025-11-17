@@ -334,6 +334,20 @@ class DatasetGenerationPipeline:
             if not staged_results.get('improvement', 0) >= min_degradation:
                 with self._logging_lock:
                     logger.info(f"Example {example_id}: Insufficient improvement ({staged_results.get('improvement', 0):.4f} < {min_degradation})")
+
+                # cleanup on insufficient improvement
+                if 'degraded_model' in staged_results:
+                    staged_results['degraded_model'].cpu()
+                    del staged_results['degraded_model']
+                del staged_results
+
+                # clear GPU/MPS cache
+                if self.device == 'cuda':
+                    torch.cuda.empty_cache()
+                elif self.device == 'mps':
+                    if hasattr(torch.mps, 'empty_cache'):
+                        torch.mps.empty_cache()
+
                 return None
 
             # prepare models and signatures based on what's needed for efficiency
@@ -401,12 +415,43 @@ class DatasetGenerationPipeline:
             with self._logging_lock:
                 logger.info(f"Example {example_id} completed in {generation_time/60:.1f}min (improvement: {staged_results['improvement']:.4f})")
 
+            # cleanup models and free GPU/MPS memory
+            if degraded_model is not None:
+                degraded_model.cpu()
+                del degraded_model
+            if improved_model is not None:
+                improved_model.cpu()
+                del improved_model
+
+            # cleanup staged_results to free model
+            if 'degraded_model' in staged_results:
+                del staged_results['degraded_model']
+            del staged_results
+
+            # cleanup signatures
+            del degraded_signature, improved_signature
+
+            # clear GPU/MPS cache
+            if self.device == 'cuda':
+                torch.cuda.empty_cache()
+            elif self.device == 'mps':
+                if hasattr(torch.mps, 'empty_cache'):
+                    torch.mps.empty_cache()
+
             return example
 
         except Exception as e:
             generation_time = time.time() - start_time
             with self._logging_lock:
                 logger.error(f"Example {example_id} failed after {generation_time/60:.1f}min: {e}")
+
+            # cleanup on error - free GPU/MPS memory
+            if self.device == 'cuda':
+                torch.cuda.empty_cache()
+            elif self.device == 'mps':
+                if hasattr(torch.mps, 'empty_cache'):
+                    torch.mps.empty_cache()
+
             return None
 
     def _train_staged_model(self, corrupted_dataset: Dict[str, Any], clean_dataset: Dict[str, Any],
@@ -424,13 +469,21 @@ class DatasetGenerationPipeline:
         )
 
         # data loaders
+        # IMPORTANT: Disable DataLoader workers when threading is enabled to prevent worker process explosion
+        # Threading + multiprocessing (DataLoader workers) creates: threads × loaders × workers processes
+        # With 4 threads × 4 loaders × 4 workers = 64 processes, causing memory leaks
+        num_workers = 0 if self.max_threads > 1 else self.config['pipeline'].get('num_workers', 0)
+        if num_workers != self.config['pipeline'].get('num_workers', 0):
+            with self._logging_lock:
+                logger.info(f"Disabling DataLoader workers (set to 0) because threading is enabled (max_threads={self.max_threads})")
+
         train_ratio = 1.0 - self.config['training']['validation_split']
         corrupted_train_loader, corrupted_val_loader = create_data_loaders(
             examples=corrupted_dataset['examples'],
             batch_size=model_config['batch_size'],
             train_ratio=train_ratio,
             random_seed=model_config['random_seed'],
-            num_workers=self.config['pipeline'].get('num_workers', 0),
+            num_workers=num_workers,
             pin_memory=self.config['pipeline'].get('pin_memory', False),
             vocab_size=self.config['model']['vocab_size']
         )
@@ -439,7 +492,7 @@ class DatasetGenerationPipeline:
             batch_size=model_config['batch_size'],
             train_ratio=train_ratio,
             random_seed=model_config['random_seed'],
-            num_workers=self.config['pipeline'].get('num_workers', 0),
+            num_workers=num_workers,
             pin_memory=self.config['pipeline'].get('pin_memory', False),
             vocab_size=self.config['model']['vocab_size']
         )
@@ -494,6 +547,9 @@ class DatasetGenerationPipeline:
             checkpoint_config=metrics_config.get('checkpoint', {}),
             min_improvement_threshold=self.config.get('staged_training', {}).get('min_improvement_threshold', 0.05),
         )
+
+        # explicitly delete DataLoaders to ensure worker processes are terminated
+        del corrupted_train_loader, corrupted_val_loader, clean_train_loader, clean_val_loader
 
         # check if training succeeded
         if not staged_results.get('success', False):
