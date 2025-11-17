@@ -18,12 +18,12 @@ signature:
   # Comment out methods you don't want to use to reduce signature size.
   # These methods all aggregate the activations across examples in the signature dataset.
   neuron_profile_methods:                                                                               # Count of numbers added to signature per neuron
-    mean: {}                           # Average activation level                                       # 1
-    std: {}                            # Activation variability                                         # 1
+    # mean: {}                           # Average activation level                                       # 1
+    # std: {}                            # Activation variability                                         # 1
     # max: {}                          # Peak activation strength                                       # 1
     # min: {}                          # Minimum activation level                                       # 1
     # sparsity: {}                     # Fraction of zero activations                                   # 1
-    # pca: {components: 3}             # Contribution to layer's main patterns                          # n components
+    pca: {components: 10}             # Contribution to layer's main patterns                          # n components
     # entropy: {bins: 20}              # Response predictability                                        # 1
     # clustering: {n_clusters: 2}      # Distinct activation states like on/off                         # n clusters
     # svd: {components: 2}             # Importance in low-rank approximations                          # n components
@@ -32,7 +32,7 @@ signature:
   
   # Prompt formatting options (applies to both modification and classification tasks)
   prompt_format:
-    style: "separate"                  # "separate" (model weights/biases in chunk, signature in following chunk), "interwoven" (layer signature after each layer's weights)
+    style: "interwoven"                  # "separate" (model weights/biases in chunk, signature in following chunk), "interwoven" (layer signature after each layer's weights)
 
 # ============================================================================
 # SUBJECT MODEL ARCHITECTURE CONFIGURATION  
@@ -61,7 +61,7 @@ model:
 # ============================================================================  
 # Controls how training datasets are created for each batch (batch being a set of subject models trained on the same dataset and architecture)
 dataset:
-  output_dataset_length: 100          # Number of training examples to generate for the interpreter model
+  output_dataset_length: 1000          # Number of training examples to generate for the interpreter model
   patterns:
     # List of patterns to enable - comment out patterns you don't want to include
     enabled_patterns: [      # Description                           Examples
@@ -98,7 +98,7 @@ training:
   batch_size: 128                      # Training batch size
   early_stopping:
     patience: 3                        # Epochs without improvement before stopping
-  min_degradation_threshold: 0.05      # Minimum accuracy difference between degraded/improved models
+  min_degradation_threshold: 0.15      # Minimum accuracy difference between degraded/improved models
   validation_split: 0.2                # Fraction of data for validation
   
 # Controls the two-stage training process for each example
@@ -127,7 +127,7 @@ pipeline:
   output_dir: "datasets"               # Directory for generated datasets and checkpoints
   random_seed: 42                      # Global random seed for reproducibility
   device: "auto"                       # auto, cpu, cuda, mps
-  checkpoint_interval: 1000            # Save checkpoint every N examples
+  checkpoint_interval: 100            # Save checkpoint every N examples
   max_threads: 2                       # Maximum number of threads for parallel example generation
   num_workers: 2                       # DataLoader workers for training
   pin_memory: true                     # Pin memory for faster GPU transfers
@@ -137,7 +137,7 @@ pipeline:
 # ============================================================================
 # Controls training metrics logging, visualization, and checkpointing
 metrics:
-  dir: "./training_runs"               # Directory for TensorBoard logs and model checkpoints
+  dir: "./pca_10_interwoven"               # Directory for TensorBoard logs and model checkpoints
 
   # TensorBoard visualization settings
   tensorboard:
@@ -156,6 +156,6 @@ task_generation:                  # Controls which types of training tasks to ge
   include_classification: true        # Generate classification_prompt/completion fields (improved model + signature → pattern identification)
 
 hub:                              # Controls automatic uploading to HuggingFace Hub (done at each checkpoint interval or end of training)
-  dataset_name: "maximuspowers/intp-class-small-simple"                   # e.g., "username/interpreter-dataset", null to disable upload
+  dataset_name: "maximuspowers/intp-class-small-pca-10-intewoven"                   # e.g., "username/interpreter-dataset", null to disable upload
   token: ""                          # HuggingFace token
-  private: false                       
+  private: false

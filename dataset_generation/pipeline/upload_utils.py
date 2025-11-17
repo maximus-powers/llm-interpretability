@@ -9,10 +9,12 @@ from transformers import AutoTokenizer
 
 logger = logging.getLogger(__name__)
 
-def compute_aggregate_stats(metrics_dir: Path) -> Dict[str, Any]:
+def compute_aggregate_stats(metrics_dir: Path, valid_example_ids: set = None) -> Dict[str, Any]:
     stats = {
         'pattern_stats': {},  # {pattern_combo: {metric_lists}}
-        'examples_in_metrics': 0
+        'examples_in_metrics': 0,
+        'examples_scanned': 0,
+        'examples_filtered': 0
     }
     if not metrics_dir or not metrics_dir.exists():
         logger.warning(f"Metrics directory not found: {metrics_dir}")
@@ -20,6 +22,18 @@ def compute_aggregate_stats(metrics_dir: Path) -> Dict[str, Any]:
 
     # get example dirs from metrics dir
     for example_dir in metrics_dir.glob('example_*'):
+        stats['examples_scanned'] += 1
+
+        try:
+            dir_name = example_dir.name
+            example_id = int(dir_name.split('_')[1])
+        except (ValueError, IndexError):
+            logger.warning(f"Could not extract example ID from directory: {example_dir.name}")
+            continue
+
+        if valid_example_ids is not None and example_id not in valid_example_ids:
+            stats['examples_filtered'] += 1
+            continue
         metadata_file = example_dir / 'metadata.json'
         if not metadata_file.exists():
             continue
@@ -65,7 +79,12 @@ def compute_aggregate_stats(metrics_dir: Path) -> Dict[str, Any]:
             logger.warning(f"Failed to read metadata from {metadata_file}: {e}")
             continue
 
-    logger.info(f"Computed aggregate stats from {stats['examples_in_metrics']} examples in metrics directory")
+    if valid_example_ids is not None:
+        logger.info(f"Computed aggregate stats from {stats['examples_in_metrics']} valid examples "
+                   f"(scanned {stats['examples_scanned']}, filtered {stats['examples_filtered']} discarded)")
+    else:
+        logger.info(f"Computed aggregate stats from {stats['examples_in_metrics']} examples in metrics directory")
+
     return stats
 
 
@@ -374,7 +393,21 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             aggregate_stats = None
             if metrics_dir:
                 logger.info("Computing aggregate statistics from metrics directory...")
-                aggregate_stats = compute_aggregate_stats(metrics_dir)
+                valid_example_ids = set()
+                for example in combined_examples:
+                    try:
+                        metadata = example.get('metadata', '{}')
+                        if isinstance(metadata, str):
+                            metadata_dict = json.loads(metadata)
+                        else:
+                            metadata_dict = metadata
+                        if 'example_id' in metadata_dict:
+                            valid_example_ids.add(metadata_dict['example_id'])
+                    except Exception as e:
+                        logger.debug(f"Could not extract example_id from example metadata: {e}")
+
+                logger.info(f"Filtering aggregate stats to {len(valid_example_ids)} valid (non-discarded) examples")
+                aggregate_stats = compute_aggregate_stats(metrics_dir, valid_example_ids)
             logger.info("Computing token statistics...")
             token_stats = compute_token_stats(combined_examples)
             card_content = generate_dataset_card_content(config, aggregate_stats, token_stats)

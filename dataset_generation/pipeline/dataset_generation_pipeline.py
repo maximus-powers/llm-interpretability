@@ -195,8 +195,8 @@ class DatasetGenerationPipeline:
             example_id = start_from
 
             while total_generated + len(completed_examples) < num_examples:
-                # only submit new futures if we haven't reached the target
-                while len(futures) < self.max_threads and example_id < num_examples:
+                # keep submitting new futures until we reach the target number of VALID examples
+                while len(futures) < self.max_threads and (total_generated + len(completed_examples) < num_examples):
                     future = executor.submit(self._generate_single_example, example_id, min_degradation)
                     futures[future] = example_id
                     example_id += 1
