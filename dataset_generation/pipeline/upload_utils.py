@@ -374,7 +374,7 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             aggregate_stats = None
             if metrics_dir:
                 logger.info("Computing aggregate statistics from metrics directory...")
-                aggregate_stats = compute_aggregate_stats(metrics_dir, config)
+                aggregate_stats = compute_aggregate_stats(metrics_dir)
             logger.info("Computing token statistics...")
             token_stats = compute_token_stats(combined_examples)
             card_content = generate_dataset_card_content(config, aggregate_stats, token_stats)
@@ -407,39 +407,6 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                     logger.warning(f"Signature dataset not found at {signature_dataset_path}, skipping upload")
             except Exception as sig_e:
                 logger.warning(f"Failed to upload signature dataset: {sig_e}")
-
-            if metrics_dir and metrics_dir.exists():
-                try:
-                    logger.info("Uploading training metrics directories...")
-                    uploaded_count = 0
-
-                    for example in examples:
-                        example_id = example.get('example_id', 'unknown')
-                        metadata = example.get('metadata', {})
-                        if isinstance(metadata, str):
-                            metadata = json.loads(metadata)
-
-                        target_pattern = metadata.get('target_pattern', 'unknown')
-                        selected_patterns = metadata.get('selected_patterns', [])
-                        patterns_str = '_'.join(sorted(selected_patterns))
-
-                        metrics_folder_name = f"example_{example_id}_target-{target_pattern}_patterns-{patterns_str}"
-                        local_metrics_path = metrics_dir / metrics_folder_name
-
-                        if local_metrics_path.exists():
-                            repo_path = f"metrics/{metrics_folder_name}"
-                            api.upload_folder(
-                                folder_path=str(local_metrics_path),
-                                path_in_repo=repo_path,
-                                repo_id=hub_dataset_name,
-                                repo_type="dataset",
-                                token=hub_token
-                            )
-                            uploaded_count += 1
-
-                    logger.info(f"Uploaded {uploaded_count} metrics directories successfully")
-                except Exception as metrics_e:
-                    logger.warning(f"Failed to upload metrics directories: {metrics_e}")
 
         except Exception as e:
             logger.warning(f"Failed to upload dataset card: {e}")
