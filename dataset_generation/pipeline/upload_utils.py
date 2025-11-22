@@ -376,6 +376,10 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             if 'improved_model_weights' in example:
                 formatted['improved_model_weights'] = json.dumps(example['improved_model_weights'])
 
+            # add training metrics if present
+            if 'training_metrics' in example:
+                formatted['training_metrics'] = json.dumps(example['training_metrics'])
+
             formatted_examples.append(formatted)
 
         existing_dataset = None

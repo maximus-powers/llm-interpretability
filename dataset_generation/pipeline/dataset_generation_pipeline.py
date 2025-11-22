@@ -130,9 +130,7 @@ class DatasetGenerationPipeline:
 
         logger.info(f"DatasetGenerationPipeline initialized with tasks: modification={self.include_modification}, classification={self.include_classification}")
     
-    def _validate_config(self):
-        """Validate settings in config.yaml"""
-        
+    def _validate_config(self):        
         # pattern config
         enabled_patterns = self.config['dataset']['patterns']['enabled_patterns']
         available_patterns = [
@@ -372,13 +370,33 @@ class DatasetGenerationPipeline:
                     improved_signature = self.activation_signature_extractor.extract(improved_model)
 
             # get pattern descriptions if classification
+            descriptions = {
+                'all_same': 'All tokens identical',
+                'palindrome': 'Sequence reads same forwards and backwards',
+                'sorted_ascending': 'Tokens in alphabetical order',
+                'sorted_descending': 'Tokens in reverse alphabetical order',
+                'alternating': 'Alternates between exactly two tokens',
+                'contains_abc': 'Contains subsequence ABC',
+                'starts_with': 'Begins with specific token',
+                'ends_with': 'Ends with specific token',
+                'no_repeats': 'All tokens are unique',
+                'has_majority': 'One token appears more than 50% of the time',
+                'increasing_pairs': 'Each adjacent pair is in alphabetical order',
+                'decreasing_pairs': 'Each adjacent pair is in reverse alphabetical order',
+                'vowel_consonant': 'Alternates between vowels (A,E) and consonants (B,C,D,F,G)',
+                'first_last_match': 'First and last tokens are identical',
+                'mountain_pattern': 'Increases then decreases'
+            }
             all_pattern_descriptions = None
             if self.include_classification:
                 enabled_patterns = self.config['dataset']['patterns']['enabled_patterns']
                 all_pattern_descriptions = {
-                    pattern: self._get_pattern_description(pattern)
+                    pattern: descriptions.get(pattern)
                     for pattern in enabled_patterns
                 }
+
+            # aggregate training metrics from both stages
+            training_metrics = self._aggregate_training_metrics(staged_results, selected_patterns)
 
             example = self.interpreter_formatter.create_training_example(
                 input_model=degraded_model,
@@ -387,7 +405,7 @@ class DatasetGenerationPipeline:
                 improved_model=improved_model if self.include_classification else None,
                 improved_signature=improved_signature,
                 pattern_context=target_pattern,
-                pattern_description=self._get_pattern_description(target_pattern),
+                pattern_description=descriptions.get(target_pattern),
                 actual_patterns=selected_patterns,
                 all_pattern_descriptions=all_pattern_descriptions,
                 include_modification=self.include_modification,
@@ -408,7 +426,8 @@ class DatasetGenerationPipeline:
                     }
                 },
                 degraded_signature=degraded_signature if self.include_modification else None,
-                improved_signature_data=improved_signature if self.include_classification else None
+                improved_signature_data=improved_signature if self.include_classification else None,
+                training_metrics=training_metrics
             )
 
             example['is_valid'] = True
@@ -592,7 +611,6 @@ class DatasetGenerationPipeline:
         return staged_results
 
     def _corrupt_dataset(self, dataset: Dict[str, Any], target_pattern: str, corruption_rate: float = 0.5, thread_random: random.Random = None) -> Dict[str, Any]:
-        """Creates a corrupted version of the dataset by flipping labels for a specific pattern."""
         if thread_random is None:
             thread_random = random
             
@@ -630,28 +648,58 @@ class DatasetGenerationPipeline:
         with self._logging_lock:
             logger.info(f"Corrupted {corrupted_count}/{len(target_examples)} examples of pattern '{target_pattern}' ({corrupted_dataset['corruption_stats']['actual_corruption_rate']:.1%})")
         return corrupted_dataset
-    
-    def _get_pattern_description(self, pattern_name: str) -> str:
-        """Get description for a pattern."""
-        descriptions = {
-            'all_same': 'All tokens identical',
-            'palindrome': 'Sequence reads same forwards and backwards',
-            'sorted_ascending': 'Tokens in alphabetical order',
-            'sorted_descending': 'Tokens in reverse alphabetical order',
-            'alternating': 'Alternates between exactly two tokens',
-            'contains_abc': 'Contains subsequence ABC',
-            'starts_with': 'Begins with specific token',
-            'ends_with': 'Ends with specific token',
-            'no_repeats': 'All tokens are unique',
-            'has_majority': 'One token appears more than 50% of the time',
-            'increasing_pairs': 'Each adjacent pair is in alphabetical order',
-            'decreasing_pairs': 'Each adjacent pair is in reverse alphabetical order',
-            'vowel_consonant': 'Alternates between vowels (A,E) and consonants (B,C,D,F,G)',
-            'first_last_match': 'First and last tokens are identical',
-            'mountain_pattern': 'Increases then decreases'
+
+    def _aggregate_training_metrics(self, staged_results: Dict[str, Any], selected_patterns: List[str]):
+        degraded_history = staged_results['degraded']['metrics'].get('training_history', [])
+        improved_history = staged_results['improved']['metrics'].get('training_history', [])
+        combined_history = []
+        for epoch_data in degraded_history:
+            combined_history.append({
+                'stage': 'degraded',
+                'epoch': epoch_data['epoch'],
+                'global_epoch': epoch_data['global_epoch'],
+                'train_loss': epoch_data['train_loss'],
+                'train_acc': epoch_data['train_acc'],
+                'val_loss': epoch_data['val_loss'],
+                'val_acc': epoch_data['val_acc']
+            })
+        for epoch_data in improved_history:
+            combined_history.append({
+                'stage': 'improved',
+                'epoch': epoch_data['epoch'],
+                'global_epoch': epoch_data['global_epoch'],
+                'train_loss': epoch_data['train_loss'],
+                'train_acc': epoch_data['train_acc'],
+                'val_loss': epoch_data['val_loss'],
+                'val_acc': epoch_data['val_acc']
+            })
+        return {
+            'training_history': combined_history,
+            'summary': {
+                'total_epochs': len(combined_history),
+                'degraded_epochs': len(degraded_history),
+                'improved_epochs': len(improved_history),
+                'patterns': selected_patterns,
+                'degraded_stage': {
+                    'initial_val_loss': degraded_history[0]['val_loss'] if degraded_history else None,
+                    'final_val_loss': degraded_history[-1]['val_loss'] if degraded_history else None,
+                    'initial_val_acc': degraded_history[0]['val_acc'] if degraded_history else None,
+                    'final_val_acc': degraded_history[-1]['val_acc'] if degraded_history else None,
+                    'best_val_acc': staged_results['degraded']['accuracy']
+                },
+                'improved_stage': {
+                    'initial_val_loss': improved_history[0]['val_loss'] if improved_history else None,
+                    'final_val_loss': improved_history[-1]['val_loss'] if improved_history else None,
+                    'initial_val_acc': improved_history[0]['val_acc'] if improved_history else None,
+                    'final_val_acc': improved_history[-1]['val_acc'] if improved_history else None,
+                    'best_val_acc': staged_results['improved']['accuracy'],
+                    'best_epoch': staged_results['improved'].get('best_epoch', None)
+                },
+                'improvement': staged_results['improvement'],
+                'first_improvement_epoch': staged_results.get('first_improvement_epoch', None)
+            }
         }
-        return descriptions.get(pattern_name, f'Unknown pattern: {pattern_name}')
-    
+
     def _generate_model_config(self, thread_random: random.Random = None, batch_id: int = 0) -> Dict[str, Any]:
         if thread_random is None:
             thread_random = random

@@ -275,9 +275,6 @@ class SubjectModelTrainer:
             save_optimizer_state = checkpoint_config.get('save_optimizer_state', False)
 
         # train phase - wrap in try-finally to ensure writer cleanup
-        # initialize per_pattern_accuracy to track across epochs
-        per_pattern_accuracy = {}
-
         try:
             for epoch in range(num_epochs):
                 model.train()
@@ -334,9 +331,6 @@ class SubjectModelTrainer:
                 val_loss = 0.0
                 val_correct = 0
                 val_total = 0
-                # track per-pattern accuracy
-                per_pattern_stats = {pattern: {'correct': 0, 'total': 0} for pattern in selected_patterns}
-                per_pattern_stats['negative'] = {'correct': 0, 'total': 0}  # for negative examples
 
                 with torch.no_grad():
                     for data, targets, patterns in val_loader:
@@ -352,28 +346,8 @@ class SubjectModelTrainer:
                         val_correct += (predicted == targets).sum().item()
                         val_total += targets.size(0)
 
-                        # track per-pattern accuracy
-                        for i, (pred, target, pattern) in enumerate(zip(predicted, targets, patterns)):
-                            is_correct = (pred == target).item()
-                            # positive examples belong to specific pattern, negative examples are labeled with excluded_pattern
-                            if target.item() == 1.0 and pattern in per_pattern_stats:
-                                per_pattern_stats[pattern]['correct'] += int(is_correct)
-                                per_pattern_stats[pattern]['total'] += 1
-                            elif target.item() == 0.0:
-                                # negative examples - track separately
-                                per_pattern_stats['negative']['correct'] += int(is_correct)
-                                per_pattern_stats['negative']['total'] += 1
-
                 avg_val_loss = val_loss / len(val_loader)
                 val_acc = val_correct / val_total if val_total > 0 else 0
-
-                # calculate per-pattern accuracies
-                per_pattern_accuracy = {}
-                for pattern, stats in per_pattern_stats.items():
-                    if stats['total'] > 0:
-                        per_pattern_accuracy[pattern] = stats['correct'] / stats['total']
-                    else:
-                        per_pattern_accuracy[pattern] = 0.0
 
                 if epoch == 0:
                     initial_val_loss = avg_val_loss
@@ -433,10 +407,6 @@ class SubjectModelTrainer:
                     writer.add_scalar(f'{pattern_combo}/Learning_rate', learning_rate, global_epoch)
                     stage_value = 0.0 if stage == 'degraded' else 1.0
                     writer.add_scalar(f'{pattern_combo}/Stage/current_stage', stage_value, global_epoch)
-
-                    # log per-pattern accuracies
-                    for pattern, accuracy in per_pattern_accuracy.items():
-                        writer.add_scalar(f'{pattern_combo}/Accuracy/pattern-{pattern}', accuracy, global_epoch)
 
                 # checkpoint saving
                 if save_checkpoints and log_dir:
@@ -509,12 +479,6 @@ class SubjectModelTrainer:
                         'hparam/loss_train': training_history[-1]['train_loss'],
                         'hparam/best_val_accuracy': best_val_accuracy,
                     }
-
-                    # add per-pattern final accuracies to metrics
-                    # use the last per_pattern_accuracy calculated in the final epoch
-                    if per_pattern_accuracy:
-                        for pattern, accuracy in per_pattern_accuracy.items():
-                            final_metrics_dict[f'hparam/accuracy_pattern-{pattern}'] = accuracy
 
                     # log to hparams
                     writer.add_hparams(hparam_dict, final_metrics_dict)

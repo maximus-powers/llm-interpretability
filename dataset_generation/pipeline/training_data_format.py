@@ -32,7 +32,8 @@ class TrainingDataFormatter:
                               include_classification: bool = False,
                               metadata: Dict[str, Any] = None,
                               degraded_signature: Dict[str, Any] = None,
-                              improved_signature_data: Dict[str, Any] = None) -> Dict[str, str]:
+                              improved_signature_data: Dict[str, Any] = None,
+                              training_metrics: Dict[str, Any] = None) -> Dict[str, str]:
 
         example = {}
 
@@ -65,6 +66,10 @@ class TrainingDataFormatter:
         # add metadata if provided (keep as dict, will be serialized when saving to hub)
         if metadata:
             example['metadata'] = metadata
+
+        # add training metrics if provided (keep as dict, will be serialized when saving to hub)
+        if training_metrics:
+            example['training_metrics'] = training_metrics
 
         return example
 
