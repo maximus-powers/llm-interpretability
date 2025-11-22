@@ -362,6 +362,20 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                 formatted['classification_completion'] = example['classification_completion']
                 formatted['classification_text'] = example['classification_prompt'] + example['classification_completion']
 
+            # add signature fields if present
+            if 'degraded_signature' in example:
+                formatted['degraded_signature'] = json.dumps(example['degraded_signature'])
+
+            if 'improved_signature' in example:
+                formatted['improved_signature'] = json.dumps(example['improved_signature'])
+
+            # add model weight fields if present
+            if 'degraded_model_weights' in example:
+                formatted['degraded_model_weights'] = json.dumps(example['degraded_model_weights'])
+
+            if 'improved_model_weights' in example:
+                formatted['improved_model_weights'] = json.dumps(example['improved_model_weights'])
+
             formatted_examples.append(formatted)
 
         existing_dataset = None

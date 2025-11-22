@@ -30,7 +30,9 @@ class TrainingDataFormatter:
                               all_pattern_descriptions: Dict[str, str] = None,
                               include_modification: bool = True,
                               include_classification: bool = False,
-                              metadata: Dict[str, Any] = None) -> Dict[str, str]:
+                              metadata: Dict[str, Any] = None,
+                              degraded_signature: Dict[str, Any] = None,
+                              improved_signature_data: Dict[str, Any] = None) -> Dict[str, str]:
 
         example = {}
 
@@ -40,6 +42,12 @@ class TrainingDataFormatter:
                 input_model, baseline_features, pattern_context, pattern_description
             )
             example['modification_completion'] = self._serialize_model_weights(target_model)
+            # add degraded signature if provided
+            if degraded_signature is not None:
+                example['degraded_signature'] = degraded_signature
+            # add degraded model weights with config if provided
+            if input_model is not None:
+                example['degraded_model_weights'] = self._serialize_model_with_config(input_model)
 
         # generate classification task if requested
         if include_classification:
@@ -47,6 +55,12 @@ class TrainingDataFormatter:
                 improved_model, improved_signature, all_pattern_descriptions
             )
             example['classification_completion'] = ', '.join(actual_patterns) if actual_patterns else ""
+            # add improved signature if provided
+            if improved_signature_data is not None:
+                example['improved_signature'] = improved_signature_data
+            # add improved model weights with config if provided
+            if improved_model is not None:
+                example['improved_model_weights'] = self._serialize_model_with_config(improved_model)
 
         # add metadata if provided (keep as dict, will be serialized when saving to hub)
         if metadata:
@@ -262,3 +276,16 @@ class TrainingDataFormatter:
         else:
             # fallback for higher dimensional tensors
             return tensor.tolist()
+
+    def _serialize_model_with_config(self, model: SubjectModel) -> Dict[str, Any]:
+        # serialize model weights and architecture config to dict format
+        model_dict = model.state_dict()
+        weights_data = {}
+
+        for name, param in model_dict.items():
+            weights_data[name] = self._format_tensor(param)
+
+        return {
+            'config': model.config,
+            'weights': weights_data
+        }

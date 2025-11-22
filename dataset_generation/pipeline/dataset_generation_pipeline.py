@@ -406,7 +406,9 @@ class DatasetGenerationPipeline:
                         'modification': self.include_modification,
                         'classification': self.include_classification
                     }
-                }
+                },
+                degraded_signature=degraded_signature if self.include_modification else None,
+                improved_signature_data=improved_signature if self.include_classification else None
             )
 
             example['is_valid'] = True
