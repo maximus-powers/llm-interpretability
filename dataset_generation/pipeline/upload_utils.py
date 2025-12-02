@@ -6,6 +6,8 @@ from typing import Dict, List, Any, Optional
 from datasets import Dataset, DatasetDict, load_dataset
 from huggingface_hub import login, DatasetCard, DatasetCardData, HfApi
 from transformers import AutoTokenizer
+import copy
+import yaml
 
 logger = logging.getLogger(__name__)
 
@@ -410,7 +412,6 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             logger.info("Generating dataset card...")
             aggregate_stats = None
             if metrics_dir:
-                logger.info("Computing aggregate statistics from metrics directory...")
                 valid_example_ids = set()
                 for example in combined_examples:
                     try:
@@ -423,10 +424,7 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                             valid_example_ids.add(metadata_dict['example_id'])
                     except Exception as e:
                         logger.debug(f"Could not extract example_id from example metadata: {e}")
-
-                logger.info(f"Filtering aggregate stats to {len(valid_example_ids)} valid (non-discarded) examples")
                 aggregate_stats = compute_aggregate_stats(metrics_dir, valid_example_ids)
-            logger.info("Computing token statistics...")
             token_stats = compute_token_stats(combined_examples)
             card_content = generate_dataset_card_content(config, aggregate_stats, token_stats)
             card_data = DatasetCardData(
@@ -436,7 +434,6 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             card = DatasetCard(card_content)
             card.data = card_data
             card.push_to_hub(hub_dataset_name, token=hub_token)
-            logger.info("Dataset card uploaded successfully")
 
             try:
                 api = HfApi()
@@ -445,7 +442,6 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                     signature_dataset_path = Path(signature_dataset_path)
 
                 if signature_dataset_path.exists():
-                    logger.info(f"Uploading signature dataset: {signature_dataset_path}")
                     api.upload_file(
                         path_or_fileobj=str(signature_dataset_path),
                         path_in_repo="signature_dataset.json",
@@ -453,11 +449,28 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                         repo_type="dataset",
                         token=hub_token
                     )
-                    logger.info("Signature dataset uploaded successfully")
                 else:
                     logger.warning(f"Signature dataset not found at {signature_dataset_path}, skipping upload")
             except Exception as sig_e:
                 logger.warning(f"Failed to upload signature dataset: {sig_e}")
+
+            try:                
+                config_sanitized = copy.deepcopy(config)
+                if 'hub_token' in config_sanitized.get('pipeline', {}):
+                    config_sanitized['pipeline']['hub_token'] = '<REDACTED>'
+                output_dir = Path(config['pipeline']['output_dir'])
+                config_path = output_dir / 'config.yaml'
+                with open(config_path, 'w') as f:
+                    yaml.dump(config_sanitized, f)
+                api.upload_file(
+                    path_or_fileobj=str(config_path),
+                    path_in_repo="config.yaml",
+                    repo_id=hub_dataset_name,
+                    repo_type="dataset",
+                    token=hub_token
+                )
+            except Exception as config_e:
+                logger.warning(f"Failed to upload config file: {config_e}")
 
         except Exception as e:
             logger.warning(f"Failed to upload dataset card: {e}")

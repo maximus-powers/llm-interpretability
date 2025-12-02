@@ -55,6 +55,7 @@ class DatasetGenerationPipeline:
         # check for token in config, then environment variable
         self.hub_token = hub_config.get('token') or os.environ.get('HF_TOKEN')
         self.private = hub_config.get('private', False)
+        self.upload_only_at_end = hub_config.get('upload_only_at_end', False)
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         self.max_threads = pipeline_config.get('max_threads', 1)
         self.example_id_setter = example_id_setter
@@ -218,6 +219,7 @@ class DatasetGenerationPipeline:
                 current_total = total_generated + len(completed_examples)
                 # upload checkpoint when we've accumulated checkpoint_interval examples
                 if (self.hub_dataset_name and
+                    not self.upload_only_at_end and
                     len(completed_examples) >= self.checkpoint_interval):
                     with self._checkpoint_lock:
                         logger.info(f"Checkpoint triggered: Saving {len(completed_examples)} new examples")
