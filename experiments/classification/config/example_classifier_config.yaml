@@ -1,0 +1,167 @@
+# Pattern Classifier Configuration
+# Multi-label classification to predict which patterns a subject model was trained to classify as positive
+
+# ============================================================================
+# DATASET CONFIGURATION
+# ============================================================================
+dataset:
+  hf_dataset: "maximuspowers/muat-separate-pca-10"
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  random_seed: 42
+  input_mode: "both" # "signature", "weights", or "both"
+
+  # Max dimensions of input (these come from the dataset generation pipeline's config, and are used to calculate the size of the input layers (which get padded to max))
+  max_dimensions:
+    max_layers: 9
+    max_neurons_per_layer: 40
+    max_sequence_length: 7
+
+  # Neuron profiling configuration (defines signature structure, must match dataset generation pipeline format)
+  neuron_profile:
+    methods:
+      # mean: {}
+      # std: {}
+      # max: {}
+      # min: {}
+      # sparsity: {}
+      # entropy: {bins: 20}
+      pca: {components: 10}
+      # svd: {components: 2}
+      # clustering: {n_clusters: 2}
+      # fourier: {n_frequencies: 1}
+      # pattern_wise: {n_patterns: 15}
+
+  # Pattern list (order matters for multi-hot encoding, must match dataset generation pipeline)
+  patterns:
+    - "all_same"
+    - "palindrome"
+    - "sorted_ascending"
+    - "sorted_descending"
+    - "alternating"
+    - "contains_abc"
+    - "starts_with"
+    - "ends_with"
+    - "no_repeats"
+    - "has_majority"
+    - "increasing_pairs"
+    - "decreasing_pairs"
+    - "vowel_consonant"
+    - "first_last_match"
+    - "mountain_pattern"
+
+  cache_dir: ".cache/classifier_data"
+
+# ============================================================================
+# MODEL ARCHITECTURE
+# ============================================================================
+# Note: hidden_dims controls both number of layers and their sizes
+# Each element in the list represents one layer's output size
+# If hidden_dims is omitted, it will be auto-computed from input dimensions
+# Examples:
+#   hidden_dims: [256, 128]           → 2 layers (256 units, then 128 units)
+#   hidden_dims: [512, 256, 128, 64]  → 4 layers (512 → 256 → 128 → 64)
+model:
+  # Signature encoder (only used if input_mode is "signature" or "both")
+  signature_encoder:
+    hidden_dims: [512, 256]  # 2 layers: 512 → 256 (auto-computed if omitted)
+    dropout: 0.3
+    activation: "relu"
+
+  # Weight encoder (only used if input_mode is "weights" or "both")
+  weight_encoder:
+    hidden_dims: [1024, 512, 256]  # 3 layers: 1024 → 512 → 256 (auto-computed if omitted)
+    dropout: 0.3
+    activation: "relu"
+
+  # Fusion layers (combines encoded features)
+  fusion:
+    hidden_dims: [256, 128]  # 2 layers: 256 → 128 (auto-computed if omitted)
+    dropout: 0.3
+    activation: "relu"
+
+  # Output layer
+  output:
+    num_patterns: 15
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+training:
+  optimizer: "adam"
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  epochs: 50
+  batch_size: 32
+
+  early_stopping:
+    enabled: true
+    patience: 10
+    monitor: "val_f1_macro"
+    mode: "max"  # "max" or "min"
+
+  loss: "bce_with_logits"
+  pos_weight: null  # null to auto-compute from data, or list of 15 weights
+
+  lr_scheduler:
+    enabled: true
+    type: "reduce_on_plateau"
+    patience: 5
+    factor: 0.5
+    min_lr: 0.00001
+
+# ============================================================================
+# EVALUATION CONFIGURATION
+# ============================================================================
+evaluation:
+  decision_threshold: 0.5  # Threshold for converting probabilities to predictions
+  metrics:
+    - "accuracy_exact_match"
+    - "accuracy_hamming"
+    - "precision_macro"
+    - "recall_macro"
+    - "f1_macro"
+    - "f1_micro"
+  per_pattern_metrics: true
+
+# ============================================================================
+# LOGGING & CHECKPOINTING
+# ============================================================================
+logging:
+  tensorboard:
+    enabled: true
+    log_dir: "./runs/classifier"
+    log_interval: 10
+    auto_launch: true
+    port: 6006
+
+  checkpoint:
+    enabled: true
+    save_dir: "./checkpoints/classifier"
+    save_best_only: true
+    monitor: "val_f1_macro"
+    mode: "max"
+
+  verbose: true
+
+# ============================================================================
+# HUGGINGFACE HUB INTEGRATION
+# ============================================================================
+hub:
+  enabled: true
+  repo_id: "maximuspowers/muat-classifier"
+  token: null
+  private: false
+  push_model: true
+  push_logs: true
+
+# ============================================================================
+# DEVICE & DATA LOADING
+# ============================================================================
+device:
+  type: "auto"  # "auto", "cuda", "mps", or "cpu"
+
+dataloader:
+  num_workers: 4
+  pin_memory: true
