@@ -2,27 +2,6 @@
 
 Generates datasets for training LLM interpreters to understand neural network weights.
 
-## Setup
-
-```bash
-# Install dependencies
-pip install -r pipeline/requirements.txt
-
-# Create signature dataset (one-time)
-python3 cli.py create-sig-dataset --config-path path/to/config.yaml --filename path/to/signature_dataset.json --size 200
-
-# Generate dataset
-python3 cli.py run-data-gen --config-path path/to/config.yaml
-
-# TensorBoard runs at http://localhost:6006
-```
-
-Configure via YAML files:
-- Model architectures (layers, neurons, activations)
-- Training params (epochs, lr, early stopping)
-- Pattern selection and corruption rates
-- Output length and HuggingFace upload
-
 ## Components
 
 **ActivationSignatureExtractor**: Processes the signature dataset through subject models to extract layer activations. Creates a fingerprint for each model that the interpreter uses as a reference when analyzing weights.

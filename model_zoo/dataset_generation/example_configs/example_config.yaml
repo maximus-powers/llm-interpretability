@@ -11,7 +11,7 @@
 # This element of the prompt is what the interpreter should learn to use as a key to understanding the subject model's weights.
 
 signature:
-  dataset_path: "signature_dataset.json" # path to the signature dataset file
+  dataset_path: "example_signature_dataset.json" # path to the signature dataset file
   
   # Neuron profiling methods - determines what statistical features are extracted for each neuron.
   # Picking the right set of methods is crucial for creating informative signatures, but picking too many explodes the size of the signature.
@@ -124,7 +124,6 @@ validation:
 # ============================================================================
 # Controls the overall pipeline execution behavior
 pipeline:
-  output_dir: "datasets"               # Directory for generated datasets and checkpoints
   random_seed: 42                      # Global random seed for reproducibility
   device: "auto"                       # auto, cpu, cuda, mps
   checkpoint_interval: 1000            # Save checkpoint every N examples
@@ -136,9 +135,8 @@ pipeline:
 # METRICS CONFIGURATION
 # ============================================================================
 # Controls training metrics logging, visualization, and checkpointing
+# Note: Output directories are automatically managed by the CLI
 metrics:
-  dir: "./training_runs"               # Directory for TensorBoard logs and model checkpoints
-
   # TensorBoard visualization settings
   tensorboard:
     enabled: true                      # Enable TensorBoard logging
@@ -159,3 +157,8 @@ hub:                              # Controls automatic uploading to HuggingFace 
   dataset_name: null                   # e.g., "username/interpreter-dataset", null to disable upload
   token: null                          # HuggingFace token
   private: false                       
+
+# ============================================================================
+# RUN DIRECTORY MANAGEMENT
+# ============================================================================
+run_log_cleanup: true # deletes the run dir after completing the run if true

@@ -51,8 +51,6 @@ dataset:
     - "first_last_match"
     - "mountain_pattern"
 
-  cache_dir: ".cache/classifier_data"
-
 # ============================================================================
 # MODEL ARCHITECTURE
 # ============================================================================
@@ -128,17 +126,16 @@ evaluation:
 # ============================================================================
 # LOGGING & CHECKPOINTING
 # ============================================================================
+# Note: Output directories (logs, checkpoints, cache) are automatically managed by the CLI
 logging:
   tensorboard:
     enabled: true
-    log_dir: "./runs/classifier"
     log_interval: 10
     auto_launch: true
     port: 6006
 
   checkpoint:
     enabled: true
-    save_dir: "./checkpoints/classifier"
     save_best_only: true
     monitor: "val_f1_macro"
     mode: "max"
@@ -165,3 +162,8 @@ device:
 dataloader:
   num_workers: 4
   pin_memory: true
+
+# ============================================================================
+# RUN DIRECTORY MANAGEMENT
+# ============================================================================
+run_log_cleanup: true # deletes the run dir after completing the run if true

@@ -54,13 +54,17 @@ class ClassifierTrainer:
                 min_lr=config['training']['lr_scheduler']['min_lr']
             )
 
+        # Get run directory and set up hardcoded paths
+        run_dir = Path(config.get('run_dir', '.'))
+
         # tensorboard
         self.writer = None
         self.tensorboard_process = None
+        self.log_dir = None
         if config['logging']['tensorboard']['enabled']:
-            log_dir = Path(config['logging']['tensorboard']['log_dir'])
-            log_dir.mkdir(parents=True, exist_ok=True)
-            self.writer = SummaryWriter(log_dir=str(log_dir))
+            self.log_dir = run_dir / "logs"
+            self.log_dir.mkdir(parents=True, exist_ok=True)
+            self.writer = SummaryWriter(log_dir=str(self.log_dir))
             self.tensorboard_process = self._start_tensorboard_server()
 
         # early stopping
@@ -77,7 +81,7 @@ class ClassifierTrainer:
         # checkpointing
         self.checkpoint_config = config['logging']['checkpoint']
         if self.checkpoint_config['enabled']:
-            checkpoint_dir = Path(self.checkpoint_config['save_dir'])
+            checkpoint_dir = run_dir / "checkpoints"
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             self.checkpoint_dir = checkpoint_dir
         else:
@@ -307,11 +311,10 @@ class ClassifierTrainer:
     def _start_tensorboard_server(self):
         if not self.config['logging']['tensorboard'].get('auto_launch', False):
             return None
-        log_dir = Path(self.config['logging']['tensorboard']['log_dir'])
         port = self.config['logging']['tensorboard'].get('port', 6006)
         try:
             tensorboard_process = subprocess.Popen(
-                ['tensorboard', '--logdir', str(log_dir.absolute()), '--port', str(port), '--bind_all'],
+                ['tensorboard', '--logdir', str(self.log_dir.absolute()), '--port', str(port), '--bind_all'],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
@@ -474,11 +477,10 @@ The model predicts which of the following {len(self.all_patterns)} patterns the 
 
             # 4. TensorBoard logs (separate upload via folder)
             if self.hub_config.get('push_logs', True):
-                log_dir = Path(self.config['logging']['tensorboard']['log_dir'])
-                if log_dir.exists():
+                if self.log_dir and self.log_dir.exists():
                     logger.info("Uploading TensorBoard logs...")
                     self.hf_api.upload_folder(
-                        folder_path=str(log_dir),
+                        folder_path=str(self.log_dir),
                         path_in_repo='runs',
                         repo_id=self.hub_repo,
                         repo_type='model',

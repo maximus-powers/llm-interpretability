@@ -38,17 +38,20 @@ class DatasetGenerationPipeline:
         - Clean model weights: Model trained on the same dataset and config as the degraded model, but without corrupting the pattern that was degraded in the degraded model.
     """
     
-    def __init__(self, config_path: str = "config.yaml", example_id_setter=None, metrics_dir: str = None):
+    def __init__(self, config: dict, example_id_setter=None):
         # init params from config
-        config_file = Path(config_path)
-        if not config_file.exists():
-            raise FileNotFoundError(f"Configuration file not found: {config_path}")
-        with open(config_file, 'r') as f:
-            self.config = yaml.safe_load(f)
+        self.config = config
         pipeline_config = self.config['pipeline']
         hub_config = self.config['hub']
-        self.output_dir = Path(pipeline_config['output_dir'])
+
+        # Get run directory and set up hardcoded paths
+        run_dir = Path(self.config.get('run_dir', '.'))
+        self.output_dir = run_dir / "datasets"
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.metrics_dir = run_dir / "metrics"
+        self.metrics_dir.mkdir(parents=True, exist_ok=True)
+
         self.random_seed = pipeline_config['random_seed']
         self.checkpoint_interval = pipeline_config['checkpoint_interval']
         self.hub_dataset_name = hub_config.get('dataset_name')
@@ -59,13 +62,6 @@ class DatasetGenerationPipeline:
         self.checkpoint_file = self.output_dir / "checkpoint.json"
         self.max_threads = pipeline_config.get('max_threads', 1)
         self.example_id_setter = example_id_setter
-        metrics_config = self.config.get('metrics', {})
-        if metrics_dir:
-            self.metrics_dir = Path(metrics_dir)
-        elif 'dir' in metrics_config:
-            self.metrics_dir = Path(metrics_config['dir'])
-        else:
-            self.metrics_dir = None
 
         # threading locks for thread safety
         self._logging_lock = threading.Lock()
