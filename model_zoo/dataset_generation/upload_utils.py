@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datasets import Dataset, DatasetDict, load_dataset
+from datasets import Dataset, DatasetDict
 from huggingface_hub import login, DatasetCard, DatasetCardData, HfApi
 from transformers import AutoTokenizer
 import copy
@@ -384,25 +384,11 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
 
             formatted_examples.append(formatted)
 
-        existing_dataset = None
-        try:
-            logger.info(f"Checking for existing dataset: {hub_dataset_name}")
-            existing_dataset = load_dataset(hub_dataset_name, token=hub_token)
-            logger.info(f"Found existing dataset with {len(existing_dataset['train'])} records")
-            start_id = len(existing_dataset['train'])
-            for i, example in enumerate(formatted_examples):
-                example['example_id'] = start_id + i
-            combined_examples = list(existing_dataset['train']) + formatted_examples
-        except Exception as e:
-            logger.info(f"No existing dataset found or failed to load: {e}")
-            logger.info("Creating new dataset")
-            combined_examples = formatted_examples
-
         new_dataset = DatasetDict({
-            'train': Dataset.from_list(combined_examples),
+            'train': Dataset.from_list(formatted_examples),
         })
 
-        logger.info(f"Uploading dataset with {len(combined_examples)} total records to {hub_dataset_name}...")
+        logger.info(f"Uploading dataset with {len(formatted_examples)} records to {hub_dataset_name}...")
         new_dataset.push_to_hub(hub_dataset_name, private=private, token=hub_token)
         hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
         logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
@@ -413,7 +399,7 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             aggregate_stats = None
             if metrics_dir:
                 valid_example_ids = set()
-                for example in combined_examples:
+                for example in new_dataset['train']:
                     try:
                         metadata = example.get('metadata', '{}')
                         if isinstance(metadata, str):
@@ -425,7 +411,7 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
                     except Exception as e:
                         logger.debug(f"Could not extract example_id from example metadata: {e}")
                 aggregate_stats = compute_aggregate_stats(metrics_dir, valid_example_ids)
-            token_stats = compute_token_stats(combined_examples)
+            token_stats = compute_token_stats(new_dataset['train'])
             card_content = generate_dataset_card_content(config, aggregate_stats, token_stats)
             card_data = DatasetCardData(
                 language='en',
