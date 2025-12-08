@@ -1,0 +1,216 @@
+# Encoder-Decoder Training Configuration
+# For training weight-space autoencoders on neural network weights
+
+# ============================================================================
+# DATASET CONFIGURATION
+# ============================================================================
+dataset:
+  hf_dataset: "maximuspowers/muat-mean-std-fourier-5-pca-10-medium"
+  train_split: 0.8
+  val_split: 0.1
+  test_split: 0.1
+  random_seed: 42
+  input_mode: "weights"    # weights, signature, both
+
+  max_dimensions: # Only needed if input_mode "signature"
+    max_layers: 17
+    max_neurons_per_layer: 12
+    max_sequence_length: 5
+  
+  neuron_profile: # Only needed if input_mode "signature"
+    # list of methods to use from signatures, make sure your signature contains the ones you choose.
+    # they will be concatenated in the order given before being used as input
+    methods: ["mean", "std"]  # mean, std, max, min, sparsity, entropy, pca, svd, clustering, fourier, pattern_wise
+
+# ============================================================================
+# TOKENIZATION CONFIGURATION
+# ============================================================================
+tokenization:
+  chunk_size: 64                     # Weight values per token
+  max_tokens: 512                    # Maximum sequence length, estimate using (total_params / chunk_size) + buffer
+  include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, chunk_idx)
+
+# ============================================================================
+# MODEL ARCHITECTURE
+# ============================================================================
+architecture:
+  type: "mlp"                        # Architecture type                          # mlp, transformer
+  latent_dim: 256                    # Latent dimension (bottleneck size)         # Typical: 128, 256, 512, 1024
+
+  # ===== MLP Architecture (used if type="mlp") =====
+  mlp:
+    token_pooling: "mean"            # Token aggregation method                   # mean, max, flatten
+                                     # mean=average (robust), max=preserve extremes, flatten=concat all (most info)
+
+    encoder:
+      hidden_dims: [512, 384, 256]   # Hidden layer dimensions                    # List of integers, each = one layer
+      dropout: 0.2                   # Dropout probability                        # 0.0-1.0
+      activation: "relu"             # Activation function                        # relu, gelu, tanh, leaky_relu, sigmoid
+      batch_norm: true               # Use batch normalization                    # true, false
+
+    decoder:
+      hidden_dims: [256, 384, 512]   # Hidden layer dimensions (typically reversed encoder)  # List of integers
+      dropout: 0.2                   # Dropout probability                        # 0.0-1.0
+      activation: "relu"             # Activation function                        # relu, gelu, tanh, leaky_relu, sigmoid
+      batch_norm: true               # Use batch normalization                    # true, false
+
+  # ===== Transformer Architecture (used if type="transformer") =====
+  transformer:
+    encoder:
+      d_model: 512                   # Model dimension (embedding size)            # Must be divisible by num_heads
+      num_heads: 8                   # Number of attention heads                   # d_model must be divisible by this
+      num_layers: 6                  # Number of transformer layers                # Typical: 4-12
+      dim_feedforward: 2048          # Feed-forward dimension                      # Typically 4x d_model
+      dropout: 0.1                   # Dropout probability                         # 0.0-1.0
+      activation: "relu"             # Activation function                         # relu, gelu, tanh, leaky_relu, sigmoid
+      positional_encoding: "learned" # Positional encoding type                    # learned, sinusoidal
+      pooling: "mean"                # Sequence to latent pooling method           # mean, max, cls_token
+
+    decoder:
+      d_model: 512                   # Model dimension                             # Should match encoder d_model
+      num_heads: 8                   # Number of attention heads                   # d_model must be divisible by this
+      num_layers: 6                  # Number of transformer layers                # Typical: 4-12
+      dim_feedforward: 2048          # Feed-forward dimension                      # Typically 4x d_model
+      dropout: 0.1                   # Dropout probability                         # 0.0-1.0
+      activation: "relu"             # Activation function                         # relu, gelu, tanh, leaky_relu, sigmoid
+
+# ============================================================================
+# TRAINING MODE
+# ============================================================================
+training_mode:
+  mode: "autoencoding"               # Training mode                              # autoencoding, conditional
+                                     # autoencoding: weights -> encoder -> decoder -> weights
+                                     # conditional: signature -> encoder -> decoder -> weights
+
+  use_signature: false               # Use signature as conditioning              # true, false (only for conditional mode)
+
+  signature_conditioning: "concatenation"  # Signature conditioning method        # concatenation, addition, cross_attention, film
+                                     # concatenation=concat latents, addition=add latents
+                                     # cross_attention=decoder attends (Transformer only), film=FiLM conditioning
+
+# ============================================================================
+# LOSS CONFIGURATION
+# ============================================================================
+loss:
+  type: "mse"                        # Loss function type                         # mse, mae, cosine, combined, contrastive
+
+  # ===== Combined Loss (multiple reconstruction losses) =====
+  # Uncomment to use weighted combination of reconstruction losses:
+  # type: "combined"
+  # components:
+  #   - type: "mse"                  # Component loss type                        # mse, mae, cosine
+  #     weight: 1.0                  # Component weight                           # Any positive number
+  #   - type: "cosine"
+  #     weight: 0.5
+
+  # ===== Contrastive Loss =====
+  # Uncomment to use contrastive + reconstruction loss:
+  # type: "contrastive"
+  # gamma: 0.5                       # Balance contrastive/reconstruction         # 0.0-1.0 (0=recon only, 1=contrast only)
+  # contrast_type: "simclr"          # Contrastive loss type                      # simclr, positive
+  # temperature: 0.1                 # Temperature for contrastive loss           # Typical: 0.1-0.5 (smaller=more discrimination)
+  # reconstruction_type: "mse"       # Reconstruction component type              # mse, mae, cosine
+  # augmentation_type: "noise"       # Data augmentation method                   # noise, dropout, none
+  # noise_std: 0.01                  # Gaussian noise std dev                     # Typical: 0.001-0.1
+  # dropout_prob: 0.1                # Dropout probability                        # Typical: 0.05-0.2
+  #
+  # # Optional projection head for contrastive learning (SimCLR-style 2-layer MLP)
+  # projection_head:
+  #   input_dim: 256                 # Input dimension                            # Should match architecture.latent_dim
+  #   hidden_dim: 256                # Hidden layer size                          # Typical: same as input_dim
+  #   output_dim: 128                # Projection output dimension                # Typical: half of input_dim
+
+# ============================================================================
+# TRAINING CONFIGURATION
+# ============================================================================
+training:
+  optimizer: "adam"                  # Optimizer type                             # adam (only option currently)
+  learning_rate: 0.0001              # Learning rate                              # Typical: 1e-5 to 1e-3, start small for stability
+  weight_decay: 0.0001               # Weight decay (L2 regularization)           # Typical: 1e-5 to 1e-3
+  epochs: 200                        # Number of training epochs                  # Weight-space learning: 100-500 epochs
+  batch_size: 32                     # Training batch size                        # MLP: 32-128, Transformer: 8-32 (memory dependent)
+
+  # Early stopping
+  early_stopping:
+    enabled: true                    # Enable early stopping                      # true, false
+    patience: 30                     # Epochs without improvement before stopping # Typical: 20-50
+    monitor: "val_loss"              # Metric to monitor                          # val_loss, val_mse, val_r2_score, etc.
+    mode: "min"                      # Optimization direction                     # min (lower is better), max (higher is better)
+
+  # Learning rate scheduler
+  lr_scheduler:
+    enabled: true                    # Enable LR scheduling                       # true, false
+    type: "reduce_on_plateau"        # Scheduler type                             # reduce_on_plateau (only option currently)
+    patience: 15                     # Epochs without improvement before reducing # Typical: 10-20
+    factor: 0.5                      # LR reduction factor                        # Typical: 0.1-0.5
+    min_lr: 0.000001                 # Minimum learning rate                      # Typical: 1e-7 to 1e-5
+
+# ============================================================================
+# EVALUATION CONFIGURATION
+# ============================================================================
+evaluation:
+  metrics:                           # List of metrics to compute                 # mse, mae, rmse, cosine_similarity, relative_error, r2_score
+    - "mse"
+    - "mae"
+    - "rmse"
+    - "cosine_similarity"
+    - "relative_error"
+    - "r2_score"
+
+  per_layer_metrics: false           # Compute per-layer breakdown                # true, false (more expensive but informative)
+
+# ============================================================================
+# LOGGING & CHECKPOINTING
+# ============================================================================
+logging:
+  # TensorBoard
+  tensorboard:
+    enabled: true                    # Enable TensorBoard logging                 # true, false
+    log_interval: 10                 # Log every N batches                        # Typical: 5-50
+    auto_launch: false               # Auto-start TensorBoard server              # true, false
+    port: 6006                       # TensorBoard server port                    # Any available port
+
+  # Checkpointing
+  checkpoint:
+    enabled: true                    # Enable model checkpointing                 # true, false
+    save_best_only: true             # Only save best model                       # true, false (vs. saving every epoch)
+    monitor: "val_loss"              # Metric to monitor for "best"               # val_loss, val_mse, val_r2_score, etc.
+    mode: "min"                      # Optimization direction                     # min (lower is better), max (higher is better)
+
+  verbose: true                      # Print detailed logs                        # true, false
+
+# ============================================================================
+# HUGGINGFACE HUB INTEGRATION
+# ============================================================================
+hub:
+  enabled: true                      # Enable Hub upload                          # true, false
+  repo_id: "maximuspowers/weight-encoder-mlp-v1"  # Repository ID                # Format: "username/model-name"
+  token: null                        # HuggingFace token                          # String or null (uses HF_TOKEN env var)
+  private: false                     # Make repository private                    # true, false
+  push_encoder_only: true            # Upload encoder only (not decoder)          # true, false (recommended: true for downstream use)
+  push_model: true                   # Upload model weights                       # true, false
+  push_logs: true                    # Upload training logs                       # true, false
+  push_metrics: true                 # Upload metrics                             # true, false
+
+# ============================================================================
+# DEVICE & DATA LOADING
+# ============================================================================
+device:
+  # Device type: "auto", "cuda", "mps", or "cpu"
+  # "auto" will use CUDA > MPS > CPU in that order
+  type: "auto"
+
+dataloader:
+  # Number of worker processes for data loading
+  # 0 = load in main process (simpler, good for debugging)
+  # >0 = use multiprocessing (faster, but can have issues with some datasets)
+  num_workers: 4
+
+  # Pin memory for faster GPU transfer
+  pin_memory: true
+
+# ============================================================================
+# RUN DIRECTORY MANAGEMENT
+# ============================================================================
+# Delete run directory after training (keep if uploading encoder to Hub)
+run_log_cleanup: false

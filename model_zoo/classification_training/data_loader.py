@@ -11,28 +11,10 @@ logger = logging.getLogger(__name__)
 def compute_dimensions_from_config(config: Dict[str, Any]):
     dataset_config = config['dataset']
     max_dims = dataset_config['max_dimensions']
-    neuron_profile = dataset_config['neuron_profile']
 
     max_layers = max_dims['max_layers']
     max_neurons = max_dims['max_neurons_per_layer']
     max_seq_length = max_dims['max_sequence_length']
-
-    # calc sig feats per neuron
-    signature_features = 0
-    for method_name, method_config in neuron_profile['methods'].items():
-        if method_name in ['mean', 'std', 'max', 'min', 'sparsity', 'entropy']:
-            # Single-value methods
-            signature_features += 1
-        elif method_name == 'pca':
-            signature_features += method_config.get('components', 10)
-        elif method_name == 'svd':
-            signature_features += method_config.get('components', 2)
-        elif method_name == 'clustering':
-            signature_features += method_config.get('n_clusters', 2)
-        elif method_name == 'fourier':
-            signature_features += method_config.get('n_frequencies', 1)
-        elif method_name == 'pattern_wise':
-            signature_features += method_config.get('n_patterns', len(config['dataset'].get('patterns', [])))
 
     # calc max total params
     input_layer_params = (max_seq_length * max_neurons) + max_neurons
@@ -42,11 +24,51 @@ def compute_dimensions_from_config(config: Dict[str, Any]):
         'max_layers': max_layers,
         'max_neurons_per_layer': max_neurons,
         'max_total_params': input_layer_params + hidden_layer_params + output_layer_params,
-        'signature_features_per_neuron': signature_features
+        'signature_features_per_neuron': 0  # will be inferred
     }
-
     logger.info(f"Dimensions computed from config: {result}")
     return result
+
+
+def infer_signature_dimensions(signature_json: str, method_names: List[str]) -> Dict[str, Any]:
+    signature = json.loads(signature_json)
+    neuron_activations = signature['neuron_activations']
+
+    first_layer_idx = min(int(k) for k in neuron_activations.keys())
+    first_layer = neuron_activations[str(first_layer_idx)]
+    first_neuron_idx = min(int(k) for k in first_layer['neuron_profiles'].keys())
+    sample_profile = first_layer['neuron_profiles'][str(first_neuron_idx)]
+
+    layer_info = first_layer.get('layer_info', {})
+    available_methods_claimed = layer_info.get('profile_methods', None)
+    actual_methods = list(sample_profile.keys())
+
+    if available_methods_claimed and set(available_methods_claimed) != set(actual_methods):
+        logger.warning(
+            f"layer_info.profile_methods {available_methods_claimed} doesn't match "
+            f"actual profile keys {actual_methods}. Using actual keys."
+        )
+
+    available_methods = actual_methods
+
+    method_shapes = {}
+    total_features = 0
+    for method_name in method_names:
+        if method_name not in sample_profile:
+            raise ValueError(f"Required method '{method_name}' not found in signature.")
+        value = sample_profile[method_name]
+        if isinstance(value, list):
+            feature_count = len(value)
+        else:
+            feature_count = 1
+        method_shapes[method_name] = feature_count
+        total_features += feature_count
+
+    return {
+        'signature_features_per_neuron': total_features,
+        'method_shapes': method_shapes,
+        'profile_methods_in_data': available_methods
+    }
 
 
 def compute_model_architecture(input_dims: Dict[str, int], num_patterns: int, config: Dict[str, Any] = None) -> Dict[str, Any]:
@@ -108,7 +130,7 @@ def compute_model_architecture(input_dims: Dict[str, int], num_patterns: int, co
     return architecture
 
 
-def preprocess_signature(signature_json: str, max_dims: Dict[str, int]):
+def preprocess_signature(signature_json: str, max_dims: Dict[str, int], method_names: List[str]):
     signature = json.loads(signature_json)
     features_per_neuron = max_dims['signature_features_per_neuron']
 
@@ -138,25 +160,18 @@ def preprocess_signature(signature_json: str, max_dims: Dict[str, int]):
             if neuron_idx >= max_dims['max_neurons_per_layer']:
                 logger.warning(f"Neuron index {neuron_idx} exceeds max_neurons {max_dims['max_neurons_per_layer']}")
                 continue
+
             features = []
-
-            # single-value methods
-            for field in ['mean', 'std', 'max', 'min', 'sparsity', 'entropy']:
-                if field in profile:
-                    features.append(profile[field])
-
-            # multi-value methods
-            for field in ['pca', 'svd', 'clustering', 'fourier', 'pattern_wise']:
-                if field in profile:
-                    value = profile[field]
-                    if isinstance(value, list):
-                        features.extend(value)
-                    else:
-                        features.append(value)
-
+            for method_name in method_names:
+                if method_name not in profile:
+                    raise ValueError(f"Required method '{method_name}' not found in signature at layer {layer_idx}, neuron {neuron_idx}.")
+                value = profile[method_name]
+                if isinstance(value, list):
+                    features.extend(value)
+                else:
+                    features.append(value)
             if len(features) != features_per_neuron:
-                logger.warning(f"Expected {features_per_neuron} features, got {len(features)}")
-                features = features[:features_per_neuron] + [0.0] * max(0, features_per_neuron - len(features))
+                raise ValueError(f"Feature count mismatch at layer {layer_idx}, neuron {neuron_idx}: expected {features_per_neuron}, got {len(features)}.")
 
             padded_signature[layer_idx, neuron_idx, :] = features
             signature_mask[layer_idx, neuron_idx] = 1.0
@@ -192,11 +207,25 @@ def preprocess_weights(weights_json: str, max_total_params: int):
 
 
 class PatternClassifierDataset(Dataset):
-    def __init__(self, hf_dataset, max_dims: Dict[str, int], input_mode: str, all_patterns: List[str]):
+    def __init__(self, hf_dataset, max_dims: Dict[str, int], input_mode: str, all_patterns: List[str], method_names: List[str] = None):
         self.hf_dataset = hf_dataset
         self.max_dims = max_dims
         self.input_mode = input_mode
         self.all_patterns = all_patterns
+        self.method_names = method_names or []
+
+        # infer sig dimensions
+        if self.input_mode in ["signature", "both"] and len(self.hf_dataset) > 0:
+            first_example = self.hf_dataset[0]
+            inferred_dims = infer_signature_dimensions(
+                first_example['improved_signature'],
+                self.method_names
+            )
+            self.max_dims['signature_features_per_neuron'] = inferred_dims['signature_features_per_neuron']
+            self.method_shapes = inferred_dims['method_shapes']
+        else:
+            self.method_shapes = {}
+
         logger.info(f"Initialized PatternClassifierDataset: {len(self.hf_dataset)} examples, "
                    f"mode={input_mode}, {len(self.all_patterns)} patterns")
 
@@ -213,7 +242,7 @@ class PatternClassifierDataset(Dataset):
         inputs = {}
         if self.input_mode in ["signature", "both"]:
             sig, sig_mask = preprocess_signature(
-                example['improved_signature'], self.max_dims
+                example['improved_signature'], self.max_dims, self.method_names
             )
             inputs['signature'] = torch.from_numpy(sig)
             inputs['signature_mask'] = torch.from_numpy(sig_mask)
@@ -250,10 +279,21 @@ def load_dataset(config: Dict[str, Any]) -> Dict[str, Any]:
     max_dims = compute_dimensions_from_config(config)
     all_patterns = dataset_config['patterns']
     logger.info(f"Using {len(all_patterns)} patterns from config: {all_patterns}")
+
+    neuron_profile = dataset_config.get('neuron_profile', {})
+    method_names = neuron_profile.get('methods', [])
+    if not isinstance(method_names, list):
+        raise ValueError("Neuron_profile.methods must be a list of method names")
+    if not method_names:
+        raise ValueError("neuron_profile.methods is empty. Must specify at least one method to extract.")
+
+    logger.info(f"Will extract signature methods in order: {method_names}")
+
     input_mode = dataset_config['input_mode']
     input_dims = {}
+
     if input_mode in ["signature", "both"]:
-        input_dims['signature'] = max_dims['max_layers'] * max_dims['max_neurons_per_layer'] * max_dims['signature_features_per_neuron']
+        input_dims['signature'] = None  # will be filled after inference
     if input_mode in ["weights", "both"]:
         input_dims['weights'] = max_dims['max_total_params']
 
@@ -261,7 +301,8 @@ def load_dataset(config: Dict[str, Any]) -> Dict[str, Any]:
         'dataset': dataset,
         'max_dims': max_dims,
         'input_dims': input_dims,
-        'all_patterns': all_patterns
+        'all_patterns': all_patterns,
+        'method_names': method_names
     }
 
 
@@ -269,6 +310,8 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
     dataset = dataset_info['dataset']
     max_dims = dataset_info['max_dims']
     all_patterns = dataset_info['all_patterns']
+    method_names = dataset_info.get('method_names', [])
+
     dataset_config = config['dataset']
     dataloader_config = config['dataloader']
     train_size = int(len(dataset) * dataset_config['train_split'])
@@ -281,9 +324,20 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
     )
 
     input_mode = dataset_config['input_mode']
-    train_dataset = PatternClassifierDataset(train_dataset, max_dims, input_mode, all_patterns)
-    val_dataset = PatternClassifierDataset(val_dataset, max_dims, input_mode, all_patterns)
-    test_dataset = PatternClassifierDataset(test_dataset, max_dims, input_mode, all_patterns)
+
+    train_dataset = PatternClassifierDataset(train_dataset, max_dims, input_mode, all_patterns, method_names)
+    val_dataset = PatternClassifierDataset(val_dataset, max_dims, input_mode, all_patterns, method_names)
+    test_dataset = PatternClassifierDataset(test_dataset, max_dims, input_mode, all_patterns, method_names)
+
+    # update input_dims with inferred signature dimension
+    if input_mode in ["signature", "both"]:
+        signature_dim = (
+            max_dims['max_layers'] *
+            max_dims['max_neurons_per_layer'] *
+            max_dims['signature_features_per_neuron']
+        )
+        dataset_info['input_dims']['signature'] = signature_dim
+        logger.info(f"Inferred signature input dimension: {signature_dim}")
 
     # dataloaders
     batch_size = config['training']['batch_size']

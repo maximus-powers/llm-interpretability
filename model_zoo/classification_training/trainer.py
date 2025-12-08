@@ -157,6 +157,17 @@ class ClassifierTrainer:
         if self.writer:
             self.writer.close()
 
+    def stop_tensorboard(self):
+        if self.tensorboard_process and self.tensorboard_process.poll() is None:
+            logger.info("Shutting down TensorBoard...")
+            self.tensorboard_process.terminate()
+            try:
+                self.tensorboard_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                logger.warning("TensorBoard did not respond to terminate, force killing...")
+                self.tensorboard_process.kill()
+                self.tensorboard_process.wait()
+
     def _train_epoch(self, epoch: int):
         self.model.train()
         total_loss = 0
@@ -321,13 +332,14 @@ class ClassifierTrainer:
             def cleanup_tensorboard():
                 if tensorboard_process.poll() is None:
                     tensorboard_process.terminate()
-                    tensorboard_process.wait()
+                    try:
+                        tensorboard_process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        tensorboard_process.kill()
+                        tensorboard_process.wait()
             atexit.register(cleanup_tensorboard)
-            logger.info(f"TensorBoard server started! Access at: http://localhost:{port}")
+            logger.info(f"TensorBoard server started access at: http://localhost:{port}")
             return tensorboard_process
-        except FileNotFoundError:
-            logger.warning("TensorBoard not installed. Install with: pip install tensorboard")
-            return None
         except Exception as e:
             logger.warning(f"Failed to start TensorBoard server: {e}")
             return None

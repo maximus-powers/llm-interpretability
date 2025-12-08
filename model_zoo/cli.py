@@ -23,6 +23,10 @@ from model_zoo.dataset_generation.pattern_sampler import PatternDatasetSampler
 from model_zoo.classification_training.data_loader import load_dataset, create_dataloaders, compute_model_architecture
 from model_zoo.classification_training.classifier_model import PatternClassifierMLP
 from model_zoo.classification_training.trainer import ClassifierTrainer, load_checkpoint
+from model_zoo.encoder_decoder_training.data_loader import load_dataset as load_dataset_encoder_decoder
+from model_zoo.encoder_decoder_training.data_loader import create_dataloaders as create_dataloaders_encoder_decoder
+from model_zoo.encoder_decoder_training.encoder_decoder_model import create_encoder_decoder
+from model_zoo.encoder_decoder_training.trainer import EncoderDecoderTrainer, load_checkpoint as load_checkpoint_encoder_decoder
 
 # ========== Logging Setup ==========
 _thread_local = threading.local()
@@ -162,6 +166,7 @@ def execute_batch_configs(handler_func, args_template, config_paths: List[Path],
     for idx, config_path in enumerate(config_paths, start=1):
         args = argparse.Namespace(**vars(args_template))
         setattr(args, config_arg_name, str(config_path))
+        setattr(args, 'is_batch_item', True)  # Flag to indicate this is part of batch execution
         result = execute_single_config(handler_func, args, config_path, idx, total)
         results.append(result)
         successes = sum(1 for r in results if r.status == ExecutionStatus.SUCCESS)
@@ -277,21 +282,18 @@ def run_data_gen(args):
         examples = pipeline.generate_training_examples()
         logging.info(f"Dataset generation completed! Generated {len(examples)} examples.")
 
+        # only shutdown tb in batch mode
+        if getattr(args, 'is_batch_item', False):
+            if tensorboard_process and tensorboard_process.poll() is None:
+                logging.info("Shutting down TensorBoard")
+                tensorboard_process.terminate()
+                tensorboard_process.wait(timeout=5)
+
         cleanup_run_directory(run_dir, config)
 
     except Exception as e:
         logging.error(f"Dataset generation failed: {e}")
         sys.exit(1)
-    finally:
-        # keep tb running after finish
-        if tensorboard_process and tensorboard_process.poll() is None:
-            logging.info(f"\n{'='*70}")
-            logging.info(f"Training complete! TensorBoard is still running at http://localhost:{port}")
-            logging.info(f"{'='*70}\n")
-            try:
-                tensorboard_process.wait()
-            except KeyboardInterrupt:
-                pass
 
 def create_sig_dataset(args):
     setup_data_gen_logging()
@@ -420,6 +422,111 @@ def train_classifier(args):
     trainer.train()
     logger.info("Training complete")
 
+    # only shutdown tb in batch mode
+    if getattr(args, 'is_batch_item', False):
+        trainer.stop_tensorboard()
+
+    cleanup_run_directory(run_dir, config)
+
+
+def train_encoder_decoder(args):
+    setup_experiment_logging()
+    logger = logging.getLogger(__name__)
+
+    config_path = Path(args.config)
+
+    # batch execution
+    if config_path.is_dir():
+        logger.info(f"Directory detected: {config_path}")
+        try:
+            config_files = discover_yaml_configs(config_path)
+            logger.info(f"Found {len(config_files)} config files")
+            all_valid, errors = validate_all_configs(config_files)
+            if not all_valid:
+                logger.error("Config validation failed:")
+                for error in errors:
+                    logger.error(f"  - {error}")
+                sys.exit(1)
+            results = execute_batch_configs(
+                handler_func=train_encoder_decoder,
+                args_template=args,
+                config_paths=config_files,
+                config_arg_name='config'
+            )
+            failures = [r for r in results if r.status == ExecutionStatus.FAILED]
+            if failures:
+                logging.error(f"{len(failures)} configurations failed during batch execution:")
+                for failure in failures:
+                    logging.error(f"  - {failure.config_path}")
+            return
+        except Exception as e:
+            logger.error(f"Batch execution failed: {e}")
+            sys.exit(1)
+
+    # single config execution
+    if not config_path.exists():
+        logger.error(f"Config file not found: {args.config}")
+        sys.exit(1)
+
+    run_dir = create_run_directory("train-encoder-decoder", args.config)
+    logger.info(f"\n{'='*70}")
+    logger.info(f"📁 Run directory: {run_dir.absolute()}")
+    logger.info(f"{'='*70}\n")
+
+    # load config
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    config['run_dir'] = str(run_dir.absolute())
+
+    # save config to run dir
+    run_config_path = run_dir / "config.yaml"
+    with open(run_config_path, 'w') as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+    # load dataset and create tokenizer
+    dataset_info = load_dataset_encoder_decoder(config)
+
+    # create dataloaders
+    train_loader, val_loader, test_loader = create_dataloaders_encoder_decoder(dataset_info, config)
+
+    # device
+    if config['device']['type'] == 'auto':
+        if torch.cuda.is_available():
+            device = 'cuda'
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = 'mps'
+        else:
+            device = 'cpu'
+    else:
+        device = config['device']['type']
+
+    logger.info(f"Using device: {device}")
+
+    # initialize model
+    model = create_encoder_decoder(config)
+    total_params = sum(p.numel() for p in model.parameters())
+    logger.info(f"Created {config['architecture']['type']} encoder-decoder")
+    logger.info(f"Model parameters: {total_params:,}")
+
+    # checkpoint resumption
+    if args.resume:
+        checkpoint_info = load_checkpoint_encoder_decoder(args.resume, model)
+        logger.info(f"Resuming from epoch {checkpoint_info['epoch'] + 1}")
+
+    # initialize trainer
+    logger.info("Starting training")
+    trainer = EncoderDecoderTrainer(
+        model, config, train_loader, val_loader, device,
+        dataset_info['tokenizer'], test_loader
+    )
+    trainer.train()
+    logger.info("Training complete")
+
+    # only shutdown tb in batch mode
+    if getattr(args, 'is_batch_item', False):
+        trainer.stop_tensorboard()
+
     cleanup_run_directory(run_dir, config)
 
 ############## CLI ##############
@@ -428,62 +535,72 @@ def run_interactive_mode():
     print("Model Zoo CLI")
     print("="*70 + "\n")
 
-    while True:
-        action = questionary.select("Select a step:", choices=[
-                "Dataset Generation",
-                "Classifier Training"
-            ]
-        ).ask()
+    try:
+        while True:
+            action = questionary.select("Select a step:", choices=[
+                    "Dataset Generation",
+                    "Classifier Training",
+                    "Exit"
+                ]
+            ).ask()
 
-        if action == "Dataset Generation":
-            operation = questionary.select("Select an operation:", choices=[
-                        "Run Generation Pipeline",
-                        "Create Signature Dataset"
-                        # add benchmark dataset gen later
-                    ]
+            if action is None or action == "Exit":
+                print("\nExiting Model Zoo CLI...")
+                break
+
+            if action == "Dataset Generation":
+                operation = questionary.select("Select an operation:", choices=[
+                            "Run Generation Pipeline",
+                            "Create Signature Dataset"
+                            # add benchmark dataset gen later
+                        ]
+                    ).ask()
+
+                if operation == "Run Generation Pipeline":
+                    config_path = questionary.path("Config(s) path (filename for one, dir for multiple):", default="configs/dataset_gen/").ask()
+                    if config_path:
+                        args = argparse.Namespace(config_path=config_path)
+                        run_data_gen(args)
+
+                elif operation == "Create Signature Dataset":
+                    config_path = questionary.path("Config file path:", default="configs/dataset_gen/").ask()
+                    if not config_path:
+                        continue
+                    filename = questionary.text("Output filename:", default="signature_dataset.json").ask()
+                    size = questionary.text("Number of examples:", default="200").ask()
+                    if filename and size:
+                        args = argparse.Namespace(config_path=config_path, filename=filename, size=int(size))
+                        create_sig_dataset(args)
+
+            elif action == "Classifier Training":
+                config_path = questionary.path(
+                    "Config(s) path (filename for one, dir for multiple):",
+                    default="configs/classification/"
                 ).ask()
-            
-            if operation == "Run Generation Pipeline":
-                config_path = questionary.path("Config(s) path (filename for one, dir for multiple):", default="configs/dataset_gen/").ask()
-                if config_path:
-                    args = argparse.Namespace(config_path=config_path)
-                    run_data_gen(args)
 
-            elif operation == "Create Signature Dataset":
-                config_path = questionary.path("Config file path:", default="configs/dataset_gen/").ask()
                 if not config_path:
-                    return
-                filename = questionary.text("Output filename:", default="signature_dataset.json").ask()
-                size = questionary.text("Number of examples:", default="200").ask()
-                if filename and size:
-                    args = argparse.Namespace(config_path=config_path, filename=filename, size=int(size))
-                    create_sig_dataset(args)
+                    continue
 
-        elif action == "Classifier Training":
-            config_path = questionary.path(
-                "Config(s) path (filename for one, dir for multiple):",
-                default="configs/classification/"
-            ).ask()
-
-            if not config_path:
-                return
-
-            resume = questionary.confirm(
-                "Resume from checkpoint?",
-                default=False
-            ).ask()
-
-            checkpoint_path = None
-            if resume:
-                checkpoint_path = questionary.path(
-                    "Checkpoint file path:"
+                resume = questionary.confirm(
+                    "Resume from checkpoint?",
+                    default=False
                 ).ask()
 
-            args = argparse.Namespace(
-                config=config_path,
-                resume=checkpoint_path
-            )
-            train_classifier(args)    
+                checkpoint_path = None
+                if resume:
+                    checkpoint_path = questionary.path(
+                        "Checkpoint file path:"
+                    ).ask()
+
+                args = argparse.Namespace(
+                    config=config_path,
+                    resume=checkpoint_path
+                )
+                train_classifier(args)
+
+    except KeyboardInterrupt:
+        print("\n\nExiting Model Zoo CLI...")
+        sys.exit(0)    
 
 def run_traditional_cli():
     parser = argparse.ArgumentParser(
@@ -553,6 +670,22 @@ def run_traditional_cli():
         help='Resume from checkpoint (path to .pt file)'
     )
 
+    # experiment encoder_decoder
+    encoder_decoder_parser = experiment_subparsers.add_parser('encoder-decoder', help='Weight-space encoder-decoder experiments')
+    encoder_decoder_subparsers = encoder_decoder_parser.add_subparsers(dest='encoder_decoder_command', help='Encoder-decoder commands')
+
+    # experiment encoder_decoder train
+    encoder_decoder_train = encoder_decoder_subparsers.add_parser('train', help='Train the encoder-decoder')
+    encoder_decoder_train.add_argument(
+        '--config',
+        required=True,
+        help='Path to config YAML file or directory containing multiple configs'
+    )
+    encoder_decoder_train.add_argument(
+        '--resume',
+        help='Resume from checkpoint (path to .pt file)'
+    )
+
     args = parser.parse_args()
 
     if not args.category:
@@ -578,6 +711,12 @@ def run_traditional_cli():
                     sys.exit(1)
                 if args.classifier_command == 'train':
                     train_classifier(args)
+            elif args.experiment_type == 'encoder-decoder':
+                if not args.encoder_decoder_command:
+                    encoder_decoder_parser.print_help()
+                    sys.exit(1)
+                if args.encoder_decoder_command == 'train':
+                    train_encoder_decoder(args)
     except KeyboardInterrupt:
         logging.info("Operation interrupted by user")
         sys.exit(0)

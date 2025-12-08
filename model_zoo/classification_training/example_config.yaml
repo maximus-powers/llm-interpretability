@@ -18,20 +18,10 @@ dataset:
     max_neurons_per_layer: 40
     max_sequence_length: 7
 
-  # Neuron profiling configuration (defines signature structure, must match dataset generation pipeline format)
   neuron_profile:
-    methods:
-      # mean: {}
-      # std: {}
-      # max: {}
-      # min: {}
-      # sparsity: {}
-      # entropy: {bins: 20}
-      pca: {components: 10}
-      # svd: {components: 2}
-      # clustering: {n_clusters: 2}
-      # fourier: {n_frequencies: 1}
-      # pattern_wise: {n_patterns: 15}
+    # list of methods to use from signatures, make sure your signature contains the ones you choose.
+    # they will be concatenated in the order given before being used as input
+    methods: ["mean", "std"]  # mean, std, max, min, sparsity, entropy, pca, svd, clustering, fourier, pattern_wise
 
   # Pattern list (order matters for multi-hot encoding, must match dataset generation pipeline)
   patterns:
