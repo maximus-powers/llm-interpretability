@@ -184,13 +184,15 @@ logging:
 # ============================================================================
 hub:
   enabled: true                      # Enable Hub upload                          # true, false
-  repo_id: "maximuspowers/weight-encoder-mlp-v1"  # Repository ID                # Format: "username/model-name"
+  repo_id: "maximuspowers/weight-autoencoder-mlp-v1"  # Repository ID           # Format: "username/model-name"
   token: null                        # HuggingFace token                          # String or null (uses HF_TOKEN env var)
   private: false                     # Make repository private                    # true, false
-  push_encoder_only: true            # Upload encoder only (not decoder)          # true, false (recommended: true for downstream use)
-  push_model: true                   # Upload model weights                       # true, false
+  push_model: true                   # Upload model weights (encoder + decoder)   # true, false
   push_logs: true                    # Upload training logs                       # true, false
   push_metrics: true                 # Upload metrics                             # true, false
+
+  # Note: Both encoder.pt and decoder.pt will be uploaded to the same repository
+  # and can be loaded separately via hf_hub_download(repo_id, "encoder.pt") or "decoder.pt"
 
 # ============================================================================
 # DEVICE & DATA LOADING

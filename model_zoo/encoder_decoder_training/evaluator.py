@@ -130,9 +130,8 @@ def print_metrics(metrics: Dict[str, float], prefix: str = ""):
 
 
 def format_metrics_for_logging(metrics: Dict[str, float], prefix: str = ""):
-    parts = []
-    main_metrics = ['loss', 'mse', 'mae', 'rmse', 'cosine_similarity']
-    for metric_name in main_metrics:
+    parts = [prefix]
+    for metric_name in ['loss', 'mse', 'mae', 'rmse', 'cosine_similarity']:
         if metric_name in metrics:
             parts.append(f"{metric_name}={metrics[metric_name]:.4f}")
     return ", ".join(parts)
