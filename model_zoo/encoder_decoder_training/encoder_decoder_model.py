@@ -180,7 +180,8 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         )
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer,
-            num_layers=encoder_cfg['num_layers']
+            num_layers=encoder_cfg['num_layers'],
+            enable_nested_tensor=False  # Disable for MPS compatibility (Apple Silicon)
         )
         # pooling method
         self.pooling_method = encoder_cfg.get('pooling', 'mean')

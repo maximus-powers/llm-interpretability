@@ -110,14 +110,14 @@ training:
 
   early_stopping:
     enabled: true
-    patience: 3
+    patience: 5
     monitor: "val_loss"              # val_loss, val_mse, val_r2_score, etc.
     mode: "min"                      # Optimization direction, min (lower is better), max (higher is better)
 
   lr_scheduler:
     enabled: true                    # Enable LR scheduling
     type: "reduce_on_plateau"        # Scheduler type
-    patience: 15                     # Epochs without improvement before reducing
+    patience: 3                     # Epochs without improvement before reducing
     factor: 0.5                      # LR reduction factor
     min_lr: 0.000001
 
