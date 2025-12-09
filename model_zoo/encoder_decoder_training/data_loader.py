@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any, List
 from datasets import load_dataset as hf_load_dataset
 from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data.dataloader import default_collate
 
 from .tokenizer import WeightTokenizer
 
@@ -205,6 +206,13 @@ def load_dataset(config: Dict[str, Any]):
     }
 
 
+def custom_collate_fn(batch):
+    original_shapes_list = [item.pop('original_shapes') for item in batch]
+    collated_batch = default_collate(batch)
+    collated_batch['original_shapes'] = original_shapes_list
+    return collated_batch
+
+
 def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
     dataset_config = config['dataset']
     train_size = int(len(dataset_info['dataset']) * dataset_config['train_split'])
@@ -232,21 +240,24 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
         batch_size=config['training']['batch_size'],
         shuffle=True,
         num_workers=dataloader_config.get('num_workers', 0),
-        pin_memory=dataloader_config.get('pin_memory', False)
+        pin_memory=dataloader_config.get('pin_memory', False),
+        collate_fn=custom_collate_fn
     )
     val_loader = DataLoader(
         val_dataset,
         batch_size=config['training']['batch_size'],
         shuffle=False,
         num_workers=dataloader_config.get('num_workers', 0),
-        pin_memory=dataloader_config.get('pin_memory', False)
+        pin_memory=dataloader_config.get('pin_memory', False),
+        collate_fn=custom_collate_fn
     )
     test_loader = DataLoader(
         test_dataset,
         batch_size=config['training']['batch_size'],
         shuffle=False,
         num_workers=dataloader_config.get('num_workers', 0),
-        pin_memory=dataloader_config.get('pin_memory', False)
+        pin_memory=dataloader_config.get('pin_memory', False),
+        collate_fn=custom_collate_fn
     )
 
     logger.info(f"Created dataloaders: batch_size={config['training']['batch_size']}, train_batches={len(train_loader)}, val_batches={len(val_loader)}, test_batches={len(test_loader)}")

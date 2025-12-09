@@ -33,6 +33,8 @@ class EncoderDecoderTrainer:
 
         # loss
         loss_type = config['loss']['type']
+        self.is_contrastive_loss = False
+        self.is_combined_loss = False
         if loss_type in ['mse', 'mae', 'cosine']:
             self.criterion = ReconstructionLoss(config, loss_type=loss_type)
         elif loss_type == 'combined':
@@ -42,7 +44,7 @@ class EncoderDecoderTrainer:
             if batch_size is None or device is None:
                 raise ValueError("batch_size and device are required for contrastive loss")
             self.criterion = GammaContrastReconLoss(config, batch_size, device)
-            self.is_contrastive_loss = True 
+            self.is_contrastive_loss = True
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
         if self.is_contrastive_loss:
