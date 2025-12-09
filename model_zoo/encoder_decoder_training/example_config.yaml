@@ -13,9 +13,9 @@ dataset:
   input_mode: "weights"    # weights, signature, both
 
   max_dimensions: # Only needed if input_mode "signature"
-    max_layers: 17
-    max_neurons_per_layer: 12
-    max_sequence_length: 5
+    max_hidden_layers: 9
+    max_neurons_per_layer: 40
+    max_sequence_length: 7
   
   neuron_profile: # Only needed if input_mode "signature"
     # list of methods to use from signatures, make sure your signature contains the ones you choose.

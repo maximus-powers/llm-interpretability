@@ -14,7 +14,7 @@ dataset:
 
   # Max dimensions of input (these come from the dataset generation pipeline's config, and are used to calculate the size of the input layers (which get padded to max))
   max_dimensions:
-    max_layers: 9
+    max_hidden_layers: 9
     max_neurons_per_layer: 40
     max_sequence_length: 7
 

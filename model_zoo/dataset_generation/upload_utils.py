@@ -8,6 +8,7 @@ from huggingface_hub import login, DatasetCard, DatasetCardData, HfApi
 from transformers import AutoTokenizer
 import copy
 import yaml
+import tempfile
 
 logger = logging.getLogger(__name__)
 
@@ -440,21 +441,23 @@ def incremental_save_to_hub(examples: List[Dict[str, Any]], hub_dataset_name: st
             except Exception as sig_e:
                 logger.warning(f"Failed to upload signature dataset: {sig_e}")
 
-            try:                
+            try:  
                 config_sanitized = copy.deepcopy(config)
-                if 'hub_token' in config_sanitized.get('pipeline', {}):
-                    config_sanitized['pipeline']['hub_token'] = '<REDACTED>'
-                output_dir = Path(config['pipeline']['output_dir'])
-                config_path = output_dir / 'config.yaml'
-                with open(config_path, 'w') as f:
+                if 'hub' in config_sanitized and 'token' in config_sanitized['hub']:
+                    config_sanitized['hub']['token'] = '<REDACTED>'
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
                     yaml.dump(config_sanitized, f)
-                api.upload_file(
-                    path_or_fileobj=str(config_path),
-                    path_in_repo="config.yaml",
-                    repo_id=hub_dataset_name,
-                    repo_type="dataset",
-                    token=hub_token
-                )
+                    temp_config_path = f.name
+                try:
+                    api.upload_file(
+                        path_or_fileobj=temp_config_path,
+                        path_in_repo="config.yaml",
+                        repo_id=hub_dataset_name,
+                        repo_type="dataset",
+                        token=hub_token
+                    )
+                finally:
+                    Path(temp_config_path).unlink(missing_ok=True)
             except Exception as config_e:
                 logger.warning(f"Failed to upload config file: {config_e}")
 
