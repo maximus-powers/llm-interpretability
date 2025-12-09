@@ -18,8 +18,10 @@ def compute_dimensions_from_config(config: Dict[str, Any]):
         return {}
     max_hidden_layers = max_dims.get('max_hidden_layers', 0)
     max_neurons = max_dims.get('max_neurons_per_layer', 0)
+    max_total_linear_layers = max_hidden_layers + 2 # input and output layers
     result = {
         'max_hidden_layers': max_hidden_layers,
+        'max_total_linear_layers': max_total_linear_layers,
         'max_neurons_per_layer': max_neurons,
         'signature_features_per_neuron': 0
     }
@@ -65,21 +67,21 @@ def preprocess_signature(signature_json: str, max_dims: Dict[str, int], method_n
     signature = json.loads(signature_json)
     features_per_neuron = max_dims['signature_features_per_neuron']
 
-    max_hidden_layers = max_dims['max_hidden_layers']
+    max_total_linear_layers = max_dims['max_total_linear_layers']
     padded_signature = np.zeros((
-        max_hidden_layers,
+        max_total_linear_layers,
         max_dims['max_neurons_per_layer'],
         features_per_neuron
     ), dtype=np.float32)
     signature_mask = np.zeros((
-        max_hidden_layers,
+        max_total_linear_layers,
         max_dims['max_neurons_per_layer']
     ), dtype=np.float32)
 
     neuron_activations = signature.get('neuron_activations', {})
     for layer_idx_str, layer_data in neuron_activations.items():
         layer_idx = int(layer_idx_str)
-        if layer_idx >= max_hidden_layers:
+        if layer_idx >= max_total_linear_layers:
             continue
         neuron_profiles = layer_data.get('neuron_profiles', {})
         for neuron_idx_str, profile in neuron_profiles.items():
@@ -220,7 +222,7 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
     if dataset_config['input_mode'] in ['signature', 'both']:
         max_dims = train_dataset.max_dims
         if max_dims:
-            signature_dim = (max_dims['max_hidden_layers'] * max_dims['max_neurons_per_layer'] * max_dims['signature_features_per_neuron'])
+            signature_dim = (max_dims['max_total_linear_layers'] * max_dims['max_neurons_per_layer'] * max_dims['signature_features_per_neuron'])
             dataset_info['input_dims']['signature_dim'] = signature_dim
             logger.info(f"Inferred signature dimension: {signature_dim}")
 
