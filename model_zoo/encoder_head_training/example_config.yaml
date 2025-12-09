@@ -1,0 +1,238 @@
+# ============================================================================
+# Encoder Head Training Configuration
+# ============================================================================
+# This config trains task-specific prediction heads on top of pre-trained
+# weight-space encoders. Supports three task types:
+#   - pattern_classification: Multi-label pattern detection
+#   - accuracy_prediction: Regression for model accuracy
+#   - hyperparameter_prediction: Multi-task mixed regression/classification
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Encoder Configuration
+# ----------------------------------------------------------------------------
+encoder:
+  # HuggingFace Hub repository containing pre-trained encoder
+  repo_id: "username/weight-autoencoder"
+  freeze: true  # true = only train head, false = fine-tune entire model
+
+# ----------------------------------------------------------------------------
+# Data Configuration
+# ----------------------------------------------------------------------------
+data:
+  # HuggingFace Hub dataset repository (generated subject models)
+  dataset_repo_id: "username/subject-models-dataset"
+
+  # Batch size
+  batch_size: 32
+
+  # Number of data loader workers
+  num_workers: 4
+
+  # Cache directory for pre-computed representations (speeds up frozen encoder training)
+  cache_dir: "./cache/representations"
+
+  # Whether to pre-compute representations (only applicable when encoder is frozen)
+  precompute_representations: true
+
+# ----------------------------------------------------------------------------
+# Task Configuration - PATTERN CLASSIFICATION
+# ----------------------------------------------------------------------------
+# Uncomment this section to train pattern classification head
+task:
+  type: "pattern_classification"
+
+  # List of patterns to classify (multi-label)
+  # Must match metadata fields in the dataset
+  patterns:
+    - "has_conv_layers"
+    - "has_batch_norm"
+    - "has_dropout"
+    - "has_residual_connections"
+    - "has_attention"
+    - "is_sequential"
+    - "is_deep"
+
+# ----------------------------------------------------------------------------
+# Task Configuration - ACCURACY PREDICTION
+# ----------------------------------------------------------------------------
+# Uncomment this section to train accuracy prediction head (comment out pattern_classification above)
+# task:
+#   type: "accuracy_prediction"
+
+  # No additional configuration needed - predicts single accuracy value
+
+# ----------------------------------------------------------------------------
+# Task Configuration - HYPERPARAMETER PREDICTION
+# ----------------------------------------------------------------------------
+# Uncomment this section to train hyperparameter prediction head (comment out others above)
+# task:
+#   type: "hyperparameter_prediction"
+
+#   # Continuous targets (regression)
+#   continuous_targets:
+#     learning_rate:
+#       min: 0.0001
+#       max: 0.1
+#       log_scale: true  # Predict in log space
+#     weight_decay:
+#       min: 0.0
+#       max: 0.01
+#       log_scale: false
+#     dropout_rate:
+#       min: 0.0
+#       max: 0.5
+#       log_scale: false
+
+#   # Discrete targets (classification)
+#   discrete_targets:
+#     optimizer:
+#       values: ["adam", "sgd", "adamw", "rmsprop"]
+#       num_classes: 4
+#     activation:
+#       values: ["relu", "gelu", "tanh", "sigmoid"]
+#       num_classes: 4
+#     architecture:
+#       values: ["mlp", "cnn", "rnn", "transformer"]
+#       num_classes: 4
+
+#   # Loss weights for different targets (optional, defaults to 1.0)
+#   loss_weights:
+#     learning_rate: 2.0  # Higher weight for more important targets
+#     optimizer: 1.0
+#     activation: 1.0
+
+# ----------------------------------------------------------------------------
+# Model Configuration (Prediction Head Architecture)
+# ----------------------------------------------------------------------------
+model:
+  prediction_head:
+    # Hidden layer dimensions (list of integers)
+    # Set to [] for direct latent -> output mapping
+    hidden_dims: [256, 128]
+
+    # Dropout probability
+    dropout: 0.3
+
+    # Activation function (relu, gelu, tanh, sigmoid, leaky_relu)
+    activation: "relu"
+
+    # Batch normalization
+    batch_norm: false
+
+# ----------------------------------------------------------------------------
+# Training Configuration
+# ----------------------------------------------------------------------------
+training:
+  # Number of epochs
+  epochs: 100
+
+  # Optimizer configuration
+  optimizer:
+    type: "adam"  # adam, adamw, sgd
+    lr: 0.001
+    weight_decay: 0.01
+
+    # Differential learning rate multiplier for encoder (only used if encoder not frozen)
+    encoder_lr_multiplier: 0.1  # encoder_lr = lr * 0.1
+
+  # Learning rate scheduler
+  scheduler:
+    type: "reduce_on_plateau"  # step, cosine, reduce_on_plateau, none
+    factor: 0.5
+    patience: 5
+
+  # Gradient clipping (0 = no clipping)
+  grad_clip: 1.0
+
+  # Early stopping
+  patience: 15
+  early_stopping_metric: "loss"  # Metric to monitor (loss, hamming_loss, mse, etc.)
+
+  # Random seed
+  seed: 42
+
+# ----------------------------------------------------------------------------
+# HuggingFace Hub Configuration
+# ----------------------------------------------------------------------------
+huggingface_hub:
+  # Whether to push trained model to Hub
+  push_to_hub: true
+
+  # Repository ID for trained prediction head
+  repo_id: "username/pattern-classification-head"
+
+  # Whether to upload TensorBoard logs
+  push_logs: true
+
+# ----------------------------------------------------------------------------
+# Output Configuration
+# ----------------------------------------------------------------------------
+output:
+  # Directory for checkpoints and logs
+  output_dir: "./output/encoder_head_training"
+
+  # Logging level (DEBUG, INFO, WARNING, ERROR)
+  log_level: "INFO"
+
+# ============================================================================
+# Example Configurations for Different Task Types
+# ============================================================================
+
+# EXAMPLE 1: Pattern Classification (Multi-label)
+# ------------------------------------------------
+# Task: Predict architectural patterns in neural networks
+# Use case: Understanding what structural patterns a network uses
+#
+# task:
+#   type: "pattern_classification"
+#   patterns: ["has_conv_layers", "has_batch_norm", "has_dropout", ...]
+
+# EXAMPLE 2: Accuracy Prediction (Regression)
+# --------------------------------------------
+# Task: Predict model test accuracy from weights
+# Use case: Model selection without evaluation
+#
+# task:
+#   type: "accuracy_prediction"
+
+# EXAMPLE 3: Hyperparameter Prediction (Mixed)
+# ---------------------------------------------
+# Task: Predict training hyperparameters from converged weights
+# Use case: Reverse-engineering training configuration
+#
+# task:
+#   type: "hyperparameter_prediction"
+#   continuous_targets:
+#     learning_rate: {min: 0.0001, max: 0.1, log_scale: true}
+#   discrete_targets:
+#     optimizer: {values: ["adam", "sgd", "adamw"], num_classes: 3}
+
+# ============================================================================
+# Notes
+# ============================================================================
+#
+# 1. FROZEN vs FINE-TUNING:
+#    - frozen (freeze: true): Only train prediction head, encoder is fixed
+#      - Faster training, lower memory
+#      - Enable precompute_representations for maximum speedup
+#    - fine-tuning (freeze: false): Train both encoder and head
+#      - Better performance, slower training
+#      - Use encoder_lr_multiplier to control encoder learning rate
+#
+# 2. REPRESENTATION CACHING:
+#    - When encoder is frozen, set precompute_representations: true
+#    - Representations are computed once and cached to disk
+#    - Dramatically speeds up training (no repeated encoder passes)
+#
+# 3. TASK-SPECIFIC METRICS:
+#    - pattern_classification: hamming_loss, subset_accuracy, F1, etc.
+#    - accuracy_prediction: MSE, MAE, R², relative error
+#    - hyperparameter_prediction: per-target MSE/accuracy + aggregates
+#
+# 4. EARLY STOPPING:
+#    - Set early_stopping_metric based on task
+#    - Lower is better for: loss, error, mse, hamming_loss
+#    - Higher is better for: accuracy, f1, r2
+#
+# ============================================================================

@@ -110,7 +110,7 @@ training:
 
   early_stopping:
     enabled: true
-    patience: 30
+    patience: 3
     monitor: "val_loss"              # val_loss, val_mse, val_r2_score, etc.
     mode: "min"                      # Optimization direction, min (lower is better), max (higher is better)
 
