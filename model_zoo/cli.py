@@ -546,7 +546,8 @@ def run_interactive_mode():
         while True:
             action = questionary.select("Select a step:", choices=[
                     "Dataset Generation",
-                    "Classifier Training",
+                    "MLP Classifier Training",
+                    "Encoder-Decoder Training",
                     "Exit"
                 ]
             ).ask()
@@ -579,7 +580,7 @@ def run_interactive_mode():
                         args = argparse.Namespace(config_path=config_path, filename=filename, size=int(size))
                         create_sig_dataset(args)
 
-            elif action == "Classifier Training":
+            elif action == "MLP Classifier Training":
                 config_path = questionary.path(
                     "Config(s) path (filename for one, dir for multiple):",
                     default="configs/classification/"
@@ -588,22 +589,21 @@ def run_interactive_mode():
                 if not config_path:
                     continue
 
-                resume = questionary.confirm(
-                    "Resume from checkpoint?",
-                    default=False
-                ).ask()
-
-                checkpoint_path = None
-                if resume:
-                    checkpoint_path = questionary.path(
-                        "Checkpoint file path:"
-                    ).ask()
-
                 args = argparse.Namespace(
                     config=config_path,
-                    resume=checkpoint_path
+                    resume=None
                 )
                 train_classifier(args)
+
+            elif action == "Encoder-Decoder Training":
+                config_path = questionary.path(
+                    "Config(s) path (filename for one, dir for multiple):",
+                    default="model_zoo/encoder_decoder_training/example_config.yaml"
+                ).ask()
+                if not config_path:
+                    continue
+                args = argparse.Namespace(config=config_path, resume=None)
+                train_encoder_decoder(args)
 
     except KeyboardInterrupt:
         print("\n\nExiting Model Zoo CLI...")

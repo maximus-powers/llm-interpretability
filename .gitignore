@@ -44,4 +44,6 @@ venv/
 lambdalabs.pem
 
 /model_zoo/configs/*
+/model_zoo/configs/*/*.yaml
+/model_zoo/configs/*/*.json
 /model_zoo/runs/*
