@@ -438,31 +438,36 @@ class EncoderDecoderTrainer:
             if readme_path.exists():
                 operations.append(CommitOperationAdd(path_in_repo='README.md', path_or_fileobj=str(readme_path)))
 
-            # encoder
-            encoder_checkpoint = {
-                'encoder_state_dict': self.model.encoder.state_dict(),
-                'config': self.config,
-                'tokenizer_config': self.tokenizer.get_config(),
-                'latent_dim': self.model.latent_dim,
-                'architecture_type': self.config['architecture']['type']
-            }
-            encoder_path = self.checkpoint_dir / 'encoder.pt'
-            torch.save(encoder_checkpoint, encoder_path)
-            operations.append(CommitOperationAdd(path_in_repo='encoder.pt', path_or_fileobj=str(encoder_path)))
-            logger.info("Added encoder.pt to upload queue")
+            arch_type = self.config['architecture']['type']
 
-            # decoder
-            decoder_checkpoint = {
-                'decoder_state_dict': self.model.decoder.state_dict(),
-                'config': self.config,
-                'tokenizer_config': self.tokenizer.get_config(),
-                'latent_dim': self.model.latent_dim,
-                'architecture_type': self.config['architecture']['type']
-            }
-            decoder_path = self.checkpoint_dir / 'decoder.pt'
-            torch.save(decoder_checkpoint, decoder_path)
-            operations.append(CommitOperationAdd(path_in_repo='decoder.pt', path_or_fileobj=str(decoder_path)))
-            logger.info("Added decoder.pt to upload queue")
+            if hasattr(self.model, 'encoder') and hasattr(self.model, 'decoder'):
+                # save encoder
+                encoder_checkpoint = {
+                    'encoder_state_dict': self.model.encoder.state_dict(),
+                    'config': self.config,
+                    'tokenizer_config': self.tokenizer.get_config(),
+                    'latent_dim': self.model.latent_dim,
+                    'architecture_type': arch_type
+                }
+                encoder_path = self.checkpoint_dir / 'encoder.pt'
+                torch.save(encoder_checkpoint, encoder_path)
+                operations.append(CommitOperationAdd(path_in_repo='encoder.pt', path_or_fileobj=str(encoder_path)))
+                logger.info("Added encoder.pt to upload queue")
+
+                # save decoder
+                decoder_checkpoint = {
+                    'decoder_state_dict': self.model.decoder.state_dict(),
+                    'config': self.config,
+                    'tokenizer_config': self.tokenizer.get_config(),
+                    'latent_dim': self.model.latent_dim,
+                    'architecture_type': arch_type
+                }
+                decoder_path = self.checkpoint_dir / 'decoder.pt'
+                torch.save(decoder_checkpoint, decoder_path)
+                operations.append(CommitOperationAdd(path_in_repo='decoder.pt', path_or_fileobj=str(decoder_path)))
+                logger.info("Added decoder.pt to upload queue")
+            else:
+                logger.warning("Model does not have separate encoder/decoder attributes")
 
             # config
             config_sanitized = copy.deepcopy(self.config)
