@@ -339,16 +339,45 @@ class EncoderDecoderTrainer:
                 tokens = batch['tokenized_weights'].to(self.device)
                 mask = batch['attention_mask'].to(self.device)
                 batch_size = tokens.size(0)
-                reconstructed = self.model(tokens, mask)
-                if self.is_combined_loss:
-                    loss, _ = self.criterion.compute(reconstructed, tokens, mask)
+
+                if self.is_contrastive_loss:
+                    tokens_i, mask_i = augment_tokenized_weights(
+                        tokens, mask,
+                        augmentation_type=self.augmentation_type,
+                        noise_std=self.noise_std,
+                        dropout_prob=self.dropout_prob
+                    )
+                    tokens_j, mask_j = augment_tokenized_weights(
+                        tokens, mask,
+                        augmentation_type=self.augmentation_type,
+                        noise_std=self.noise_std,
+                        dropout_prob=self.dropout_prob
+                    )
+                    z_i = self.model.encode(tokens_i, mask_i)
+                    z_j = self.model.encode(tokens_j, mask_j)
+                    y_i = self.model.decode(z_i, tokens.size(1))
+                    y_j = self.model.decode(z_j, tokens.size(1))
+                    y = torch.cat([y_i, y_j], dim=0)
+                    t = torch.cat([tokens_i, tokens_j], dim=0)
+                    mask_combined = torch.cat([mask_i, mask_j], dim=0)
+                    loss, _, _ = self.criterion(z_i, z_j, y, t, mask_combined)
+                    reconstructed = y_i
+                    all_reconstructed.append(reconstructed.cpu())
+                    all_targets.append(tokens.cpu())
+                    all_masks.append(mask.cpu())
+
                 else:
-                    loss = self.criterion.compute(reconstructed, tokens, mask)
+                    reconstructed = self.model(tokens, mask)
+                    if self.is_combined_loss:
+                        loss, _ = self.criterion.compute(reconstructed, tokens, mask)
+                    else:
+                        loss = self.criterion.compute(reconstructed, tokens, mask)
+                    all_reconstructed.append(reconstructed.cpu())
+                    all_targets.append(tokens.cpu())
+                    all_masks.append(mask.cpu())
+
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
-                all_reconstructed.append(reconstructed.cpu())
-                all_targets.append(tokens.cpu())
-                all_masks.append(mask.cpu())
 
         all_reconstructed = torch.cat(all_reconstructed, dim=0)
         all_targets = torch.cat(all_targets, dim=0)
