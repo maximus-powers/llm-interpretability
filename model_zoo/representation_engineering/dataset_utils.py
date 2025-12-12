@@ -32,7 +32,11 @@ class RepresentationEngineeringDatasetBuilder:
         self.examples.append(example)
         logger.info(f"Added example {len(self.examples)} to dataset builder")
 
-    def add_from_results(self, results: List[Dict[str, Any]], input_weights_dict: Dict[int, Dict[str, torch.Tensor]]):
+    def add_from_results(
+        self,
+        results: List[Dict[str, Any]],
+        input_weights_dict: Dict[int, Dict[str, torch.Tensor]],
+    ):
         for result in results:
             model_id = result["model_id"]
             result_id = result["result_id"]
@@ -41,9 +45,15 @@ class RepresentationEngineeringDatasetBuilder:
                     f"Skipping result {result_id}: missing original weights for model {model_id}"
                 )
                 continue
-            weights_path = self.run_dir / "modified_weights" / f"model_{model_id}_result_{result_id}.pt"
+            weights_path = (
+                self.run_dir
+                / "modified_weights"
+                / f"model_{model_id}_result_{result_id}.pt"
+            )
             if not weights_path.exists():
-                logger.warning(f"Skipping result {result_id}: modified weights not found at {weights_path}")
+                logger.warning(
+                    f"Skipping result {result_id}: modified weights not found at {weights_path}"
+                )
                 continue
             modified_weights = torch.load(weights_path, map_location="cpu")
             evaluation = result.get("evaluation", {})
@@ -63,16 +73,26 @@ class RepresentationEngineeringDatasetBuilder:
         dataset = Dataset.from_list(self.examples)
         return dataset
 
-    def upload_to_hub(self, repo_id: str, private: bool = False, token: Optional[str] = None):
+    def upload_to_hub(
+        self, repo_id: str, private: bool = False, token: Optional[str] = None
+    ):
         dataset = self.build_dataset()
         logger.info(f"Uploading dataset to HuggingFace Hub: {repo_id}")
         try:
-            create_repo(repo_id=repo_id, repo_type="dataset", private=private, exist_ok=True, token=token)
+            create_repo(
+                repo_id=repo_id,
+                repo_type="dataset",
+                private=private,
+                exist_ok=True,
+                token=token,
+            )
             logger.info(f"Repository created/verified: {repo_id}")
         except Exception as e:
             logger.warning(f"Could not create repository: {e}")
         dataset.push_to_hub(repo_id=repo_id, token=token, private=private)
-        logger.info(f"✅ Dataset uploaded successfully to: https://huggingface.co/datasets/{repo_id}")
+        logger.info(
+            f"Dataset uploaded successfully to: https://huggingface.co/datasets/{repo_id}"
+        )
         self._create_dataset_card(repo_id, token)
 
     def _serialize_weights(self, weights: Dict[str, torch.Tensor]) -> Dict[str, List]:

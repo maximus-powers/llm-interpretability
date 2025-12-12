@@ -167,3 +167,8 @@ runs/train-classifier_muat_separate_pca_10_2025-12-03_18-05-30/
 └── checkpoints/      # Model checkpoints
     └── best_model.pt
 ```
+
+
+# TODO:
+
+- Make any config params that are necessary to have in the next step's config included in the readme of the HF uploads as tags

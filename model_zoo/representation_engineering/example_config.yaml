@@ -6,12 +6,11 @@
 # ============================================================================
 dataset:
   subject_model_dataset: "maximuspowers/muat-pattern-models-v1"
-  sample_size: 10  # number of models to modify
-  max_models_subject: 100  # max models to load from dataset
-
-  cache_latents: true
-  cache_dir_steering: "latent_cache/steering"
-  cache_dir_subject: "latent_cache/subject"
+  sample_size: 10  # number of models to modify (null = use all filtered models)
+  max_models_subject: 100  # max models to load from dataset (null = load all)
+  # optional filtering (applied via get_subject_models):
+  # filter_patterns: ["palindrome", "ascending"]  # only models with ALL these patterns
+  # exclude_patterns: ["corrupted"]  # exclude models with ANY of these patterns
 
 # ============================================================================
 # ENCODER/DECODER CONFIGURATION
@@ -19,12 +18,20 @@ dataset:
 encoder_decoder:
   encoder_repo_id: "maximuspowers/weight-space-encoder-v1"
   decoder_repo_id: null  # same as encoder if null
-  latent_dim: 256
+  input_mode: "weights"  # "weights", "signature", or "both" (must match encoder training mode)
 
-  tokenization:
-    chunk_size: 64
-    max_tokens: 512
-    include_metadata: true
+  # NOTE: tokenizer config and latent_dim are automatically loaded from encoder checkpoint
+
+  # Required if input_mode is "signature" or "both":
+  # max_dimensions defines padding size (must match or exceed largest model in dataset)
+  # max_dimensions:
+  #   max_hidden_layers: 9  # largest model in dataset has 9 hidden layers
+  #   max_neurons_per_layer: 40  # largest layer in dataset has 40 neurons
+  #
+  # neuron_profile defines which features to extract from signatures
+  # neuron_profile:
+  #   methods: ["mean", "std"]  # select subset of available methods in dataset
+  #                              # available: mean, std, max, min, sparsity, entropy, pca, fourier, etc.
 
 # ============================================================================
 # STEERING VECTOR CONFIGURATION
@@ -43,46 +50,26 @@ steering:
 # MODIFICATION CONFIGURATION
 # ============================================================================
 modification:
-  strength: 1.0  # steering vector strength
+  strength: 1.0  # steering vector strength (multiplier applied in latent space)
 
 # ============================================================================
 # EVALUATION CONFIGURATION
 # ============================================================================
 evaluation:
   enabled: true
-
-  benchmark:
-    samples_per_pattern: 100
-    negative_ratio: 0.3
-    patterns_to_evaluate: null  # null = evaluate all patterns
-
-  subject_architecture:
-    vocab_size: 7
-    sequence_length: 7
-    num_layers: 6
-    neurons_per_layer: 25
-    activation_type: "relu"
-    dropout_rate: 0.1
-    precision: "float32"
-
+  # benchmark dataset (pre-generated via signature dataset CLI)
+  # generate with: python -m model_zoo.cli generate-signature-dataset --output <path> --total-examples 1500
+  benchmark_dataset_path: "dataset_generation/benchmarks/eval_benchmark.json"
   batch_size: 32
-
-  metrics:
-    - "overall_accuracy"
-    - "per_pattern_accuracy"
-    - "accuracy_delta"
+  # note: vocab_size and sequence_length are inferred from benchmark metadata
+  # note: model architectures (num_layers, neurons_per_layer, etc.) are extracted from each model's metadata
 
 # ============================================================================
 # LOGGING & OUTPUT
 # ============================================================================
+run_dir: "results/representation_engineering"  # output directory for this run
+
 logging:
-  tensorboard:
-    enabled: false
-    log_dir: "runs/representation_engineering"
-
-  save_results: true
-  results_dir: "results/representation_engineering"
-
   save_modified_weights: true
   save_steering_vectors: true
   save_evaluation_results: true
