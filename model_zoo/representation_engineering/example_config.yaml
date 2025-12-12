@@ -1,0 +1,104 @@
+# Representation Engineering Configuration
+# Linear Representation Engineering (LRE) for weight modification in latent space
+
+# ============================================================================
+# DATASET CONFIGURATION
+# ============================================================================
+dataset:
+  subject_model_dataset: "maximuspowers/muat-pattern-models-v1"
+  sample_size: 10  # number of models to modify
+  max_models_subject: 100  # max models to load from dataset
+
+  cache_latents: true
+  cache_dir_steering: "latent_cache/steering"
+  cache_dir_subject: "latent_cache/subject"
+
+# ============================================================================
+# ENCODER/DECODER CONFIGURATION
+# ============================================================================
+encoder_decoder:
+  encoder_repo_id: "maximuspowers/weight-space-encoder-v1"
+  decoder_repo_id: null  # same as encoder if null
+  latent_dim: 256
+
+  tokenization:
+    chunk_size: 64
+    max_tokens: 512
+    include_metadata: true
+
+# ============================================================================
+# STEERING VECTOR CONFIGURATION
+# ============================================================================
+steering:
+  steering_vector_dataset: "maximuspowers/muat-pattern-models-v1"  # dataset used to compute steering vectors
+  max_models_steering: null  # null = use all models
+
+  compute_on_init: true
+  cache_dir: "steering_vectors_cache"
+  normalize_vectors: false
+  force_recompute: false
+  validate_cache: true
+
+# ============================================================================
+# MODIFICATION CONFIGURATION
+# ============================================================================
+modification:
+  strength: 1.0  # steering vector strength
+
+# ============================================================================
+# EVALUATION CONFIGURATION
+# ============================================================================
+evaluation:
+  enabled: true
+
+  benchmark:
+    samples_per_pattern: 100
+    negative_ratio: 0.3
+    patterns_to_evaluate: null  # null = evaluate all patterns
+
+  subject_architecture:
+    vocab_size: 7
+    sequence_length: 7
+    num_layers: 6
+    neurons_per_layer: 25
+    activation_type: "relu"
+    dropout_rate: 0.1
+    precision: "float32"
+
+  batch_size: 32
+
+  metrics:
+    - "overall_accuracy"
+    - "per_pattern_accuracy"
+    - "accuracy_delta"
+
+# ============================================================================
+# LOGGING & OUTPUT
+# ============================================================================
+logging:
+  tensorboard:
+    enabled: false
+    log_dir: "runs/representation_engineering"
+
+  save_results: true
+  results_dir: "results/representation_engineering"
+
+  save_modified_weights: true
+  save_steering_vectors: true
+  save_evaluation_results: true
+
+# ============================================================================
+# HUGGINGFACE DATASET UPLOAD
+# ============================================================================
+huggingface:
+  enabled: false
+  repo_id: "username/representation-engineering-results"
+  private: false
+  token: null  # or use HF_TOKEN env var
+  save_local: true
+
+# ============================================================================
+# DEVICE CONFIGURATION
+# ============================================================================
+device:
+  type: "auto"  # 'auto', 'cuda', 'mps', 'cpu'

@@ -18,57 +18,66 @@ import shutil
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from model_zoo.dataset_generation import DatasetGenerationPipeline, PatternDatasetSampler
+from model_zoo.dataset_generation import (
+    DatasetGenerationPipeline,
+    PatternDatasetSampler,
+)
 from model_zoo.classification_training import (
     load_dataset,
     create_dataloaders,
     compute_model_architecture,
     PatternClassifierMLP,
     ClassifierTrainer,
-    load_checkpoint
+    load_checkpoint,
 )
 from model_zoo.encoder_decoder_training import (
     load_dataset as load_dataset_encoder_decoder,
     create_dataloaders as create_dataloaders_encoder_decoder,
     create_encoder_decoder,
     EncoderDecoderTrainer,
-    load_checkpoint as load_checkpoint_encoder_decoder
+    load_checkpoint as load_checkpoint_encoder_decoder,
 )
 
 # ========== Logging Setup ==========
 _thread_local = threading.local()
+
+
 def set_example_id(example_id):
     _thread_local.example_id = example_id
 
+
 def get_example_id():
-    return getattr(_thread_local, 'example_id', None)
+    return getattr(_thread_local, "example_id", None)
+
 
 class ColoredExampleFormatter(logging.Formatter):
     COLORS = [
-        '\033[94m',  # Blue
-        '\033[92m',  # Green
-        '\033[93m',  # Yellow
-        '\033[95m',  # Magenta
-        '\033[96m',  # Cyan
-        '\033[91m',  # Red
-        '\033[97m',  # White
-        '\033[90m',  # Gray
+        "\033[94m",  # Blue
+        "\033[92m",  # Green
+        "\033[93m",  # Yellow
+        "\033[95m",  # Magenta
+        "\033[96m",  # Cyan
+        "\033[91m",  # Red
+        "\033[97m",  # White
+        "\033[90m",  # Gray
     ]
-    RESET = '\033[0m'
+    RESET = "\033[0m"
+
     def format(self, record):
         example_id = get_example_id()
         formatted = super().format(record)
         if example_id is not None:
             color = self.COLORS[example_id % len(self.COLORS)]
-            parts = formatted.split(' - ', 1)
+            parts = formatted.split(" - ", 1)
             if len(parts) == 2:
                 return f"{parts[0]} - {color}[Ex{example_id}] {parts[1]}{self.RESET}"
             return f"{color}[Ex{example_id}] {formatted}{self.RESET}"
         return formatted
 
+
 def setup_data_gen_logging():
     formatter = ColoredExampleFormatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
     root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
@@ -78,11 +87,13 @@ def setup_data_gen_logging():
     handler.setFormatter(formatter)
     root_logger.addHandler(handler)
 
+
 def setup_experiment_logging():
     logging.basicConfig(
         level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
+
 
 def create_run_directory(step_name: str, config_path: str):
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -90,10 +101,12 @@ def create_run_directory(step_name: str, config_path: str):
     run_dir.mkdir(parents=True, exist_ok=True)
     return run_dir
 
+
 ############## Batch Execution Helpers ##############
 class ExecutionStatus(Enum):
     SUCCESS = "success"
     FAILED = "failed"
+
 
 @dataclass
 class BatchExecutionResult:
@@ -103,6 +116,7 @@ class BatchExecutionResult:
     run_dir: Optional[Path] = None
     execution_time: float = 0.0
 
+
 def discover_yaml_configs(path: Path):
     if not path.is_dir():
         raise ValueError(f"Path is not a directory: {path}")
@@ -111,13 +125,14 @@ def discover_yaml_configs(path: Path):
         raise ValueError(f"No .yaml files found in directory: {path}")
     return yaml_files
 
+
 def validate_config_file(config_path: Path):
     if not config_path.exists():
         return False, f"File not found: {config_path}"
     if not config_path.is_file():
         return False, f"Path is not a file: {config_path}"
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             config = yaml.safe_load(f)
         if config is None:
             return False, f"Empty or invalid YAML: {config_path}"
@@ -127,6 +142,7 @@ def validate_config_file(config_path: Path):
         return False, f"Failed to read {config_path.name}: {e}"
     return True, None
 
+
 def validate_all_configs(config_paths: List[Path]):
     errors = []
     for config_path in config_paths:
@@ -135,7 +151,10 @@ def validate_all_configs(config_paths: List[Path]):
             errors.append(error_msg)
     return len(errors) == 0, errors
 
-def execute_single_config(handler_func, args, config_path: Path, index: int, total: int):
+
+def execute_single_config(
+    handler_func, args, config_path: Path, index: int, total: int
+):
     logging.info(f"\n\n\nProcessing config [{index}/{total}]: {config_path.name}")
     start_time = time.time()
     try:
@@ -143,7 +162,9 @@ def execute_single_config(handler_func, args, config_path: Path, index: int, tot
         execution_time = time.time() - start_time
         runs_dir = Path("runs")
         if runs_dir.exists():
-            run_dirs = sorted(runs_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True)
+            run_dirs = sorted(
+                runs_dir.glob("*"), key=lambda p: p.stat().st_mtime, reverse=True
+            )
             run_dir = run_dirs[0] if run_dirs else None
         else:
             run_dir = None
@@ -151,7 +172,7 @@ def execute_single_config(handler_func, args, config_path: Path, index: int, tot
             config_path=config_path,
             status=ExecutionStatus.SUCCESS,
             run_dir=run_dir,
-            execution_time=execution_time
+            execution_time=execution_time,
         )
     except KeyboardInterrupt:
         logging.warning(f"Interrupted by user during {config_path.name}")
@@ -163,25 +184,33 @@ def execute_single_config(handler_func, args, config_path: Path, index: int, tot
             config_path=config_path,
             status=ExecutionStatus.FAILED,
             error_message=str(e),
-            execution_time=execution_time
+            execution_time=execution_time,
         )
 
-def execute_batch_configs(handler_func, args_template, config_paths: List[Path], config_arg_name: str):
+
+def execute_batch_configs(
+    handler_func, args_template, config_paths: List[Path], config_arg_name: str
+):
     results = []
     total = len(config_paths)
     logging.info(f"BATCH EXECUTION: {total} configs to process")
     for idx, config_path in enumerate(config_paths, start=1):
         args = argparse.Namespace(**vars(args_template))
         setattr(args, config_arg_name, str(config_path))
-        setattr(args, 'is_batch_item', True)  # Flag to indicate this is part of batch execution
+        setattr(
+            args, "is_batch_item", True
+        )  # Flag to indicate this is part of batch execution
         result = execute_single_config(handler_func, args, config_path, idx, total)
         results.append(result)
         successes = sum(1 for r in results if r.status == ExecutionStatus.SUCCESS)
-        logging.info(f"\nProgress: {idx}/{total} batches complete ({successes} successful)\n")
+        logging.info(
+            f"\nProgress: {idx}/{total} batches complete ({successes} successful)\n"
+        )
     return results
 
+
 def cleanup_run_directory(run_dir: Path, config: dict):
-    if not config.get('run_log_cleanup', False):
+    if not config.get("run_log_cleanup", False):
         return
     run_dir_abs = run_dir.absolute()
     runs_root = Path("runs").absolute()
@@ -194,6 +223,7 @@ def cleanup_run_directory(run_dir: Path, config: dict):
         return
     shutil.rmtree(run_dir)
     logging.info(f"✓ Cleaned up run directory: {run_dir}")
+
 
 ############## Dataset Generation Handlers ##############
 def run_data_gen(args):
@@ -219,7 +249,7 @@ def run_data_gen(args):
                 handler_func=run_data_gen,
                 args_template=args,
                 config_paths=config_files,
-                config_arg_name='config_path'
+                config_arg_name="config_path",
             )
             failures = [r for r in results if r.status == ExecutionStatus.FAILED]
             if failures:
@@ -238,34 +268,42 @@ def run_data_gen(args):
     run_dir = create_run_directory("data-generation", args.config_path)
     logging.info(f"Run directory: {run_dir.absolute()}")
     # load config
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
     # add run directory to config
-    config['run_dir'] = str(run_dir.absolute())
+    config["run_dir"] = str(run_dir.absolute())
 
     # save config to run dir
     run_config_path = run_dir / "config.yaml"
-    with open(run_config_path, 'w') as f:
+    with open(run_config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
     # metrics config
-    metrics_config = config.get('metrics', {})
+    metrics_config = config.get("metrics", {})
 
     # start tb
     tensorboard_process = None
-    tensorboard_config = metrics_config.get('tensorboard', {})
-    tensorboard_enabled = tensorboard_config.get('enabled', False)
-    tensorboard_auto_launch = tensorboard_config.get('auto_launch', False)
+    tensorboard_config = metrics_config.get("tensorboard", {})
+    tensorboard_enabled = tensorboard_config.get("enabled", False)
+    tensorboard_auto_launch = tensorboard_config.get("auto_launch", False)
     if tensorboard_enabled and tensorboard_auto_launch:
-        port = tensorboard_config.get('port', 6006)
+        port = tensorboard_config.get("port", 6006)
         metrics_dir = run_dir / "metrics"
         try:
             tensorboard_process = subprocess.Popen(
-                ['tensorboard', '--logdir', str(metrics_dir.absolute()), '--port', str(port), '--bind_all'],
+                [
+                    "tensorboard",
+                    "--logdir",
+                    str(metrics_dir.absolute()),
+                    "--port",
+                    str(port),
+                    "--bind_all",
+                ],
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+                stderr=subprocess.PIPE,
             )
+
             def cleanup_tensorboard():
                 if tensorboard_process and tensorboard_process.poll() is None:
                     logging.info("Shutting down TensorBoard...")
@@ -274,6 +312,7 @@ def run_data_gen(args):
                         tensorboard_process.wait(timeout=5)
                     except subprocess.TimeoutExpired:
                         tensorboard_process.kill()
+
             atexit.register(cleanup_tensorboard)
             logging.info(f"TensorBoard: http://localhost:{port}")
         except Exception as e:
@@ -282,15 +321,16 @@ def run_data_gen(args):
     logging.info("Initializing pipeline...")
     try:
         pipeline = DatasetGenerationPipeline(
-            config=config,
-            example_id_setter=set_example_id
+            config=config, example_id_setter=set_example_id
         )
         logging.info("Starting dataset generation...")
         examples = pipeline.generate_training_examples()
-        logging.info(f"Dataset generation completed! Generated {len(examples)} examples.")
+        logging.info(
+            f"Dataset generation completed! Generated {len(examples)} examples."
+        )
 
         # only shutdown tb in batch mode
-        if getattr(args, 'is_batch_item', False):
+        if getattr(args, "is_batch_item", False):
             if tensorboard_process and tensorboard_process.poll() is None:
                 logging.info("Shutting down TensorBoard")
                 tensorboard_process.terminate()
@@ -302,24 +342,29 @@ def run_data_gen(args):
         logging.error(f"Dataset generation failed: {e}")
         sys.exit(1)
 
+
 def create_sig_dataset(args):
     setup_data_gen_logging()
     config_path = Path(args.config_path)
     if not config_path.exists():
         logging.error(f"Configuration file not found: {args.config_path}")
         sys.exit(1)
-    with open(config_path, 'r') as f:
+    with open(config_path, "r") as f:
         config = yaml.safe_load(f)
 
-    vocab_size = config['model']['vocab_size']
-    sequence_length = config['model']['sequence_length']
-    sampler = PatternDatasetSampler(vocab_size=vocab_size, sequence_length=sequence_length)
-    logging.info(f"Creating signature dataset: {args.filename} with {args.size} examples (vocab_size={vocab_size}, sequence_length={sequence_length})")
+    vocab_size = config["model"]["vocab_size"]
+    sequence_length = config["model"]["sequence_length"]
+    sampler = PatternDatasetSampler(
+        vocab_size=vocab_size, sequence_length=sequence_length
+    )
+    logging.info(
+        f"Creating signature dataset: {args.filename} with {args.size} examples (vocab_size={vocab_size}, sequence_length={sequence_length})"
+    )
     output_path = sampler.create_signature_dataset_file(
-        filename=args.filename,
-        total_examples=args.size
+        filename=args.filename, total_examples=args.size
     )
     logging.info(f"Signature dataset created successfully: {output_path}")
+
 
 ############## Experiments Handlers ##############
 def train_classifier(args):
@@ -347,11 +392,13 @@ def train_classifier(args):
                 handler_func=train_classifier,
                 args_template=args,
                 config_paths=config_files,
-                config_arg_name='config'
+                config_arg_name="config",
             )
             failures = [r for r in results if r.status == ExecutionStatus.FAILED]
             if failures:
-                logging.error(f"{len(failures)} configurations failed during batch execution:")
+                logging.error(
+                    f"{len(failures)} configurations failed during batch execution:"
+                )
                 for failure in failures:
                     logging.error(f"  - {failure.config_path}")
             return
@@ -365,59 +412,63 @@ def train_classifier(args):
         sys.exit(1)
 
     run_dir = create_run_directory("train-classifier", args.config)
-    logger.info(f"\n{'='*70}")
+    logger.info(f"\n{'=' * 70}")
     logger.info(f"📁 Run directory: {run_dir.absolute()}")
-    logger.info(f"{'='*70}\n")
+    logger.info(f"{'=' * 70}\n")
 
     # load config
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
     # add run dir to config
-    config['run_dir'] = str(run_dir.absolute())
+    config["run_dir"] = str(run_dir.absolute())
 
     # save config to run dir
     run_config_path = run_dir / "config.yaml"
-    with open(run_config_path, 'w') as f:
+    with open(run_config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
     dataset_info = load_dataset(config)
 
     # model architecture
-    num_patterns = len(dataset_info['all_patterns'])
-    computed_arch = compute_model_architecture(dataset_info['input_dims'], num_patterns, config)
-    if 'model' not in config:
-        config['model'] = {}
-    for encoder_name in ['signature_encoder', 'weight_encoder', 'fusion']:
-        if encoder_name in config['model']:
-            if 'hidden_dims' not in config['model'][encoder_name]:
+    num_patterns = len(dataset_info["all_patterns"])
+    computed_arch = compute_model_architecture(
+        dataset_info["input_dims"], num_patterns, config
+    )
+    if "model" not in config:
+        config["model"] = {}
+    for encoder_name in ["signature_encoder", "weight_encoder", "fusion"]:
+        if encoder_name in config["model"]:
+            if "hidden_dims" not in config["model"][encoder_name]:
                 if computed_arch.get(encoder_name):
-                    config['model'][encoder_name]['hidden_dims'] = computed_arch[encoder_name]['hidden_dims']
+                    config["model"][encoder_name]["hidden_dims"] = computed_arch[
+                        encoder_name
+                    ]["hidden_dims"]
         else:
             if computed_arch.get(encoder_name):
-                config['model'][encoder_name] = {
+                config["model"][encoder_name] = {
                     **computed_arch[encoder_name],
-                    'dropout': 0.3,
-                    'activation': 'relu'
+                    "dropout": 0.3,
+                    "activation": "relu",
                 }
-    config['model']['output'] = computed_arch['output']
+    config["model"]["output"] = computed_arch["output"]
 
     # dataloaders
     train_loader, val_loader, test_loader = create_dataloaders(dataset_info, config)
 
     # device
-    if config['device']['type'] == 'auto':
+    if config["device"]["type"] == "auto":
         if torch.cuda.is_available():
-            device = 'cuda'
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            device = 'mps'
+            device = "cuda"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = "mps"
         else:
-            device = 'cpu'
+            device = "cpu"
     else:
-        device = config['device']['type']
+        device = config["device"]["type"]
 
     # init model
-    model = PatternClassifierMLP(config, dataset_info['input_dims'])
+    model = PatternClassifierMLP(config, dataset_info["input_dims"])
 
     # checkpoint
     if args.resume:
@@ -425,12 +476,20 @@ def train_classifier(args):
         logger.info(f"Resuming from epoch {checkpoint_info['epoch'] + 1}")
 
     logger.info("Starting training")
-    trainer = ClassifierTrainer(model, config, train_loader, val_loader, device, dataset_info['all_patterns'], test_loader)
+    trainer = ClassifierTrainer(
+        model,
+        config,
+        train_loader,
+        val_loader,
+        device,
+        dataset_info["all_patterns"],
+        test_loader,
+    )
     trainer.train()
     logger.info("Training complete")
 
     # only shutdown tb in batch mode
-    if getattr(args, 'is_batch_item', False):
+    if getattr(args, "is_batch_item", False):
         trainer.stop_tensorboard()
 
     cleanup_run_directory(run_dir, config)
@@ -458,11 +517,13 @@ def train_encoder_decoder(args):
                 handler_func=train_encoder_decoder,
                 args_template=args,
                 config_paths=config_files,
-                config_arg_name='config'
+                config_arg_name="config",
             )
             failures = [r for r in results if r.status == ExecutionStatus.FAILED]
             if failures:
-                logging.error(f"{len(failures)} configurations failed during batch execution:")
+                logging.error(
+                    f"{len(failures)} configurations failed during batch execution:"
+                )
                 for failure in failures:
                     logging.error(f"  - {failure.config_path}")
             return
@@ -476,37 +537,39 @@ def train_encoder_decoder(args):
         sys.exit(1)
 
     run_dir = create_run_directory("train-encoder-decoder", args.config)
-    logger.info(f"\n{'='*70}")
+    logger.info(f"\n{'=' * 70}")
     logger.info(f"📁 Run directory: {run_dir.absolute()}")
-    logger.info(f"{'='*70}\n")
+    logger.info(f"{'=' * 70}\n")
 
     # load config
     with open(config_path) as f:
         config = yaml.safe_load(f)
 
-    config['run_dir'] = str(run_dir.absolute())
+    config["run_dir"] = str(run_dir.absolute())
 
     # save config to run dir
     run_config_path = run_dir / "config.yaml"
-    with open(run_config_path, 'w') as f:
+    with open(run_config_path, "w") as f:
         yaml.dump(config, f, default_flow_style=False)
 
     # load dataset and create tokenizer
     dataset_info = load_dataset_encoder_decoder(config)
 
     # create dataloaders
-    train_loader, val_loader, test_loader = create_dataloaders_encoder_decoder(dataset_info, config)
+    train_loader, val_loader, test_loader = create_dataloaders_encoder_decoder(
+        dataset_info, config
+    )
 
     # device
-    if config['device']['type'] == 'auto':
+    if config["device"]["type"] == "auto":
         if torch.cuda.is_available():
-            device = 'cuda'
-        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-            device = 'mps'
+            device = "cuda"
+        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            device = "mps"
         else:
-            device = 'cpu'
+            device = "cpu"
     else:
-        device = config['device']['type']
+        device = config["device"]["type"]
 
     logger.info(f"Using device: {device}")
 
@@ -524,32 +587,83 @@ def train_encoder_decoder(args):
     # initialize trainer
     logger.info("Starting training")
     trainer = EncoderDecoderTrainer(
-        model, config, train_loader, val_loader, device,
-        dataset_info['tokenizer'], test_loader
+        model,
+        config,
+        train_loader,
+        val_loader,
+        device,
+        dataset_info["tokenizer"],
+        test_loader,
     )
     trainer.train()
     logger.info("Training complete")
 
     # only shutdown tb in batch mode
-    if getattr(args, 'is_batch_item', False):
+    if getattr(args, "is_batch_item", False):
         trainer.stop_tensorboard()
 
     cleanup_run_directory(run_dir, config)
 
+
+def run_representation_engineering(args):
+    """Handle representation engineering command."""
+    setup_experiment_logging()
+    logger = logging.getLogger(__name__)
+
+    config_path = Path(args.config)
+
+    # single config execution only (no batch mode for now)
+    if not config_path.exists():
+        logger.error(f"Config file not found: {args.config}")
+        sys.exit(1)
+
+    run_dir = create_run_directory("representation-engineering", args.config)
+    logger.info(f"\n{'=' * 70}")
+    logger.info(f"📁 Run directory: {run_dir.absolute()}")
+    logger.info(f"{'=' * 70}\n")
+
+    # load config
+    with open(config_path) as f:
+        config = yaml.safe_load(f)
+
+    config["run_dir"] = str(run_dir.absolute())
+
+    # save config to run dir
+    run_config_path = run_dir / "config.yaml"
+    with open(run_config_path, "w") as f:
+        yaml.dump(config, f, default_flow_style=False)
+
+    # run pipeline
+    from model_zoo.representation_engineering import RepresentationPipeline
+
+    logger.info("Initializing representation engineering pipeline...")
+    pipeline = RepresentationPipeline(config)
+    pipeline.run()
+
+    logger.info(f"\n{'=' * 70}")
+    logger.info(f"✅ Representation engineering complete!")
+    logger.info(f"📁 Results saved to: {run_dir.absolute()}")
+    logger.info(f"{'=' * 70}\n")
+
+    cleanup_run_directory(run_dir, config)
+
+
 ############## CLI ##############
 def run_interactive_mode():
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("Model Zoo CLI")
-    print("="*70 + "\n")
+    print("=" * 70 + "\n")
 
     try:
         while True:
-            action = questionary.select("Select a step:", choices=[
+            action = questionary.select(
+                "Select a step:",
+                choices=[
                     "Dataset Generation",
                     "MLP Classifier Training",
                     "Encoder-Decoder Training",
-                    "Exit"
-                ]
+                    "Exit",
+                ],
             ).ask()
 
             if action is None or action == "Exit":
@@ -557,48 +671,56 @@ def run_interactive_mode():
                 break
 
             if action == "Dataset Generation":
-                operation = questionary.select("Select an operation:", choices=[
-                            "Run Generation Pipeline",
-                            "Create Signature Dataset"
-                            # add benchmark dataset gen later
-                        ]
-                    ).ask()
+                operation = questionary.select(
+                    "Select an operation:",
+                    choices=[
+                        "Run Generation Pipeline",
+                        "Create Signature Dataset",
+                        # add benchmark dataset gen later
+                    ],
+                ).ask()
 
                 if operation == "Run Generation Pipeline":
-                    config_path = questionary.path("Config(s) path (filename for one, dir for multiple):", default="configs/dataset_gen/").ask()
+                    config_path = questionary.path(
+                        "Config(s) path (filename for one, dir for multiple):",
+                        default="configs/dataset_gen/",
+                    ).ask()
                     if config_path:
                         args = argparse.Namespace(config_path=config_path)
                         run_data_gen(args)
 
                 elif operation == "Create Signature Dataset":
-                    config_path = questionary.path("Config file path:", default="configs/dataset_gen/").ask()
+                    config_path = questionary.path(
+                        "Config file path:", default="configs/dataset_gen/"
+                    ).ask()
                     if not config_path:
                         continue
-                    filename = questionary.text("Output filename:", default="signature_dataset.json").ask()
+                    filename = questionary.text(
+                        "Output filename:", default="signature_dataset.json"
+                    ).ask()
                     size = questionary.text("Number of examples:", default="200").ask()
                     if filename and size:
-                        args = argparse.Namespace(config_path=config_path, filename=filename, size=int(size))
+                        args = argparse.Namespace(
+                            config_path=config_path, filename=filename, size=int(size)
+                        )
                         create_sig_dataset(args)
 
             elif action == "MLP Classifier Training":
                 config_path = questionary.path(
                     "Config(s) path (filename for one, dir for multiple):",
-                    default="configs/classification/"
+                    default="configs/classification/",
                 ).ask()
 
                 if not config_path:
                     continue
 
-                args = argparse.Namespace(
-                    config=config_path,
-                    resume=None
-                )
+                args = argparse.Namespace(config=config_path, resume=None)
                 train_classifier(args)
 
             elif action == "Encoder-Decoder Training":
                 config_path = questionary.path(
                     "Config(s) path (filename for one, dir for multiple):",
-                    default="model_zoo/encoder_decoder_training/example_config.yaml"
+                    default="model_zoo/encoder_decoder_training/example_config.yaml",
                 ).ask()
                 if not config_path:
                     continue
@@ -607,90 +729,113 @@ def run_interactive_mode():
 
     except KeyboardInterrupt:
         print("\n\nExiting Model Zoo CLI...")
-        sys.exit(0)    
+        sys.exit(0)
+
 
 def run_traditional_cli():
     parser = argparse.ArgumentParser(
-        prog='muat-cli',
-        description='Unified CLI for MUAT dataset generation and experiments',
-        formatter_class=argparse.RawDescriptionHelpFormatter
+        prog="muat-cli",
+        description="Unified CLI for MUAT dataset generation and experiments",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    subparsers = parser.add_subparsers(dest='category', help='Command category')
+    subparsers = parser.add_subparsers(dest="category", help="Command category")
 
     ###### dataset generation ######
-    data_parser = subparsers.add_parser('data', help='Dataset generation commands')
-    data_subparsers = data_parser.add_subparsers(dest='data_command', help='Data operations')
+    data_parser = subparsers.add_parser("data", help="Dataset generation commands")
+    data_subparsers = data_parser.add_subparsers(
+        dest="data_command", help="Data operations"
+    )
 
     # data run-data-gen
     run_parser = data_subparsers.add_parser(
-        'run-data-gen',
-        help='Run the full dataset generation pipeline'
+        "run-data-gen", help="Run the full dataset generation pipeline"
     )
     run_parser.add_argument(
-        '--config-path',
+        "--config-path",
         type=str,
-        default='configs/dataset_gen/example_config.yaml',
-        help='Path to configuration YAML file or directory containing multiple configs'
+        default="configs/dataset_gen/example_config.yaml",
+        help="Path to configuration YAML file or directory containing multiple configs",
     )
 
     # data create-sig-dataset
     sig_parser = data_subparsers.add_parser(
-        'create-sig-dataset',
-        help='Create a signature dataset file for activation extraction'
+        "create-sig-dataset",
+        help="Create a signature dataset file for activation extraction",
     )
     sig_parser.add_argument(
-        '--config-path',
+        "--config-path",
         type=str,
-        default='configs/dataset_gen/example_config.yaml',
-        help='Path to configuration YAML file or directory containing multiple configs'
+        default="configs/dataset_gen/example_config.yaml",
+        help="Path to configuration YAML file or directory containing multiple configs",
     )
     sig_parser.add_argument(
-        '--filename',
+        "--filename",
         type=str,
-        default='signature_dataset.json',
-        help='Output filename for signature dataset'
+        default="signature_dataset.json",
+        help="Output filename for signature dataset",
     )
     sig_parser.add_argument(
-        '--size',
+        "--size",
         type=int,
         default=200,
-        help='Total number of examples in signature dataset'
+        help="Total number of examples in signature dataset",
     )
 
     ###### experiment ######
-    experiment_parser = subparsers.add_parser('experiment', help='Experiment commands')
-    experiment_subparsers = experiment_parser.add_subparsers(dest='experiment_type', help='Experiment type')
+    experiment_parser = subparsers.add_parser("experiment", help="Experiment commands")
+    experiment_subparsers = experiment_parser.add_subparsers(
+        dest="experiment_type", help="Experiment type"
+    )
 
     # experiment classifier
-    classifier_parser = experiment_subparsers.add_parser('classifier', help='Pattern classifier experiments')
-    classifier_subparsers = classifier_parser.add_subparsers(dest='classifier_command', help='Classifier commands')
+    classifier_parser = experiment_subparsers.add_parser(
+        "classifier", help="Pattern classifier experiments"
+    )
+    classifier_subparsers = classifier_parser.add_subparsers(
+        dest="classifier_command", help="Classifier commands"
+    )
 
     # experiment classifier train
-    classifier_train = classifier_subparsers.add_parser('train', help='Train the classifier')
-    classifier_train.add_argument(
-        '--config',
-        required=True,
-        help='Path to config YAML file or directory containing multiple configs'
+    classifier_train = classifier_subparsers.add_parser(
+        "train", help="Train the classifier"
     )
     classifier_train.add_argument(
-        '--resume',
-        help='Resume from checkpoint (path to .pt file)'
+        "--config",
+        required=True,
+        help="Path to config YAML file or directory containing multiple configs",
+    )
+    classifier_train.add_argument(
+        "--resume", help="Resume from checkpoint (path to .pt file)"
     )
 
     # experiment encoder_decoder
-    encoder_decoder_parser = experiment_subparsers.add_parser('encoder-decoder', help='Weight-space encoder-decoder experiments')
-    encoder_decoder_subparsers = encoder_decoder_parser.add_subparsers(dest='encoder_decoder_command', help='Encoder-decoder commands')
+    encoder_decoder_parser = experiment_subparsers.add_parser(
+        "encoder-decoder", help="Weight-space encoder-decoder experiments"
+    )
+    encoder_decoder_subparsers = encoder_decoder_parser.add_subparsers(
+        dest="encoder_decoder_command", help="Encoder-decoder commands"
+    )
 
     # experiment encoder_decoder train
-    encoder_decoder_train = encoder_decoder_subparsers.add_parser('train', help='Train the encoder-decoder')
-    encoder_decoder_train.add_argument(
-        '--config',
-        required=True,
-        help='Path to config YAML file or directory containing multiple configs'
+    encoder_decoder_train = encoder_decoder_subparsers.add_parser(
+        "train", help="Train the encoder-decoder"
     )
     encoder_decoder_train.add_argument(
-        '--resume',
-        help='Resume from checkpoint (path to .pt file)'
+        "--config",
+        required=True,
+        help="Path to config YAML file or directory containing multiple configs",
+    )
+    encoder_decoder_train.add_argument(
+        "--resume", help="Resume from checkpoint (path to .pt file)"
+    )
+
+    # experiment representation-engineering
+    rep_eng_parser = experiment_subparsers.add_parser(
+        "representation-engineering",
+        help="Apply representation engineering to modify model weights",
+    )
+    rep_eng_parser.add_argument(
+        "--config", required=True, help="Path to configuration YAML file"
     )
 
     args = parser.parse_args()
@@ -700,30 +845,32 @@ def run_traditional_cli():
         sys.exit(1)
 
     try:
-        if args.category == 'data':
+        if args.category == "data":
             if not args.data_command:
                 data_parser.print_help()
                 sys.exit(1)
-            if args.data_command == 'run-data-gen':
+            if args.data_command == "run-data-gen":
                 run_data_gen(args)
-            elif args.data_command == 'create-sig-dataset':
+            elif args.data_command == "create-sig-dataset":
                 create_sig_dataset(args)
-        elif args.category == 'experiment':
+        elif args.category == "experiment":
             if not args.experiment_type:
                 experiment_parser.print_help()
                 sys.exit(1)
-            if args.experiment_type == 'classifier':
+            if args.experiment_type == "classifier":
                 if not args.classifier_command:
                     classifier_parser.print_help()
                     sys.exit(1)
-                if args.classifier_command == 'train':
+                if args.classifier_command == "train":
                     train_classifier(args)
-            elif args.experiment_type == 'encoder-decoder':
+            elif args.experiment_type == "encoder-decoder":
                 if not args.encoder_decoder_command:
                     encoder_decoder_parser.print_help()
                     sys.exit(1)
-                if args.encoder_decoder_command == 'train':
+                if args.encoder_decoder_command == "train":
                     train_encoder_decoder(args)
+            elif args.experiment_type == "representation-engineering":
+                run_representation_engineering(args)
     except KeyboardInterrupt:
         logging.info("Operation interrupted by user")
         sys.exit(0)
@@ -731,11 +878,13 @@ def run_traditional_cli():
         logging.error(f"Unexpected error: {e}", exc_info=True)
         sys.exit(1)
 
+
 def main():
     if len(sys.argv) == 1:
         run_interactive_mode()
     else:
         run_traditional_cli()
+
 
 if __name__ == "__main__":
     main()
