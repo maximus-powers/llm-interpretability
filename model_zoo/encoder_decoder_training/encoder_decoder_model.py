@@ -11,15 +11,18 @@ class WeightSpaceEncoderDecoder(nn.Module):
     def __init__(self, config: Dict[str, Any]):
         super().__init__()
         self.config = config
-        self.latent_dim = config['architecture']['latent_dim']
-        self.token_dim = config['tokenization']['chunk_size']
-        if config['tokenization'].get('include_metadata', True):
+        self.latent_dim = config["architecture"]["latent_dim"]
+        self.token_dim = config["tokenization"]["chunk_size"]
+        if config["tokenization"].get("include_metadata", True):
             self.token_dim += 5
-        self.max_tokens = config['tokenization']['max_tokens']
+        self.max_tokens = config["tokenization"]["max_tokens"]
+
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
+
     def decode(self, latent: torch.Tensor, num_tokens: int) -> torch.Tensor:
         raise NotImplementedError
+
     def forward(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         latent = self.encode(tokens, mask)
         return self.decode(latent, tokens.size(1))
@@ -31,7 +34,7 @@ class ProjectionHead(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(inplace=True),
-            nn.Linear(hidden_dim, output_dim)
+            nn.Linear(hidden_dim, output_dim),
         )
         for module in self.modules():
             if isinstance(module, nn.Linear):
@@ -47,56 +50,68 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
 
-        mlp_config = config['architecture']['mlp']
-        encoder_cfg = mlp_config['encoder']
-        decoder_cfg = mlp_config['decoder']
-        self.token_pooling = mlp_config.get('token_pooling', 'mean')
+        mlp_config = config["architecture"]["mlp"]
+        encoder_cfg = mlp_config["encoder"]
+        decoder_cfg = mlp_config["decoder"]
+        self.token_pooling = mlp_config.get("token_pooling", "mean")
 
         # build encoder
-        if self.token_pooling == 'flatten':
+        if self.token_pooling == "flatten":
             encoder_input_dim = self.max_tokens * self.token_dim
         else:
             encoder_input_dim = self.token_dim
         self.encoder = self._build_mlp(
             input_dim=encoder_input_dim,
-            hidden_dims=encoder_cfg['hidden_dims'],
+            hidden_dims=encoder_cfg["hidden_dims"],
             output_dim=self.latent_dim,
-            dropout=encoder_cfg.get('dropout', 0.0),
-            activation=encoder_cfg.get('activation', 'relu'),
-            use_batch_norm=encoder_cfg.get('batch_norm', False)
+            dropout=encoder_cfg.get("dropout", 0.0),
+            activation=encoder_cfg.get("activation", "relu"),
+            use_batch_norm=encoder_cfg.get("batch_norm", False),
         )
-        logger.info(f"Encoder: {encoder_input_dim} -> {encoder_cfg['hidden_dims']} -> {self.latent_dim}")
+        logger.info(
+            f"Encoder: {encoder_input_dim} -> {encoder_cfg['hidden_dims']} -> {self.latent_dim}"
+        )
 
         # build decoder
         decoder_output_dim = self.max_tokens * self.token_dim
         self.decoder = self._build_mlp(
             input_dim=self.latent_dim,
-            hidden_dims=decoder_cfg['hidden_dims'],
+            hidden_dims=decoder_cfg["hidden_dims"],
             output_dim=decoder_output_dim,
-            dropout=decoder_cfg.get('dropout', 0.0),
-            activation=decoder_cfg.get('activation', 'relu'),
-            use_batch_norm=decoder_cfg.get('batch_norm', False)
+            dropout=decoder_cfg.get("dropout", 0.0),
+            activation=decoder_cfg.get("activation", "relu"),
+            use_batch_norm=decoder_cfg.get("batch_norm", False),
         )
-        logger.info(f"Decoder: {self.latent_dim} -> {decoder_cfg['hidden_dims']} -> {decoder_output_dim}")
+        logger.info(
+            f"Decoder: {self.latent_dim} -> {decoder_cfg['hidden_dims']} -> {decoder_output_dim}"
+        )
 
         self._init_weights()
 
-    def _build_mlp(self, input_dim: int, hidden_dims: List[int], output_dim: int, dropout: float = 0.0, activation: str = 'relu', use_batch_norm: bool = False) -> nn.Module:
+    def _build_mlp(
+        self,
+        input_dim: int,
+        hidden_dims: List[int],
+        output_dim: int,
+        dropout: float = 0.0,
+        activation: str = "relu",
+        use_batch_norm: bool = False,
+    ) -> nn.Module:
         layers = []
         prev_dim = input_dim
         for hidden_dim in hidden_dims:
             layers.append(nn.Linear(prev_dim, hidden_dim))
             if use_batch_norm:
                 layers.append(nn.BatchNorm1d(hidden_dim))
-            if activation == 'relu':
+            if activation == "relu":
                 layers.append(nn.ReLU(inplace=True))
-            elif activation == 'gelu':
+            elif activation == "gelu":
                 layers.append(nn.GELU())
-            elif activation == 'tanh':
+            elif activation == "tanh":
                 layers.append(nn.Tanh())
-            elif activation == 'leaky_relu':
+            elif activation == "leaky_relu":
                 layers.append(nn.LeakyReLU(inplace=True))
-            elif activation == 'sigmoid':
+            elif activation == "sigmoid":
                 layers.append(nn.Sigmoid())
             else:
                 raise ValueError(f"Unknown activation: {activation}")
@@ -110,9 +125,13 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
     def _init_weights(self):
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                activation = self.config['architecture']['mlp']['encoder'].get('activation', 'relu')
-                if activation in ['relu', 'leaky_relu']:
-                    nn.init.kaiming_normal_(module.weight, mode='fan_in', nonlinearity='relu')
+                activation = self.config["architecture"]["mlp"]["encoder"].get(
+                    "activation", "relu"
+                )
+                if activation in ["relu", "leaky_relu"]:
+                    nn.init.kaiming_normal_(
+                        module.weight, mode="fan_in", nonlinearity="relu"
+                    )
                 else:
                     nn.init.xavier_normal_(module.weight)
                 if module.bias is not None:
@@ -120,17 +139,17 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         batch_size = tokens.size(0)
-        if self.token_pooling == 'mean':
+        if self.token_pooling == "mean":
             masked_tokens = tokens * mask.unsqueeze(-1)
             sum_tokens = masked_tokens.sum(dim=1)
             count = mask.sum(dim=1, keepdim=True).clamp(min=1)
             pooled = sum_tokens / count
-        elif self.token_pooling == 'max':
+        elif self.token_pooling == "max":
             masked_tokens = tokens.clone()
-            masked_tokens[mask == 0] = float('-inf')
+            masked_tokens[mask == 0] = float("-inf")
             pooled = masked_tokens.max(dim=1)[0]
-            pooled[pooled == float('-inf')] = 0
-        elif self.token_pooling == 'flatten':
+            pooled[pooled == float("-inf")] = 0
+        elif self.token_pooling == "flatten":
             pooled = tokens.view(batch_size, -1)
         else:
             raise ValueError(f"Unknown pooling method: {self.token_pooling}")
@@ -147,32 +166,38 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, token_dim: int, latent_dim: int, max_tokens: int, encoder_cfg: Dict[str, Any]):
+    def __init__(
+        self,
+        token_dim: int,
+        latent_dim: int,
+        max_tokens: int,
+        encoder_cfg: Dict[str, Any],
+    ):
         super().__init__()
-        self.d_model = encoder_cfg['d_model']
+        self.d_model = encoder_cfg["d_model"]
         self.latent_dim = latent_dim
         self.max_tokens = max_tokens
-        self.pooling_method = encoder_cfg.get('pooling', 'mean')
+        self.pooling_method = encoder_cfg.get("pooling", "mean")
         self.token_projection = nn.Linear(token_dim, self.d_model)
         self.pos_encoding = None
-        self.register_buffer('pos_encoding_buffer', torch.empty(0))
-        if self.pooling_method == 'cls_token':
+        self.register_buffer("pos_encoding_buffer", torch.empty(0))
+        if self.pooling_method == "cls_token":
             self.cls_token = nn.Parameter(torch.randn(1, 1, self.d_model) * 0.02)
 
         # encoder
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=self.d_model,
-            nhead=encoder_cfg['num_heads'],
-            dim_feedforward=encoder_cfg['dim_feedforward'],
-            dropout=encoder_cfg['dropout'],
-            activation=encoder_cfg.get('activation', 'relu'),
+            nhead=encoder_cfg["num_heads"],
+            dim_feedforward=encoder_cfg["dim_feedforward"],
+            dropout=encoder_cfg["dropout"],
+            activation=encoder_cfg.get("activation", "relu"),
             batch_first=True,
-            norm_first=False
+            norm_first=False,
         )
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer,
-            num_layers=encoder_cfg['num_layers'],
-            enable_nested_tensor=False  # MPS compatibility
+            num_layers=encoder_cfg["num_layers"],
+            enable_nested_tensor=False,  # MPS compatibility
         )
         self.latent_projection = nn.Linear(self.d_model, latent_dim)
 
@@ -184,26 +209,28 @@ class TransformerEncoder(nn.Module):
         else:
             x = x + self.pos_encoding_buffer
 
-        if self.pooling_method == 'cls_token':
+        if self.pooling_method == "cls_token":
             cls_tokens = self.cls_token.expand(batch_size, -1, -1)
             x = torch.cat([cls_tokens, x], dim=1)
             cls_mask = torch.ones(batch_size, 1, device=mask.device)
             mask = torch.cat([cls_mask, mask], dim=1)
 
         # encoding
-        src_key_padding_mask = (mask == 0)
+        src_key_padding_mask = mask == 0
         encoded = self.transformer_encoder(x, src_key_padding_mask=src_key_padding_mask)
 
         # pooling
-        if self.pooling_method == 'mean':
+        if self.pooling_method == "mean":
             masked_encoded = encoded * mask.unsqueeze(-1)
-            pooled = masked_encoded.sum(dim=1) / mask.sum(dim=1, keepdim=True).clamp(min=1)
-        elif self.pooling_method == 'max':
+            pooled = masked_encoded.sum(dim=1) / mask.sum(dim=1, keepdim=True).clamp(
+                min=1
+            )
+        elif self.pooling_method == "max":
             masked_encoded = encoded.clone()
-            masked_encoded[mask == 0] = float('-inf')
+            masked_encoded[mask == 0] = float("-inf")
             pooled = masked_encoded.max(dim=1)[0]
-            pooled[pooled == float('-inf')] = 0
-        elif self.pooling_method == 'cls_token':
+            pooled[pooled == float("-inf")] = 0
+        elif self.pooling_method == "cls_token":
             pooled = encoded[:, 0]
         else:
             raise ValueError(f"Unknown pooling method: {self.pooling_method}")
@@ -213,28 +240,34 @@ class TransformerEncoder(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, token_dim: int, latent_dim: int, max_tokens: int, decoder_cfg: Dict[str, Any]):
+    def __init__(
+        self,
+        token_dim: int,
+        latent_dim: int,
+        max_tokens: int,
+        decoder_cfg: Dict[str, Any],
+    ):
         super().__init__()
-        self.d_model = decoder_cfg['d_model']
+        self.d_model = decoder_cfg["d_model"]
         self.latent_dim = latent_dim
         self.token_dim = token_dim
         self.max_tokens = max_tokens
         self.latent_expansion = nn.Linear(latent_dim, self.d_model)
         self.decoder_pos_encoding = None
-        self.register_buffer('decoder_pos_encoding_buffer', torch.empty(0))
+        self.register_buffer("decoder_pos_encoding_buffer", torch.empty(0))
 
         # decoder
         self.transformer_decoder = nn.TransformerDecoder(
             nn.TransformerDecoderLayer(
                 d_model=self.d_model,
-                nhead=decoder_cfg['num_heads'],
-                dim_feedforward=decoder_cfg['dim_feedforward'],
-                dropout=decoder_cfg['dropout'],
-                activation=decoder_cfg.get('activation', 'relu'),
+                nhead=decoder_cfg["num_heads"],
+                dim_feedforward=decoder_cfg["dim_feedforward"],
+                dropout=decoder_cfg["dropout"],
+                activation=decoder_cfg.get("activation", "relu"),
                 batch_first=True,
-                norm_first=False
+                norm_first=False,
             ),
-            num_layers=decoder_cfg['num_layers']
+            num_layers=decoder_cfg["num_layers"],
         )
         self.output_projection = nn.Linear(self.d_model, token_dim)
 
@@ -244,9 +277,13 @@ class TransformerDecoder(nn.Module):
             num_tokens = self.max_tokens
         memory = self.latent_expansion(latent).unsqueeze(1)
         if self.decoder_pos_encoding is not None:
-            tgt = self.decoder_pos_encoding[:, :num_tokens, :].expand(batch_size, -1, -1)
+            tgt = self.decoder_pos_encoding[:, :num_tokens, :].expand(
+                batch_size, -1, -1
+            )
         else:
-            tgt = self.decoder_pos_encoding_buffer[:, :num_tokens, :].expand(batch_size, -1, -1)
+            tgt = self.decoder_pos_encoding_buffer[:, :num_tokens, :].expand(
+                batch_size, -1, -1
+            )
 
         # decode
         decoded = self.transformer_decoder(tgt, memory)
@@ -257,56 +294,66 @@ class TransformerDecoder(nn.Module):
 class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
-        transformer_config = config['architecture']['transformer']
-        encoder_cfg = transformer_config['encoder']
-        decoder_cfg = transformer_config['decoder']
+        transformer_config = config["architecture"]["transformer"]
+        encoder_cfg = transformer_config["encoder"]
+        decoder_cfg = transformer_config["decoder"]
         self.encoder = TransformerEncoder(
             token_dim=self.token_dim,
             latent_dim=self.latent_dim,
             max_tokens=self.max_tokens,
-            encoder_cfg=encoder_cfg
+            encoder_cfg=encoder_cfg,
         )
         self.decoder = TransformerDecoder(
             token_dim=self.token_dim,
             latent_dim=self.latent_dim,
             max_tokens=self.max_tokens,
-            decoder_cfg=decoder_cfg
+            decoder_cfg=decoder_cfg,
         )
 
         # setup positional encodings (shared logic)
-        pos_encoding_type = encoder_cfg.get('positional_encoding', 'learned')
+        pos_encoding_type = encoder_cfg.get("positional_encoding", "learned")
         logger.info(f"Positional encoding: {pos_encoding_type}")
 
-        if pos_encoding_type == 'learned':
+        if pos_encoding_type == "learned":
             self.encoder.pos_encoding = nn.Parameter(
-                torch.randn(1, self.max_tokens, encoder_cfg['d_model']) * 0.02
+                torch.randn(1, self.max_tokens, encoder_cfg["d_model"]) * 0.02
             )
             self.decoder.decoder_pos_encoding = nn.Parameter(
-                torch.randn(1, self.max_tokens, decoder_cfg['d_model']) * 0.02
+                torch.randn(1, self.max_tokens, decoder_cfg["d_model"]) * 0.02
             )
         else:
             # sinusodal positional encodings
             self.encoder.register_buffer(
-                'pos_encoding_buffer',
-                self._create_sinusoidal_encoding(self.max_tokens, encoder_cfg['d_model']),
-                persistent=True
+                "pos_encoding_buffer",
+                self._create_sinusoidal_encoding(
+                    self.max_tokens, encoder_cfg["d_model"]
+                ),
+                persistent=True,
             )
             self.decoder.register_buffer(
-                'decoder_pos_encoding_buffer',
-                self._create_sinusoidal_encoding(self.max_tokens, decoder_cfg['d_model']),
-                persistent=True
+                "decoder_pos_encoding_buffer",
+                self._create_sinusoidal_encoding(
+                    self.max_tokens, decoder_cfg["d_model"]
+                ),
+                persistent=True,
             )
 
-        logger.info(f"Encoder: d_model={encoder_cfg['d_model']}, heads={encoder_cfg['num_heads']}, "
-                   f"layers={encoder_cfg['num_layers']}, pooling={encoder_cfg.get('pooling', 'mean')}")
-        logger.info(f"Decoder: d_model={decoder_cfg['d_model']}, heads={decoder_cfg['num_heads']}, "
-                   f"layers={decoder_cfg['num_layers']}")
+        logger.info(
+            f"Encoder: d_model={encoder_cfg['d_model']}, heads={encoder_cfg['num_heads']}, "
+            f"layers={encoder_cfg['num_layers']}, pooling={encoder_cfg.get('pooling', 'mean')}"
+        )
+        logger.info(
+            f"Decoder: d_model={decoder_cfg['d_model']}, heads={decoder_cfg['num_heads']}, "
+            f"layers={decoder_cfg['num_layers']}"
+        )
 
         self._init_weights()
 
     def _create_sinusoidal_encoding(self, max_len: int, d_model: int) -> torch.Tensor:
         position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)
+        )
         pe = torch.zeros(1, max_len, d_model)
         pe[0, :, 0::2] = torch.sin(position * div_term)
         pe[0, :, 1::2] = torch.cos(position * div_term)
@@ -327,10 +374,12 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
 
 
 def create_encoder_decoder(config: Dict[str, Any]) -> WeightSpaceEncoderDecoder:
-    arch_type = config['architecture']['type']
-    if arch_type == 'mlp':
+    arch_type = config["architecture"]["type"]
+    if arch_type == "mlp":
         return MLPEncoderDecoder(config)
-    elif arch_type == 'transformer':
+    elif arch_type == "transformer":
         return TransformerEncoderDecoder(config)
     else:
-        raise ValueError(f"Unknown architecture type: {arch_type}. Must be 'mlp' or 'transformer'")
+        raise ValueError(
+            f"Unknown architecture type: {arch_type}. Must be 'mlp' or 'transformer'"
+        )

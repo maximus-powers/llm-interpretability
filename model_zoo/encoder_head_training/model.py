@@ -4,8 +4,14 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class EncoderWithHead(nn.Module):
-    def __init__(self, encoder: nn.Module, prediction_head: nn.Module, freeze_encoder: bool = True):
+    def __init__(
+        self,
+        encoder: nn.Module,
+        prediction_head: nn.Module,
+        freeze_encoder: bool = True,
+    ):
         super().__init__()
         self.encoder = encoder
         self.prediction_head = prediction_head
