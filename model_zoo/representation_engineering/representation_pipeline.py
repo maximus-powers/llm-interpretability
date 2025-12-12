@@ -4,7 +4,7 @@ import logging
 import json
 import gc
 from pathlib import Path
-from typing import Dict, List, Any, Optional, Tuple
+from typing import Dict, Any
 from datetime import datetime
 
 from .data_loader import RepresentationDatasetLoader
@@ -63,7 +63,9 @@ class RepresentationPipeline:
                 else None
             )
             method_names = (
-                self.config["encoder_decoder"].get("neuron_profile", {}).get("methods", [])
+                self.config["encoder_decoder"]
+                .get("neuron_profile", {})
+                .get("methods", [])
                 if input_mode in ["signature", "both"]
                 else None
             )
@@ -128,7 +130,9 @@ class RepresentationPipeline:
                             if from_pattern == to_pattern:
                                 continue
                             try:
-                                stats = steering_computer.get_vector_statistics(from_pattern, to_pattern)
+                                stats = steering_computer.get_vector_statistics(
+                                    from_pattern, to_pattern
+                                )
                                 logger.info(
                                     f"  {from_pattern}→{to_pattern}: norm={stats['norm']:.4f}, "
                                     f"n_from={stats['n_from']}, n_to={stats['n_to']}"
@@ -213,7 +217,12 @@ class RepresentationPipeline:
             result_counter = 0
 
             # for each subject model, apply pairwise transformations
-            for model_id, (original_idx, original_weights, metadata, signature) in enumerate(subject_models):
+            for model_id, (
+                original_idx,
+                original_weights,
+                metadata,
+                signature,
+            ) in enumerate(subject_models):
                 # get this model's latent vector from subject_models_data using original index
                 _, _, subject_latent = subject_models_data[original_idx]
 
@@ -221,10 +230,14 @@ class RepresentationPipeline:
                 source_patterns = metadata.get("selected_patterns", [])
                 if not source_patterns:
                     # fallback if metadata missing
-                    source_patterns = [steering_computer.find_nearest_pattern(subject_latent)]
+                    source_patterns = [
+                        steering_computer.find_nearest_pattern(subject_latent)
+                    ]
 
                 # detect nearest pattern for steering vector selection (current behavior maintained)
-                detected_pattern = steering_computer.find_nearest_pattern(subject_latent)
+                detected_pattern = steering_computer.find_nearest_pattern(
+                    subject_latent
+                )
 
                 logger.info(
                     f"\nModel {model_id + 1}/{len(subject_models)}: patterns={source_patterns}, detected={detected_pattern}"
@@ -252,7 +265,9 @@ class RepresentationPipeline:
                     modified_weights = modifier.modify_model(
                         subject_weights=original_weights,
                         subject_signature=signature,
-                        steering_vectors=[(f"{detected_pattern}→{target_pattern}", steering_vector)],
+                        steering_vectors=[
+                            (f"{detected_pattern}→{target_pattern}", steering_vector)
+                        ],
                         strength=self.config["modification"].get("strength", 1.0),
                     )
 
@@ -343,7 +358,9 @@ class RepresentationPipeline:
                         )
                         if aggregate.get("pattern_f1_delta_means"):
                             f.write(f"### Per-Pattern F1 Delta Statistics\n\n")
-                            for pattern in sorted(aggregate["pattern_f1_delta_means"].keys()):
+                            for pattern in sorted(
+                                aggregate["pattern_f1_delta_means"].keys()
+                            ):
                                 mean = aggregate["pattern_f1_delta_means"][pattern]
                                 std = aggregate["pattern_f1_delta_stds"][pattern]
                                 f.write(f"- **{pattern}:** {mean:+.3f} (±{std:.3f})\n")

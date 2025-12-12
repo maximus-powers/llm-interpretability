@@ -203,19 +203,12 @@ class RepresentationEvaluator:
 
     def compute_aggregate_statistics(
         self, results: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
-        """
-        Compute aggregate statistics across multiple evaluations.
-
-        Args:
-            results: List of evaluation results from evaluate_modification()
-                    Each result has structure: {original_metrics, modified_metrics}
-
-        Returns:
-            Dictionary with aggregate statistics
-        """
-        # Filter out failed evaluations
-        valid_results = [r for r in results if "error" not in r and "original_metrics" in r and "modified_metrics" in r]
+    ):
+        valid_results = [
+            r
+            for r in results
+            if "error" not in r and "original_metrics" in r and "modified_metrics" in r
+        ]
 
         if not valid_results:
             logger.warning("No valid results to aggregate")
@@ -238,16 +231,20 @@ class RepresentationEvaluator:
             # Cumulative deltas
             if "cumulative" in original and "cumulative" in modified:
                 all_macro_f1_deltas.append(
-                    modified["cumulative"]["macro_f1"] - original["cumulative"]["macro_f1"]
+                    modified["cumulative"]["macro_f1"]
+                    - original["cumulative"]["macro_f1"]
                 )
                 all_macro_accuracy_deltas.append(
-                    modified["cumulative"]["macro_accuracy"] - original["cumulative"]["macro_accuracy"]
+                    modified["cumulative"]["macro_accuracy"]
+                    - original["cumulative"]["macro_accuracy"]
                 )
                 all_micro_f1_deltas.append(
-                    modified["cumulative"]["micro_f1"] - original["cumulative"]["micro_f1"]
+                    modified["cumulative"]["micro_f1"]
+                    - original["cumulative"]["micro_f1"]
                 )
                 all_micro_accuracy_deltas.append(
-                    modified["cumulative"]["micro_accuracy"] - original["cumulative"]["micro_accuracy"]
+                    modified["cumulative"]["micro_accuracy"]
+                    - original["cumulative"]["micro_accuracy"]
                 )
 
             # Per-pattern deltas (excluding cumulative)
@@ -265,10 +262,20 @@ class RepresentationEvaluator:
         aggregate = {
             "n_evaluations": len(valid_results),
             "n_failed": len(results) - len(valid_results),
-            "mean_macro_f1_delta": sum(all_macro_f1_deltas) / len(all_macro_f1_deltas) if all_macro_f1_deltas else 0.0,
-            "mean_macro_accuracy_delta": sum(all_macro_accuracy_deltas) / len(all_macro_accuracy_deltas) if all_macro_accuracy_deltas else 0.0,
-            "mean_micro_f1_delta": sum(all_micro_f1_deltas) / len(all_micro_f1_deltas) if all_micro_f1_deltas else 0.0,
-            "mean_micro_accuracy_delta": sum(all_micro_accuracy_deltas) / len(all_micro_accuracy_deltas) if all_micro_accuracy_deltas else 0.0,
+            "mean_macro_f1_delta": sum(all_macro_f1_deltas) / len(all_macro_f1_deltas)
+            if all_macro_f1_deltas
+            else 0.0,
+            "mean_macro_accuracy_delta": sum(all_macro_accuracy_deltas)
+            / len(all_macro_accuracy_deltas)
+            if all_macro_accuracy_deltas
+            else 0.0,
+            "mean_micro_f1_delta": sum(all_micro_f1_deltas) / len(all_micro_f1_deltas)
+            if all_micro_f1_deltas
+            else 0.0,
+            "mean_micro_accuracy_delta": sum(all_micro_accuracy_deltas)
+            / len(all_micro_accuracy_deltas)
+            if all_micro_accuracy_deltas
+            else 0.0,
             "pattern_f1_delta_means": {
                 pattern: sum(deltas) / len(deltas)
                 for pattern, deltas in all_pattern_f1_deltas.items()
@@ -295,10 +302,14 @@ class RepresentationEvaluator:
         )
         logger.info(f"\nMacro-Averaged Deltas:")
         logger.info(f"  Mean F1 Delta: {aggregate['mean_macro_f1_delta']:+.3f}")
-        logger.info(f"  Mean Accuracy Delta: {aggregate['mean_macro_accuracy_delta']:+.3f}")
+        logger.info(
+            f"  Mean Accuracy Delta: {aggregate['mean_macro_accuracy_delta']:+.3f}"
+        )
         logger.info(f"\nMicro-Averaged Deltas:")
         logger.info(f"  Mean F1 Delta: {aggregate['mean_micro_f1_delta']:+.3f}")
-        logger.info(f"  Mean Accuracy Delta: {aggregate['mean_micro_accuracy_delta']:+.3f}")
+        logger.info(
+            f"  Mean Accuracy Delta: {aggregate['mean_micro_accuracy_delta']:+.3f}"
+        )
 
         if aggregate["pattern_f1_delta_means"]:
             logger.info(f"\nPer-Pattern F1 Delta Means:")
@@ -314,17 +325,6 @@ class RepresentationEvaluator:
     def _compute_cumulative_metrics(
         self, pattern_metrics: Dict[str, Dict[str, float]]
     ) -> Dict[str, float]:
-        """
-        Compute cumulative metrics across all patterns.
-        Returns both macro (unweighted) and micro (weighted by sample size) averages.
-
-        Args:
-            pattern_metrics: Dictionary mapping pattern names to their metrics
-
-        Returns:
-            Dictionary with macro and micro averages for f1, precision, recall, accuracy
-        """
-        # Filter out 'cumulative' if it exists
         metrics_list = [m for p, m in pattern_metrics.items() if p != "cumulative"]
 
         if not metrics_list:
@@ -341,8 +341,10 @@ class RepresentationEvaluator:
 
         # Macro-average (equal weight per pattern)
         macro = {
-            "macro_accuracy": sum(m["accuracy"] for m in metrics_list) / len(metrics_list),
-            "macro_precision": sum(m["precision"] for m in metrics_list) / len(metrics_list),
+            "macro_accuracy": sum(m["accuracy"] for m in metrics_list)
+            / len(metrics_list),
+            "macro_precision": sum(m["precision"] for m in metrics_list)
+            / len(metrics_list),
             "macro_recall": sum(m["recall"] for m in metrics_list) / len(metrics_list),
             "macro_f1": sum(m["f1"] for m in metrics_list) / len(metrics_list),
         }
@@ -355,8 +357,12 @@ class RepresentationEvaluator:
 
         total = total_tp + total_fp + total_fn + total_tn
         micro_accuracy = (total_tp + total_tn) / total if total > 0 else 0.0
-        micro_precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
-        micro_recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
+        micro_precision = (
+            total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
+        )
+        micro_recall = (
+            total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
+        )
         micro_f1 = (
             2 * (micro_precision * micro_recall) / (micro_precision + micro_recall)
             if (micro_precision + micro_recall) > 0
@@ -379,7 +385,6 @@ class RepresentationEvaluator:
         original_patterns: List[str],
         all_patterns: List[str],
     ):
-        """Log evaluation summary with new observational format."""
         logger.info("=" * 60)
         logger.info("EVALUATION SUMMARY (OBSERVATIONAL)")
         logger.info("=" * 60)

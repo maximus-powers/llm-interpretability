@@ -32,7 +32,6 @@ class SteeringVectorComputer:
     def compute_pairwise_steering_vector(
         self, from_pattern: str, to_pattern: str
     ) -> torch.Tensor:
-        """compute steering vector to transform from_pattern → to_pattern"""
         if from_pattern not in self.pattern_clusters:
             raise ValueError(f"Pattern '{from_pattern}' not found")
         if to_pattern not in self.pattern_clusters:
@@ -81,9 +80,10 @@ class SteeringVectorComputer:
         return steering_vector.cpu()
 
     def compute_all_pairwise_vectors(self) -> Dict[str, Dict[str, torch.Tensor]]:
-        """compute all pairwise steering vectors between patterns"""
         all_patterns = list(self.pattern_clusters.keys())
-        logger.info(f"Computing all pairwise vectors for {len(all_patterns)} patterns...")
+        logger.info(
+            f"Computing all pairwise vectors for {len(all_patterns)} patterns..."
+        )
 
         computed = 0
         failed = 0
@@ -166,10 +166,9 @@ class SteeringVectorComputer:
             return False
 
     def find_nearest_pattern(self, latent_vector: torch.Tensor) -> str:
-        """find the nearest pattern cluster for a given latent vector"""
         latent = latent_vector.to(self.device)
 
-        min_distance = float('inf')
+        min_distance = float("inf")
         nearest_pattern = None
 
         for pattern, cluster_latents in self.pattern_clusters.items():
@@ -184,22 +183,27 @@ class SteeringVectorComputer:
                 min_distance = distance
                 nearest_pattern = pattern
 
-        logger.debug(f"Nearest pattern: '{nearest_pattern}' (distance: {min_distance:.4f})")
+        logger.debug(
+            f"Nearest pattern: '{nearest_pattern}' (distance: {min_distance:.4f})"
+        )
         return nearest_pattern
 
     def get_steering_vector(self, from_pattern: str, to_pattern: str) -> torch.Tensor:
-        """get or compute steering vector for pattern transformation"""
         if from_pattern in self.steering_vectors:
             if to_pattern in self.steering_vectors[from_pattern]:
                 return self.steering_vectors[from_pattern][to_pattern]["vector"]
 
         return self.compute_pairwise_steering_vector(from_pattern, to_pattern)
 
-    def get_vector_statistics(self, from_pattern: str, to_pattern: str) -> Dict[str, Any]:
+    def get_vector_statistics(
+        self, from_pattern: str, to_pattern: str
+    ) -> Dict[str, Any]:
         if from_pattern not in self.steering_vectors:
             raise ValueError(f"Steering vector for '{from_pattern}' not computed")
         if to_pattern not in self.steering_vectors[from_pattern]:
-            raise ValueError(f"Steering vector for '{from_pattern}'→'{to_pattern}' not computed")
+            raise ValueError(
+                f"Steering vector for '{from_pattern}'→'{to_pattern}' not computed"
+            )
 
         metadata = self.steering_vectors[from_pattern][to_pattern]
         vector = metadata["vector"]
@@ -221,10 +225,15 @@ class SteeringVectorComputer:
     def compare_steering_vectors(
         self, from1: str, to1: str, from2: str, to2: str
     ) -> Dict[str, float]:
-        """compare two pairwise steering vectors"""
-        if from1 not in self.steering_vectors or to1 not in self.steering_vectors[from1]:
+        if (
+            from1 not in self.steering_vectors
+            or to1 not in self.steering_vectors[from1]
+        ):
             raise ValueError(f"Steering vector '{from1}'→'{to1}' not computed")
-        if from2 not in self.steering_vectors or to2 not in self.steering_vectors[from2]:
+        if (
+            from2 not in self.steering_vectors
+            or to2 not in self.steering_vectors[from2]
+        ):
             raise ValueError(f"Steering vector '{from2}'→'{to2}' not computed")
 
         vec1 = self.steering_vectors[from1][to1]["vector"]

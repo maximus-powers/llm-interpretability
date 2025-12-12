@@ -5,6 +5,7 @@ from typing import Dict, List, Any, Optional, Tuple
 from datasets import load_dataset
 from collections import defaultdict
 from huggingface_hub import hf_hub_download
+import random
 
 from model_zoo.encoder_decoder_training import WeightTokenizer
 from model_zoo.encoder_decoder_training import (
@@ -54,18 +55,24 @@ class RepresentationDatasetLoader:
         # compute max dimensions for signatures if needed
         if input_mode in ["signature", "both"]:
             if not max_dimensions:
-                raise ValueError("max_dimensions required for signature/both input mode")
+                raise ValueError(
+                    "max_dimensions required for signature/both input mode"
+                )
             if not method_names:
                 raise ValueError("method_names required for signature/both input mode")
             config_with_max_dims = {"dataset": {"max_dimensions": max_dimensions}}
             self.max_dims = compute_dimensions_from_config(config_with_max_dims)
 
         # load encoder/decoder and tokenizer from checkpoint
-        self.encoder, self.decoder, self.tokenizer, self.latent_dim = self._load_encoder_decoder()
+        self.encoder, self.decoder, self.tokenizer, self.latent_dim = (
+            self._load_encoder_decoder()
+        )
 
         self.models_data = []
         self.pattern_clusters = defaultdict(lambda: {"with": [], "without": []})
-        logger.info(f"Initialized RepresentationDatasetLoader (input_mode={input_mode})")
+        logger.info(
+            f"Initialized RepresentationDatasetLoader (input_mode={input_mode})"
+        )
 
     def _load_encoder_decoder(self):
         logger.info(f"Loading encoder from {self.encoder_repo_id}...")
@@ -168,7 +175,9 @@ class RepresentationDatasetLoader:
                 self.max_dims["signature_features_per_neuron"] = inferred_dims[
                     "signature_features_per_neuron"
                 ]
-                logger.info(f"Inferred signature dimensions: {inferred_dims['signature_features_per_neuron']} features/neuron")
+                logger.info(
+                    f"Inferred signature dimensions: {inferred_dims['signature_features_per_neuron']} features/neuron"
+                )
 
         models_encoded = 0
         for idx, example in enumerate(dataset):
@@ -194,7 +203,9 @@ class RepresentationDatasetLoader:
                 if self.input_mode == "weights":
                     tokenized = self.tokenizer.tokenize(weights_dict)
                     encoder_input = tokenized["tokens"].unsqueeze(0).to(self.device)
-                    encoder_mask = tokenized["attention_mask"].unsqueeze(0).to(self.device)
+                    encoder_mask = (
+                        tokenized["attention_mask"].unsqueeze(0).to(self.device)
+                    )
 
                 elif self.input_mode == "signature":
                     if "improved_signature" not in example:
@@ -204,7 +215,9 @@ class RepresentationDatasetLoader:
                         example["improved_signature"], self.max_dims, self.method_names
                     )
                     encoder_input = (
-                        torch.from_numpy(signature_features).unsqueeze(0).to(self.device)
+                        torch.from_numpy(signature_features)
+                        .unsqueeze(0)
+                        .to(self.device)
                     )
                     encoder_mask = (
                         torch.from_numpy(signature_mask).unsqueeze(0).to(self.device)
@@ -309,8 +322,6 @@ class RepresentationDatasetLoader:
         logger.info(f"Filtered to {len(filtered_models)} models")
 
         if sample_size and len(filtered_models) > sample_size:
-            import random
-
             filtered_models = random.sample(filtered_models, sample_size)
             logger.info(f"Sampled {sample_size} models")
         return filtered_models

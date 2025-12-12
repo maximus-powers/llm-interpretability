@@ -1,6 +1,7 @@
 import torch
 import logging
 from typing import Dict, List, Tuple, Optional, Any
+from model_zoo.encoder_decoder_training.data_loader import preprocess_signature
 
 from model_zoo.encoder_decoder_training import WeightTokenizer
 
@@ -57,11 +58,12 @@ class ModelModifier:
             if subject_signature is None:
                 raise ValueError("Signature required for input_mode='signature'")
 
-            from model_zoo.encoder_decoder_training.data_loader import preprocess_signature
             signature_features, signature_mask = preprocess_signature(
                 subject_signature, self.max_dims, self.method_names
             )
-            encoder_input = torch.from_numpy(signature_features).unsqueeze(0).to(self.device)
+            encoder_input = (
+                torch.from_numpy(signature_features).unsqueeze(0).to(self.device)
+            )
             encoder_mask = torch.from_numpy(signature_mask).unsqueeze(0).to(self.device)
 
             # For decoder output, we still need weights info
@@ -76,7 +78,6 @@ class ModelModifier:
             tokenized = self.tokenizer.tokenize(subject_weights)
             tokens = tokenized["tokens"]
 
-            from model_zoo.encoder_decoder_training.data_loader import preprocess_signature
             signature_features, signature_mask = preprocess_signature(
                 subject_signature, self.max_dims, self.method_names
             )
@@ -86,7 +87,9 @@ class ModelModifier:
             combined = torch.cat([tokens_flat, signature], dim=0)
             encoder_input = combined.unsqueeze(0).to(self.device)
 
-            token_mask_flat = tokenized["attention_mask"].repeat_interleave(tokens.size(1))
+            token_mask_flat = tokenized["attention_mask"].repeat_interleave(
+                tokens.size(1)
+            )
             sig_mask = torch.from_numpy(signature_mask)
             combined_mask = torch.cat([token_mask_flat, sig_mask], dim=0)
             encoder_mask = combined_mask.unsqueeze(0).to(self.device)
