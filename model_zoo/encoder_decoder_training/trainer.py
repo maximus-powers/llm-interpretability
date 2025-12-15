@@ -229,20 +229,28 @@ class EncoderDecoderTrainer:
             train_metrics = self._train_epoch(epoch)
             val_metrics = self._validate_epoch(epoch)
             self._log_epoch(epoch, train_metrics, val_metrics)
+            current_lr = self.optimizer.param_groups[0]["lr"]
             if self.scheduler:
-                monitor_value = val_metrics.get("loss")
+                monitor_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
                 if monitor_value is not None:
                     self.scheduler.step(monitor_value)
-                    current_lr = self.optimizer.param_groups[0]["lr"]
-                    logger.info(f"Learning rate: {current_lr:.6f}")
-            if self._is_best(val_metrics):
+                    new_lr = self.optimizer.param_groups[0]["lr"]
+                    if new_lr != current_lr:
+                        logger.info(f"Learning rate reduced: {current_lr:.6f} -> {new_lr:.6f}")
+                    current_lr = new_lr
+            if self.writer:
+                self.writer.add_scalar("train/learning_rate", current_lr, epoch)
+            is_best = self._is_best(val_metrics)
+            if is_best:
+                metric_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
                 logger.info(
-                    f"New best model! {self.monitor_metric}={val_metrics.get('loss', 0):.6f}"
+                    f"New best model! {self.monitor_metric}={metric_value:.6f}"
                 )
                 self._save_checkpoint(epoch, val_metrics, is_best=True)
-            if self._check_early_stopping(val_metrics):
-                logger.info(f"Early stopping triggered at epoch {epoch + 1}")
-                break
+            else:
+                if self._check_early_stopping(val_metrics):
+                    logger.info(f"Early stopping triggered at epoch {epoch + 1}")
+                    break
 
         test_metrics = None
         if self.test_loader is not None:
@@ -449,7 +457,7 @@ class EncoderDecoderTrainer:
                 self.writer.add_scalar(f"val_epoch/{key}", value, epoch)
 
     def _is_best(self, val_metrics: Dict[str, float]):
-        metric_value = val_metrics.get("loss")
+        metric_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
         if metric_value is None:
             return False
         is_best = False
@@ -468,7 +476,7 @@ class EncoderDecoderTrainer:
     def _check_early_stopping(self, val_metrics: Dict[str, float]):
         if not self.early_stopping_config["enabled"]:
             return False
-        metric_value = val_metrics.get("loss")
+        metric_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
         if metric_value is None:
             return False
         improved = False
@@ -479,7 +487,7 @@ class EncoderDecoderTrainer:
         if not improved:
             self.patience_counter += 1
             logger.info(
-                f"No improvement for {self.patience_counter} epochs (patience={self.patience})"
+                f"No improvement in {self.monitor_metric} for {self.patience_counter} epochs (patience={self.patience})"
             )
             if self.patience_counter >= self.patience:
                 return True
