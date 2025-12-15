@@ -548,7 +548,7 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
         dataset_info.get("method_names", []),
     )
 
-    # update input_dims
+    # update input_dims and store inferred signature_features_per_neuron in config
     if dataset_config["input_mode"] in ["signature", "both"]:
         max_dims = train_dataset.max_dims
         if max_dims:
@@ -558,6 +558,11 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
                 * max_dims["signature_features_per_neuron"]
             )
             dataset_info["input_dims"]["signature_dim"] = signature_dim
+            if "neuron_profile" not in config["dataset"]:
+                config["dataset"]["neuron_profile"] = {}
+            config["dataset"]["neuron_profile"]["features_per_neuron"] = max_dims[
+                "signature_features_per_neuron"
+            ]
             logger.info(f"Inferred signature dimension: {signature_dim}")
 
     dataloader_config = config.get("dataloader", {})
