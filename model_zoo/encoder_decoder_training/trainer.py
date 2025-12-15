@@ -70,6 +70,8 @@ class EncoderDecoderTrainer:
             weight_decay=config["training"]["weight_decay"],
         )
         self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
+        self.base_lr = config["training"]["learning_rate"]
+        self.warmup_epochs = config["training"]["lr_scheduler"].get("warmup_epochs", 0)
         self.scheduler = None
         if config["training"]["lr_scheduler"]["enabled"]:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -227,11 +229,21 @@ class EncoderDecoderTrainer:
 
         for epoch in range(self.config["training"]["epochs"]):
             logger.info(f"Epoch {epoch + 1}/{self.config['training']['epochs']}")
+
+            # learning rate warmup
+            if self.warmup_epochs > 0 and epoch < self.warmup_epochs:
+                warmup_factor = (epoch + 1) / self.warmup_epochs
+                warmup_lr = self.base_lr * warmup_factor
+                for param_group in self.optimizer.param_groups:
+                    param_group["lr"] = warmup_lr
+                logger.info(f"Warmup: lr={warmup_lr:.6f} ({epoch + 1}/{self.warmup_epochs})")
+
             train_metrics = self._train_epoch(epoch)
             val_metrics = self._validate_epoch(epoch)
             self._log_epoch(epoch, train_metrics, val_metrics)
             current_lr = self.optimizer.param_groups[0]["lr"]
-            if self.scheduler:
+            # only reduce on plateau after warmup
+            if self.scheduler and epoch >= self.warmup_epochs:
                 monitor_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
                 if monitor_value is not None:
                     self.scheduler.step(monitor_value)

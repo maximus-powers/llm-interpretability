@@ -118,9 +118,10 @@ training:
   lr_scheduler:
     enabled: true                    # Enable LR scheduling
     type: "reduce_on_plateau"        # Scheduler type
-    patience: 3                     # Epochs without improvement before reducing
+    patience: 3                      # Epochs without improvement before reducing
     factor: 0.5                      # LR reduction factor
     min_lr: 0.000001
+    warmup_epochs: 3                 # Number of epochs for linear LR warmup (0 to disable)
 
 # ============================================================================
 # EVALUATION CONFIGURATION
