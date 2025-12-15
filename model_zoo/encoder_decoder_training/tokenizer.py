@@ -13,21 +13,25 @@ class WeightTokenizer:
         max_tokens: int = 512,
         include_metadata: bool = True,
         granularity: str = "chunk",
+        max_neuron_data_size: int = None,
     ):
         self.chunk_size = chunk_size
         self.max_tokens = max_tokens
         self.include_metadata = include_metadata
         self.granularity = granularity
         self.metadata_features = 5 if include_metadata else 0
+        self.max_neuron_data_size = max_neuron_data_size
 
         # chunk mode token_dim determined here, neuron mode it's set during tokenization
         if granularity == "chunk":
             self.token_dim = chunk_size + self.metadata_features
+        elif granularity == "neuron" and max_neuron_data_size is not None:
+            self.token_dim = max_neuron_data_size + self.metadata_features
         else:
             self.token_dim = None
 
         logger.info(
-            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, include_metadata={include_metadata}, granularity={granularity}, token_dim={self.token_dim}"
+            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, include_metadata={include_metadata}, granularity={granularity}, token_dim={self.token_dim}, max_neuron_data_size={max_neuron_data_size}"
         )
 
     def tokenize(self, input_data, metadata_dict=None) -> Dict[str, Any]:
@@ -265,7 +269,6 @@ class WeightTokenizer:
                 layer_groups[layer_name][param_type] = tensor
 
             # extract neurons
-            max_neuron_size = 0
             for layer_name in sorted(layer_groups.keys()):
                 layer_params = layer_groups[layer_name]
                 weight = layer_params.get("weight", layer_params.get("weights", None))
@@ -287,18 +290,28 @@ class WeightTokenizer:
                     else:
                         neuron_data = neuron_weights
                     neurons.append(neuron_data)
-                    max_neuron_size = max(max_neuron_size, len(neuron_data))
 
-            # pad all neurons to the same size
+            # pad all neurons to the global max size (from config)
+            target_size = self.max_neuron_data_size
+            if target_size is None:
+                # fallback: use max from this example (not recommended)
+                target_size = max(len(n) for n in neurons) if neurons else 1
+
             padded_neurons = []
             for neuron_data in neurons:
-                if len(neuron_data) < max_neuron_size:
+                if len(neuron_data) < target_size:
                     padded = np.pad(
                         neuron_data,
-                        (0, max_neuron_size - len(neuron_data)),
+                        (0, target_size - len(neuron_data)),
                         mode="constant",
                     )
                     padded_neurons.append(padded)
+                elif len(neuron_data) > target_size:
+                    # truncate if larger than config max (shouldn't happen with proper config)
+                    logger.warning(
+                        f"Neuron data size {len(neuron_data)} exceeds max_neuron_data_size {target_size}, truncating"
+                    )
+                    padded_neurons.append(neuron_data[:target_size])
                 else:
                     padded_neurons.append(neuron_data)
 
@@ -364,6 +377,7 @@ class WeightTokenizer:
             "metadata_features": self.metadata_features,
             "token_dim": self.token_dim,
             "granularity": self.granularity,
+            "max_neuron_data_size": self.max_neuron_data_size,
         }
 
     @classmethod
@@ -373,4 +387,5 @@ class WeightTokenizer:
             max_tokens=config["max_tokens"],
             include_metadata=config.get("include_metadata", True),
             granularity=config.get("granularity", "chunk"),
+            max_neuron_data_size=config.get("max_neuron_data_size"),
         )

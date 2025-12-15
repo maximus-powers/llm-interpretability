@@ -282,7 +282,7 @@ class WeightSpaceDataset(Dataset):
                             neurons_per_layer.append(shape[0])
             metadata_dict = {
                 "neurons_per_layer": neurons_per_layer,
-                "features_per_neuron": len(self.method_names),
+                "features_per_neuron": self.max_dims["signature_features_per_neuron"],
             }
 
         # tokenize weights for decoder target
@@ -438,11 +438,21 @@ def load_dataset(config: Dict[str, Any]):
     dataset = dataset["train"]
     logger.info(f"Dataset loaded: {len(dataset)} examples")
 
+    # compute max neuron data size
+    max_neuron_data_size = None
+    granularity = tokenization_config.get("granularity", "chunk")
+    if granularity == "neuron":
+        max_dims = dataset_config.get("max_dimensions", {})
+        max_neurons = max_dims.get("max_neurons_per_layer", 0)
+        if max_neurons > 0:
+            max_neuron_data_size = max_neurons + 1  # incoming weights + bias
+
     tokenizer = WeightTokenizer(
         chunk_size=tokenization_config["chunk_size"],
         max_tokens=tokenization_config["max_tokens"],
         include_metadata=tokenization_config.get("include_metadata", True),
-        granularity=tokenization_config.get("granularity", "chunk"),
+        granularity=granularity,
+        max_neuron_data_size=max_neuron_data_size,
     )
     logger.info("Tokenizer created")
 

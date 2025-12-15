@@ -90,11 +90,11 @@ class WeightSpaceEncoderDecoder(nn.Module):
         logger.info(f"Inferring features_per_neuron from dataset '{dataset_name}'...")
         dataset = load_dataset(dataset_name, split="train", streaming=True)
         first_example = next(iter(dataset))
-        if "signature" not in first_example:
+        if "improved_signature" not in first_example:
             raise ValueError(
-                f"Dataset '{dataset_name}' does not contain 'signature' field. Cannot auto-infer features_per_neuron."
+                f"Dataset '{dataset_name}' does not contain 'improved_signature' field. Cannot auto-infer features_per_neuron."
             )
-        dims = infer_signature_dimensions(first_example["signature"], method_names)
+        dims = infer_signature_dimensions(first_example["improved_signature"], method_names)
         features_per_neuron = dims["signature_features_per_neuron"]
         logger.info(
             f"Inferred features_per_neuron={features_per_neuron} from methods {dims['method_shapes']}"
