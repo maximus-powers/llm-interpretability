@@ -3,7 +3,12 @@ import logging
 from typing import Dict, List, Tuple, Optional, Any
 from model_zoo.encoder_decoder_training.data_loader import preprocess_signature
 
-from model_zoo.encoder_decoder_training import WeightTokenizer
+from model_zoo.encoder_decoder_training import (
+    WeightTokenizer,
+    infer_neurons_from_weights,
+    flatten_signature_features,
+    interleave_weights_signatures,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +46,7 @@ class ModelModifier:
             f"Modifying model: patterns={[p for p, _ in steering_vectors]}, strength={strength}"
         )
 
-        # Encode to latent based on input_mode
+        # encode to latent based on input_mode
         encoder_input = None
         encoder_mask = None
         original_shapes = None
@@ -58,44 +63,91 @@ class ModelModifier:
             if subject_signature is None:
                 raise ValueError("Signature required for input_mode='signature'")
 
-            signature_features, signature_mask = preprocess_signature(
-                subject_signature, self.max_dims, self.method_names
-            )
-            encoder_input = (
-                torch.from_numpy(signature_features).unsqueeze(0).to(self.device)
-            )
-            encoder_mask = torch.from_numpy(signature_mask).unsqueeze(0).to(self.device)
+            if self.tokenizer.granularity == "neuron":
+                # neuron level tokenization
+                signature_flat = flatten_signature_features(
+                    subject_signature, self.method_names
+                )
+                neurons_per_layer = infer_neurons_from_weights(subject_weights)
+                metadata_dict = {
+                    "neurons_per_layer": neurons_per_layer,
+                    "features_per_neuron": len(self.method_names),
+                }
 
-            # For decoder output, we still need weights info
-            tokenized = self.tokenizer.tokenize(subject_weights)
-            original_shapes = tokenized["original_shapes"]
-            num_tokens = tokenized["tokens"].size(1)
+                tokenized = self.tokenizer.tokenize(signature_flat, metadata_dict)
+                encoder_input = tokenized["tokens"].unsqueeze(0).to(self.device)
+                encoder_mask = tokenized["attention_mask"].unsqueeze(0).to(self.device)
+                # decoder output still needs weights info
+                tokenized_weights = self.tokenizer.tokenize(
+                    subject_weights, metadata_dict
+                )
+                original_shapes = tokenized_weights["original_shapes"]
+                num_tokens = tokenized_weights["tokens"].size(0)
+
+            else:
+                # chunk-based tokenization
+                signature_features, signature_mask = preprocess_signature(
+                    subject_signature, self.max_dims, self.method_names
+                )
+                encoder_input = (
+                    torch.from_numpy(signature_features).unsqueeze(0).to(self.device)
+                )
+                encoder_mask = (
+                    torch.from_numpy(signature_mask).unsqueeze(0).to(self.device)
+                )
+                # decoder output still needs weights info
+                tokenized = self.tokenizer.tokenize(subject_weights)
+                original_shapes = tokenized["original_shapes"]
+                num_tokens = tokenized["tokens"].size(0)
 
         elif self.input_mode == "both":
             if subject_signature is None:
                 raise ValueError("Signature required for input_mode='both'")
 
-            tokenized = self.tokenizer.tokenize(subject_weights)
-            tokens = tokenized["tokens"]
+            if self.tokenizer.granularity == "neuron":
+                # neuron level tokenization
+                neurons_per_layer = infer_neurons_from_weights(subject_weights)
+                metadata_dict = {
+                    "neurons_per_layer": neurons_per_layer,
+                    "features_per_neuron": len(self.method_names),
+                }
 
-            signature_features, signature_mask = preprocess_signature(
-                subject_signature, self.max_dims, self.method_names
-            )
-            signature = torch.from_numpy(signature_features)
+                combined = interleave_weights_signatures(
+                    subject_weights, subject_signature, self.method_names
+                )
+                tokenized = self.tokenizer.tokenize(combined, metadata_dict)
+                encoder_input = tokenized["tokens"].unsqueeze(0).to(self.device)
+                encoder_mask = tokenized["attention_mask"].unsqueeze(0).to(self.device)
+                # decoder output still needs weights tokenization info
+                tokenized_weights = self.tokenizer.tokenize(
+                    subject_weights, metadata_dict
+                )
+                original_shapes = tokenized_weights["original_shapes"]
+                num_tokens = tokenized_weights["tokens"].size(0)
 
-            tokens_flat = tokens.flatten()
-            combined = torch.cat([tokens_flat, signature], dim=0)
-            encoder_input = combined.unsqueeze(0).to(self.device)
+            else:
+                # chunk-based tokenization
+                tokenized = self.tokenizer.tokenize(subject_weights)
+                tokens = tokenized["tokens"]
 
-            token_mask_flat = tokenized["attention_mask"].repeat_interleave(
-                tokens.size(1)
-            )
-            sig_mask = torch.from_numpy(signature_mask)
-            combined_mask = torch.cat([token_mask_flat, sig_mask], dim=0)
-            encoder_mask = combined_mask.unsqueeze(0).to(self.device)
+                signature_features, signature_mask = preprocess_signature(
+                    subject_signature, self.max_dims, self.method_names
+                )
+                signature = torch.from_numpy(signature_features)
 
-            original_shapes = tokenized["original_shapes"]
-            num_tokens = tokens.size(1)
+                tokens_flat = tokens.flatten()
+                combined = torch.cat([tokens_flat, signature], dim=0)
+                encoder_input = combined.unsqueeze(0).to(self.device)
+
+                token_mask_flat = tokenized["attention_mask"].repeat_interleave(
+                    tokens.size(1)
+                )
+                sig_mask = torch.from_numpy(signature_mask)
+                combined_mask = torch.cat([token_mask_flat, sig_mask], dim=0)
+                encoder_mask = combined_mask.unsqueeze(0).to(self.device)
+
+                original_shapes = tokenized["original_shapes"]
+                num_tokens = tokens.size(0)
 
         with torch.no_grad():
             latent = self.encoder(encoder_input, encoder_mask)
@@ -103,7 +155,7 @@ class ModelModifier:
         original_latent_norm = latent.norm().item()
         logger.debug(f"Original latent norm: {original_latent_norm:.4f}")
 
-        # Apply steering vectors
+        # apply steering vectors
         for pattern_name, steering_vector in steering_vectors:
             steering_vector = steering_vector.to(self.device).unsqueeze(0)
             latent = latent + (strength * steering_vector)
@@ -116,11 +168,11 @@ class ModelModifier:
             f"Modified latent norm: {modified_latent_norm:.4f} (delta: {modified_latent_norm - original_latent_norm:+.4f})"
         )
 
-        # Decode back to weights (decoder always outputs weight tokens)
+        # decode back to weights (decoder always outputs weight tokens)
         with torch.no_grad():
             reconstructed_tokens = self.decoder(latent, num_tokens)
 
-        # Create appropriate mask for detokenization
+        # create appropriate mask for detokenization
         if self.input_mode == "weights":
             detokenize_mask = encoder_mask.squeeze(0)
         else:

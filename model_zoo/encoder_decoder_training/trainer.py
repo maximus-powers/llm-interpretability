@@ -172,7 +172,12 @@ class EncoderDecoderTrainer:
             self.tensorboard_process = None
 
     def _calculate_loss(
-        self, encoder_input, encoder_mask, decoder_target, decoder_mask, behavior_labels=None
+        self,
+        encoder_input,
+        encoder_mask,
+        decoder_target,
+        decoder_mask,
+        behavior_labels=None,
     ):
         target_token_dim = decoder_target.size(2)
 
@@ -187,8 +192,12 @@ class EncoderDecoderTrainer:
             )
 
             loss_components = {
-                "loss_contrast": loss_contrast.item() if hasattr(loss_contrast, 'item') else loss_contrast,
-                "loss_recon": loss_recon.item() if hasattr(loss_recon, 'item') else loss_recon,
+                "loss_contrast": loss_contrast.item()
+                if hasattr(loss_contrast, "item")
+                else loss_contrast,
+                "loss_recon": loss_recon.item()
+                if hasattr(loss_recon, "item")
+                else loss_recon,
             }
 
         elif self.is_combined_loss:
@@ -267,8 +276,11 @@ class EncoderDecoderTrainer:
             self.optimizer.zero_grad()
 
             loss, _, loss_components = self._calculate_loss(
-                encoder_input, encoder_mask, decoder_target, decoder_mask,
-                behavior_labels=behavior_labels
+                encoder_input,
+                encoder_mask,
+                decoder_target,
+                decoder_mask,
+                behavior_labels=behavior_labels,
             )
 
             # accumulate loss components
@@ -324,8 +336,11 @@ class EncoderDecoderTrainer:
 
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
-                    encoder_input, encoder_mask, decoder_target, decoder_mask,
-                    behavior_labels=behavior_labels
+                    encoder_input,
+                    encoder_mask,
+                    decoder_target,
+                    decoder_mask,
+                    behavior_labels=behavior_labels,
                 )
 
                 # store batch-wise (will aggregate later)
@@ -380,8 +395,11 @@ class EncoderDecoderTrainer:
 
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
-                    encoder_input, encoder_mask, decoder_target, decoder_mask,
-                    behavior_labels=behavior_labels
+                    encoder_input,
+                    encoder_mask,
+                    decoder_target,
+                    decoder_mask,
+                    behavior_labels=behavior_labels,
                 )
 
                 # store batch-wise (will aggregate later)

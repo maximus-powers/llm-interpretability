@@ -18,6 +18,13 @@ from .losses import (
     SupervisedContrastiveLoss,
     GammaContrastReconLoss,
 )
+from .neuron_utils import (
+    infer_neurons_from_weights,
+    extract_neuron_weights_list,
+    extract_signature_features,
+    flatten_signature_features,
+    interleave_weights_signatures,
+)
 
 __all__ = [
     "load_dataset",
@@ -37,4 +44,9 @@ __all__ = [
     "CombinedReconstructionLoss",
     "SupervisedContrastiveLoss",
     "GammaContrastReconLoss",
+    "infer_neurons_from_weights",
+    "extract_neuron_weights_list",
+    "extract_signature_features",
+    "flatten_signature_features",
+    "interleave_weights_signatures",
 ]

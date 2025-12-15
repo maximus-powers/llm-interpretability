@@ -110,10 +110,15 @@ class SupervisedContrastiveLoss(nn.Module):
             latents = self.projection_head(latents)
 
         batch_size = latents.size(0)
-        sim = self.similarity_f(latents.unsqueeze(1), latents.unsqueeze(0)) / self.temperature
+        sim = (
+            self.similarity_f(latents.unsqueeze(1), latents.unsqueeze(0))
+            / self.temperature
+        )
 
         # create positive mask from behavior labels
-        positive_mask = self._create_behavior_positive_mask(behavior_labels).to(latents.device)
+        positive_mask = self._create_behavior_positive_mask(behavior_labels).to(
+            latents.device
+        )
 
         # supervised contrastive loss
         # for each anchor, compute loss over its positive pairs

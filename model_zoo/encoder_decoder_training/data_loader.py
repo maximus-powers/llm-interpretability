@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader, random_split, Sampler
 from torch.utils.data.dataloader import default_collate
 
 from .tokenizer import WeightTokenizer
+from .neuron_utils import interleave_weights_signatures
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ class BehaviorAwareBatchSampler(Sampler):
             # find a buddy sample sharing a behavior
             behaviors = list(self.index_to_behaviors.get(idx, []))
             self.rng.shuffle(behaviors)
-            buddy =  None
+            buddy = None
             for behavior in behaviors:
                 candidates = [
                     i
@@ -68,7 +69,7 @@ class BehaviorAwareBatchSampler(Sampler):
                     if i != idx and i not in used
                 ]
                 if candidates:
-                    buddy =  self.rng.choice(candidates)
+                    buddy = self.rng.choice(candidates)
             if buddy is not None:
                 current_batch.append(buddy)
                 used.add(buddy)
@@ -329,9 +330,8 @@ class WeightSpaceDataset(Dataset):
 
         elif self.input_mode == "both":
             if self.tokenizer.granularity == "neuron":
-                combined = self._interleave_weights_signatures(
-                    weights_dict,
-                    example["improved_signature"],
+                combined = interleave_weights_signatures(
+                    weights_dict, example["improved_signature"], self.method_names
                 )
                 encoder_tokenized = self.tokenizer.tokenize(combined, metadata_dict)
             else:
@@ -429,107 +429,6 @@ class WeightSpaceDataset(Dataset):
             output["original_shapes"] = weights_tokenized["original_shapes"]
 
         return output
-
-    def _interleave_weights_signatures(
-        self,
-        weights_dict: Dict[str, Any],
-        signature_json: str,
-    ) -> List[np.ndarray]:
-        signature_data = json.loads(signature_json)
-        neuron_activations = signature_data.get("neuron_activations", {})
-
-        # extract neuron weights and signatures
-        weight_neurons = self._extract_neuron_weights_list(weights_dict)
-        signature_neurons = []
-        for layer_idx_str in sorted(neuron_activations.keys(), key=int):
-            layer_data = neuron_activations[layer_idx_str]
-            neuron_profiles = layer_data.get("neuron_profiles", {})
-            for neuron_idx_str in sorted(neuron_profiles.keys(), key=int):
-                profile = neuron_profiles[neuron_idx_str]
-                neuron_features = []
-                for method_name in self.method_names:
-                    if method_name in profile:
-                        value = profile[method_name]
-                        if isinstance(value, list):
-                            neuron_features.extend(value)
-                        else:
-                            neuron_features.append(value)
-                signature_neurons.append(np.array(neuron_features, dtype=np.float32))
-
-        # [neuron0: [weights + signature], neuron1: [weights + signature], ...]
-        combined_neurons = []
-        if len(weight_neurons) != len(signature_neurons):
-            raise ValueError(
-                f"Mismatch between weight neurons ({len(weight_neurons)}) and signature neurons ({len(signature_neurons)})"
-            )
-
-        # concat within neuron
-        for i in range(len(weight_neurons)):
-            combined = np.concatenate([weight_neurons[i], signature_neurons[i]])
-            combined_neurons.append(combined)
-
-        return combined_neurons
-
-    def _extract_neuron_weights_list(
-        self,
-        weights_dict: Dict[str, Any],
-    ) -> List[np.ndarray]:
-        sorted_keys = sorted(weights_dict.keys())
-
-        # group weights and biases by layer
-        layer_groups = {}
-        for key in sorted_keys:
-            parts = key.split(".")
-            if len(parts) >= 2:
-                layer_name = ".".join(parts[:-1])
-                param_type = parts[-1]
-            else:
-                layer_name = key
-                param_type = "weight"
-
-            if layer_name not in layer_groups:
-                layer_groups[layer_name] = {}
-            tensor = weights_dict[key]
-            if isinstance(tensor, (list, np.ndarray)):
-                tensor = np.array(tensor, dtype=np.float32)
-            layer_groups[layer_name][param_type] = tensor
-
-        # extract neurons from each layer
-        neurons = []
-        max_neuron_size = 0
-        for layer_name in sorted(layer_groups.keys()):
-            layer_params = layer_groups[layer_name]
-            weight = layer_params.get("weight", layer_params.get("weights", None))
-            bias = layer_params.get("bias", None)
-            if weight is None:
-                continue
-            weight = np.atleast_2d(weight)
-            if bias is not None:
-                bias = np.atleast_1d(bias)
-            num_neurons_in_layer = weight.shape[0]
-            for neuron_idx in range(num_neurons_in_layer):
-                neuron_weights = weight[neuron_idx].flatten()
-                if bias is not None and neuron_idx < len(bias):
-                    neuron_data = np.concatenate([neuron_weights, [bias[neuron_idx]]])
-                else:
-                    neuron_data = neuron_weights
-                neurons.append(neuron_data)
-                max_neuron_size = max(max_neuron_size, len(neuron_data))
-
-        # pad all neurons to same size
-        padded_neurons = []
-        for neuron_data in neurons:
-            if len(neuron_data) < max_neuron_size:
-                padded = np.pad(
-                    neuron_data,
-                    (0, max_neuron_size - len(neuron_data)),
-                    mode="constant",
-                )
-                padded_neurons.append(padded)
-            else:
-                padded_neurons.append(neuron_data)
-
-        return padded_neurons
 
 
 def load_dataset(config: Dict[str, Any]):
