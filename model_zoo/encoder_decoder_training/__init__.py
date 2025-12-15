@@ -1,4 +1,4 @@
-from .data_loader import load_dataset, create_dataloaders
+from .data_loader import load_dataset, create_dataloaders, BehaviorAwareBatchSampler
 from .encoder_decoder_model import (
     MLPEncoderDecoder,
     TransformerEncoderDecoder,
@@ -15,13 +15,14 @@ from .evaluator import (
 from .losses import (
     ReconstructionLoss,
     CombinedReconstructionLoss,
-    NT_Xent_Loss,
+    SupervisedContrastiveLoss,
     GammaContrastReconLoss,
 )
 
 __all__ = [
     "load_dataset",
     "create_dataloaders",
+    "BehaviorAwareBatchSampler",
     "MLPEncoderDecoder",
     "TransformerEncoderDecoder",
     "create_encoder_decoder",
@@ -34,6 +35,6 @@ __all__ = [
     "format_metrics_for_logging",
     "ReconstructionLoss",
     "CombinedReconstructionLoss",
-    "NT_Xent_Loss",
+    "SupervisedContrastiveLoss",
     "GammaContrastReconLoss",
 ]

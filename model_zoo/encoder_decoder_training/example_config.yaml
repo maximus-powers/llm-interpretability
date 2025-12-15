@@ -26,9 +26,10 @@ dataset:
 # TOKENIZATION CONFIGURATION
 # ============================================================================
 tokenization:
-  chunk_size: 64                     # Weight values per token
-  max_tokens: 512                    # Maximum sequence length, estimate using (total_params / chunk_size) + buffer
-  include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, chunk_idx)
+  granularity: "neuron"              # "neuron" for per-neuron tokenization, "chunk" for legacy chunking
+  chunk_size: 64                     # Only used when granularity="chunk": weight values per token
+  max_tokens: 512                    # Maximum sequence length
+  include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, token_idx)
 
 # ============================================================================
 # MODEL ARCHITECTURE
@@ -83,16 +84,15 @@ loss:
   #   - type: "cosine"
   #     weight: 0.5
 
-  # ===== Contrastive Loss =====
-  # gamma: 0.5                       # Balance contrastive/reconstruction, 0.0-1.0 (0=recon only, 1=contrast only)
-  # contrast_type: "simclr"          # simclr, positive
-  # temperature: 0.1                 # Temperature for contrastive loss, typically 0.1-0.5 (smaller=more discrimination)
-  # reconstruction_type: "mse"       # mse, mae, cosine
-  # augmentation_type: "noise"       # noise, dropout, none
-  # noise_std: 0.01                  # Gaussian noise std dev                     # Typical: 0.001-0.1
-  # dropout_prob: 0.1                # Dropout probability                        # Typical: 0.05-0.2
+  # ===== Contrastive Loss (Supervised) =====
+  # Uses behavior labels from dataset metadata (selected_patterns) to define positive pairs.
+  # Networks sharing ANY behavior pattern are treated as positive pairs.
   #
-  # # Optional projection head for contrastive learning (SimCLR-style 2-layer MLP)
+  # gamma: 0.5                       # Balance contrastive/reconstruction, 0.0-1.0 (0=recon only, 1=contrast only)
+  # temperature: 0.1                 # Temperature for contrastive loss, typically 0.1-0.5 (smaller=harder clustering)
+  # reconstruction_type: "mse"       # mse, mae, cosine
+  #
+  # # Optional projection head for contrastive learning (2-layer MLP)
   # projection_head:
   #   input_dim: 256                 # Should match architecture.latent_dim
   #   hidden_dim: 256                # Hidden layer size, typically same as input_dim

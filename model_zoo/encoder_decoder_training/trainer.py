@@ -187,8 +187,8 @@ class EncoderDecoderTrainer:
             )
 
             loss_components = {
-                "loss_contrast": loss_contrast.item(),
-                "loss_recon": loss_recon.item(),
+                "loss_contrast": loss_contrast.item() if hasattr(loss_contrast, 'item') else loss_contrast,
+                "loss_recon": loss_recon.item() if hasattr(loss_recon, 'item') else loss_recon,
             }
 
         elif self.is_combined_loss:

@@ -2,14 +2,96 @@ import torch
 import numpy as np
 import json
 import logging
+import random
 from typing import Dict, Any, List
+from collections import defaultdict
 from datasets import load_dataset as hf_load_dataset
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split, Sampler
 from torch.utils.data.dataloader import default_collate
 
 from .tokenizer import WeightTokenizer
 
 logger = logging.getLogger(__name__)
+
+
+class BehaviorAwareBatchSampler(Sampler):
+    def __init__(
+        self,
+        dataset: Dataset,
+        batch_size: int,
+        drop_last: bool = False,
+        seed: int = 42,
+    ):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.rng = random.Random(seed)
+
+        # behavior -> indices mapping and index -> behaviors mapping
+        self.behavior_to_indices = defaultdict(list)
+        self.index_to_behaviors = {}
+
+        for idx in range(len(self.dataset)):
+            if hasattr(self.dataset, "hf_dataset"):
+                example = self.dataset.hf_dataset[idx]
+                metadata = json.loads(example["metadata"])
+                behavior_labels = metadata.get("selected_patterns", [])
+            else:
+                item = self.dataset[idx]
+                behavior_labels = item.get("behavior_labels", [])
+
+            self.index_to_behaviors[idx] = behavior_labels
+            for behavior in behavior_labels:
+                self.behavior_to_indices[behavior].append(idx)
+
+    def __iter__(self):
+        all_indices = list(range(len(self.dataset)))
+        self.rng.shuffle(all_indices)
+        used = set()
+        batches = []
+        current_batch = []
+
+        for idx in all_indices:
+            if idx in used:
+                continue
+            current_batch.append(idx)
+            used.add(idx)
+
+            # find a buddy sample sharing a behavior
+            behaviors = list(self.index_to_behaviors.get(idx, []))
+            self.rng.shuffle(behaviors)
+            buddy =  None
+            for behavior in behaviors:
+                candidates = [
+                    i
+                    for i in self.behavior_to_indices[behavior]
+                    if i != idx and i not in used
+                ]
+                if candidates:
+                    buddy =  self.rng.choice(candidates)
+            if buddy is not None:
+                current_batch.append(buddy)
+                used.add(buddy)
+
+            # check if batch is full
+            if len(current_batch) >= self.batch_size:
+                batches.append(current_batch[: self.batch_size])
+                # carry over extras to next batch
+                current_batch = current_batch[self.batch_size :]
+
+        # handle remaining samples
+        if current_batch and not self.drop_last:
+            batches.append(current_batch)
+
+        self.rng.shuffle(batches)
+
+        for batch in batches:
+            yield batch
+
+    def __len__(self):
+        if self.drop_last:
+            return len(self.dataset) // self.batch_size
+        return (len(self.dataset) + self.batch_size - 1) // self.batch_size
 
 
 def compute_dimensions_from_config(config: Dict[str, Any]):
@@ -570,14 +652,34 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
             logger.info(f"Inferred signature dimension: {signature_dim}")
 
     dataloader_config = config.get("dataloader", {})
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=config["training"]["batch_size"],
-        shuffle=True,
-        num_workers=dataloader_config.get("num_workers", 0),
-        pin_memory=dataloader_config.get("pin_memory", False),
-        collate_fn=custom_collate_fn,
-    )
+    loss_config = config.get("loss", {})
+    use_contrastive = loss_config.get("type") == "contrastive"
+
+    # behavior aware sampling for contrastive learning
+    if use_contrastive:
+        batch_sampler = BehaviorAwareBatchSampler(
+            train_dataset,
+            batch_size=config["training"]["batch_size"],
+            drop_last=False,
+            seed=dataset_config.get("random_seed", 42),
+        )
+        train_loader = DataLoader(
+            train_dataset,
+            batch_sampler=batch_sampler,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=config["training"]["batch_size"],
+            shuffle=True,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
+
     val_loader = DataLoader(
         val_dataset,
         batch_size=config["training"]["batch_size"],
