@@ -64,11 +64,12 @@ class EncoderDecoderTrainer:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
         # optimizer and scheduler
-        self.optimizer = torch.optim.Adam(
+        self.optimizer = torch.optim.AdamW(
             model.parameters(),
             lr=config["training"]["learning_rate"],
             weight_decay=config["training"]["weight_decay"],
         )
+        self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
         self.scheduler = None
         if config["training"]["lr_scheduler"]["enabled"]:
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -298,6 +299,7 @@ class EncoderDecoderTrainer:
                 all_loss_components[key] += value * batch_size
 
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             total_loss += loss.item() * batch_size
             total_samples += batch_size

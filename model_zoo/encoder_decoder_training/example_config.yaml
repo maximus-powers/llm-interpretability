@@ -28,7 +28,7 @@ dataset:
 tokenization:
   granularity: "neuron"              # "neuron" for per-neuron tokenization, "chunk" for legacy chunking
   chunk_size: 64                     # Only used when granularity="chunk": weight values per token
-  max_tokens: 512                    # Maximum sequence length
+  max_tokens: 512                    # Maximum sequence length ( (max_total_linear_layers × max_neurons_per_layer) / chunk_size if using chunks )
   include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, token_idx)
 
 # ============================================================================
@@ -102,9 +102,10 @@ loss:
 # TRAINING CONFIGURATION
 # ============================================================================
 training:
-  optimizer: "adam"                  # adam (only option currently)
+  optimizer: "adamw"                 # AdamW with decoupled weight decay
   learning_rate: 0.0001              # Learning rate
   weight_decay: 0.0001               # Weight decay (L2 regularization)
+  max_grad_norm: 1.0                 # Maximum gradient norm for clipping (prevents exploding gradients)
   epochs: 200                        # Number of training epochs
   batch_size: 16                     # Training batch size
 
