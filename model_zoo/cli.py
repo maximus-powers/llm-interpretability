@@ -662,6 +662,7 @@ def run_interactive_mode():
                     "Dataset Generation",
                     "MLP Classifier Training",
                     "Encoder-Decoder Training",
+                    "Representation Engineering",
                     "Exit",
                 ],
             ).ask()
@@ -726,6 +727,16 @@ def run_interactive_mode():
                     continue
                 args = argparse.Namespace(config=config_path, resume=None)
                 train_encoder_decoder(args)
+
+            elif action == "Representation Engineering":
+                config_path = questionary.path(
+                    "Config path:",
+                    default="model_zoo/representation_engineering/example_config.yaml",
+                ).ask()
+                if not config_path:
+                    continue
+                args = argparse.Namespace(config=config_path)
+                run_representation_engineering(args)
 
     except KeyboardInterrupt:
         print("\n\nExiting Model Zoo CLI...")

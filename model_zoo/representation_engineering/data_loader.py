@@ -109,7 +109,7 @@ class RepresentationDatasetLoader:
                 "encoder." + k if not k.startswith("encoder.") else k: v
                 for k, v in encoder_state_dict.items()
             },
-            strict=True,
+            strict=False,
         )
         encoder = full_model.encoder
         encoder.eval()
@@ -118,16 +118,32 @@ class RepresentationDatasetLoader:
         if self.decoder_repo_id == self.encoder_repo_id:
             decoder_state_dict = checkpoint.get("decoder_state_dict")
             if not decoder_state_dict:
-                raise ValueError(
-                    f"Encoder checkpoint at {self.encoder_repo_id} missing 'decoder_state_dict'. "
-                    "Cannot load decoder from this checkpoint."
+                logger.info(
+                    f"Decoder not embedded in encoder checkpoint, loading separate decoder.pt from {self.encoder_repo_id}"
                 )
+                try:
+                    decoder_path = hf_hub_download(
+                        repo_id=self.encoder_repo_id, filename="decoder.pt"
+                    )
+                    decoder_checkpoint = torch.load(decoder_path, map_location="cpu")
+                    decoder_state_dict = decoder_checkpoint.get("decoder_state_dict")
+
+                    if not decoder_state_dict:
+                        raise ValueError(
+                            f"Decoder checkpoint at {self.encoder_repo_id}/decoder.pt missing 'decoder_state_dict'."
+                        )
+                except Exception as e:
+                    raise ValueError(
+                        f"Could not load decoder from {self.encoder_repo_id}. "
+                        f"Tried both embedded (encoder.pt) and separate (decoder.pt) formats. Error: {e}"
+                    )
+
             full_model.load_state_dict(
                 {
                     "decoder." + k if not k.startswith("decoder.") else k: v
                     for k, v in decoder_state_dict.items()
                 },
-                strict=True,
+                strict=False,
             )
         else:
             decoder_path = hf_hub_download(
@@ -145,7 +161,7 @@ class RepresentationDatasetLoader:
                     "decoder." + k if not k.startswith("decoder.") else k: v
                     for k, v in decoder_state_dict.items()
                 },
-                strict=True,
+                strict=False,
             )
 
         decoder = full_model.decoder
