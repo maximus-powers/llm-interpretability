@@ -8,19 +8,35 @@ logger = logging.getLogger(__name__)
 
 class WeightTokenizer:
     def __init__(
-        self, chunk_size: int = 64, max_tokens: int = 512, include_metadata: bool = True
+        self,
+        chunk_size: int = 64,
+        max_tokens: int = 512,
+        include_metadata: bool = True,
+        granularity: str = "chunk"
     ):
         self.chunk_size = chunk_size
         self.max_tokens = max_tokens
         self.include_metadata = include_metadata
+        self.granularity = granularity
         self.metadata_features = 5 if include_metadata else 0
-        self.token_dim = chunk_size + self.metadata_features
+
+        # chunk mode token_dim determined here, neuron mode it's set during tokenization
+        if granularity == "chunk":
+            self.token_dim = chunk_size + self.metadata_features
+        else:
+            self.token_dim = None
+
         logger.info(
-            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, "
-            f"include_metadata={include_metadata}, token_dim={self.token_dim}"
+            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, include_metadata={include_metadata}, granularity={granularity}, token_dim={self.token_dim}"
         )
 
-    def tokenize(self, weights_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def tokenize(self, input_data, metadata_dict=None) -> Dict[str, Any]:
+        if self.granularity == "neuron":
+            return self._tokenize_by_neuron(input_data, metadata_dict)
+        else:
+            return self._tokenize_by_chunk(input_data)
+
+    def _tokenize_by_chunk(self, weights_dict: Dict[str, Any]) -> Dict[str, Any]:
         if "weights" in weights_dict:
             state_dict = weights_dict["weights"]
         else:
@@ -115,6 +131,168 @@ class WeightTokenizer:
             "num_real_tokens": num_chunks,
         }
 
+    def _tokenize_by_neuron(self, input_data, metadata_dict=None) -> Dict[str, Any]:
+        if metadata_dict is None:
+            raise ValueError("metadata_dict is required for neuron-level tokenization")
+
+        neurons = self._extract_neurons(input_data, metadata_dict)
+
+        # find token_dim for this batch, token_dim = neuron data size + metadata
+        neuron_data_size = len(neurons[0])
+        batch_token_dim = neuron_data_size + self.metadata_features
+        if self.token_dim is None:
+            self.token_dim = batch_token_dim
+
+        if len(neurons) > self.max_tokens:
+            raise ValueError(f"Number of neurons ({len(neurons)}) exceeds max_tokens ({self.max_tokens}). ")
+
+        # init token array and attention mask
+        tokens = np.zeros((self.max_tokens, batch_token_dim), dtype=np.float32)
+        attention_mask = np.zeros(self.max_tokens, dtype=np.float32)
+
+        # tokens for each neuron
+        for neuron_idx, neuron_data in enumerate(neurons):
+            tokens[neuron_idx, :neuron_data_size] = neuron_data
+
+            # add metadata
+            if self.include_metadata:
+                # find layer idx
+                neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
+                layer_idx =  max(0, len(neurons_per_layer) - 1)
+                cumulative = 0
+                for layer_idx, num_neurons in enumerate(neurons_per_layer):
+                    if neuron_idx < cumulative + num_neurons:
+                        layer_idx = layer_idx
+                    cumulative += num_neurons
+                
+                norm_layer_idx = layer_idx / max(len(metadata_dict.get('neurons_per_layer', [1])) - 1, 1)
+
+                # find position in layer
+                neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
+                neuron_in_layer = 0
+                cumulative = 0
+                for num_neurons in neurons_per_layer:
+                    if neuron_idx < cumulative + num_neurons:
+                        neuron_in_layer = neuron_idx - cumulative
+                    cumulative += num_neurons
+
+                neurons_in_layer = metadata_dict['neurons_per_layer'][layer_idx]
+                norm_position = neuron_in_layer / max(neurons_in_layer - 1, 1)
+                shape_log = np.log1p(neuron_data_size)
+                param_type = 0
+                norm_token_idx = neuron_idx / max(len(neurons) - 1, 1)
+                tokens[neuron_idx, neuron_data_size] = norm_layer_idx
+                tokens[neuron_idx, neuron_data_size + 1] = param_type
+                tokens[neuron_idx, neuron_data_size + 2] = norm_position
+                tokens[neuron_idx, neuron_data_size + 3] = shape_log
+                tokens[neuron_idx, neuron_data_size + 4] = norm_token_idx
+
+            attention_mask[neuron_idx] = 1.0
+
+        return {
+            "tokens": torch.from_numpy(tokens),
+            "attention_mask": torch.from_numpy(attention_mask),
+            "num_real_tokens": len(neurons),
+        }
+
+    def _extract_neurons(self, input_data, metadata_dict) -> List[np.ndarray]:
+        if isinstance(input_data, list) and len(input_data) > 0 and isinstance(input_data[0], np.ndarray): # input is already a list of neuron arrays (from "both" mode preprocessing)
+            return input_data        
+        
+        if isinstance(input_data, np.ndarray): # input is flat array (signature mode)
+            neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
+            features_per_neuron = metadata_dict.get('features_per_neuron')
+            neurons = []
+            idx = 0
+            for layer_neurons in neurons_per_layer:
+                for _ in range(layer_neurons):
+                    if idx + features_per_neuron <= len(input_data):
+                        neuron_features = input_data[idx:idx + features_per_neuron]
+                        neurons.append(neuron_features)
+                        idx += features_per_neuron
+                    else:
+                        # pad if we run out of data
+                        remaining = len(input_data) - idx
+                        if remaining > 0:
+                            neuron_features = np.pad(
+                                input_data[idx:],
+                                (0, features_per_neuron - remaining),
+                                mode='constant'
+                            )
+                            neurons.append(neuron_features)
+                        else:
+                            # no data left zero padding
+                            neurons.append(np.zeros(features_per_neuron, dtype=np.float32))
+                        idx = len(input_data)
+            return neurons
+        
+        if isinstance(input_data, dict): # input is weights dict (weights mode)
+            if "weights" in input_data:
+                state_dict = input_data["weights"]
+            else:
+                state_dict = input_data
+            neurons = []
+            sorted_keys = sorted(state_dict.keys())
+
+            # group weights and biases by layer
+            layer_groups = {}
+            for key in sorted_keys:
+                parts = key.split('.')
+                if len(parts) >= 2:
+                    layer_name = '.'.join(parts[:-1])
+                    param_type = parts[-1]
+                else:
+                    layer_name = key
+                    param_type = "weight"
+
+                if layer_name not in layer_groups:
+                    layer_groups[layer_name] = {}
+                tensor = state_dict[key]
+                if isinstance(tensor, (list, np.ndarray)):
+                    tensor = np.array(tensor, dtype=np.float32)
+                elif isinstance(tensor, torch.Tensor):
+                    tensor = tensor.cpu().numpy().astype(np.float32)
+                layer_groups[layer_name][param_type] = tensor
+
+            # extract neurons
+            max_neuron_size = 0
+            for layer_name in sorted(layer_groups.keys()):
+                layer_params = layer_groups[layer_name]
+                weight = layer_params.get('weight', layer_params.get('weights', None))
+                bias = layer_params.get('bias', None)
+                if weight is None:
+                    continue
+                weight = np.atleast_2d(weight)
+                if bias is not None:
+                    bias = np.atleast_1d(bias)
+                num_neurons_in_layer = weight.shape[0]
+                for neuron_idx in range(num_neurons_in_layer):
+                    # incoming weights
+                    neuron_weights = weight[neuron_idx].flatten()
+                    # add bias
+                    if bias is not None and neuron_idx < len(bias):
+                        neuron_data = np.concatenate([neuron_weights, [bias[neuron_idx]]])
+                    else:
+                        neuron_data = neuron_weights
+                    neurons.append(neuron_data)
+                    max_neuron_size = max(max_neuron_size, len(neuron_data))
+
+            # pad all neurons to the same size
+            padded_neurons = []
+            for neuron_data in neurons:
+                if len(neuron_data) < max_neuron_size:
+                    padded = np.pad(
+                        neuron_data,
+                        (0, max_neuron_size - len(neuron_data)),
+                        mode='constant'
+                    )
+                    padded_neurons.append(padded)
+                else:
+                    padded_neurons.append(neuron_data)
+
+            return padded_neurons
+        raise ValueError(f"Unsupported input_data type: {type(input_data)}")
+        
     def detokenize(
         self,
         tokens: torch.Tensor,
@@ -173,6 +351,7 @@ class WeightTokenizer:
             "include_metadata": self.include_metadata,
             "metadata_features": self.metadata_features,
             "token_dim": self.token_dim,
+            "granularity": self.granularity,
         }
 
     @classmethod
@@ -181,4 +360,5 @@ class WeightTokenizer:
             chunk_size=config["chunk_size"],
             max_tokens=config["max_tokens"],
             include_metadata=config.get("include_metadata", True),
+            granularity=config.get("granularity", "chunk"),
         )

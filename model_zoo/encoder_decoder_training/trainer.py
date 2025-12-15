@@ -47,6 +47,7 @@ class EncoderDecoderTrainer:
         self.test_loader = test_loader
         self.device = device
         self.tokenizer = tokenizer
+        self.input_mode = config["dataset"]["input_mode"]
         batch_size = config["training"]["batch_size"]
 
         # loss
@@ -184,6 +185,70 @@ class EncoderDecoderTrainer:
             self.tensorboard_process.kill()
             self.tensorboard_process = None
 
+    def _calculate_loss(self, encoder_input, encoder_mask, decoder_target, decoder_mask):
+        target_token_dim = decoder_target.size(2)
+
+        if self.is_contrastive_loss:
+            # augment encoder input
+            enc_i, mask_i = augment_tokenized_weights(
+                encoder_input,
+                encoder_mask,
+                augmentation_type=self.augmentation_type,
+                noise_std=self.noise_std,
+                dropout_prob=self.dropout_prob,
+            )
+            enc_j, mask_j = augment_tokenized_weights(
+                encoder_input,
+                encoder_mask,
+                augmentation_type=self.augmentation_type,
+                noise_std=self.noise_std,
+                dropout_prob=self.dropout_prob,
+            )
+
+            # encode and decode both augmented views
+            z_i = self.model.encode(enc_i, mask_i)
+            z_j = self.model.encode(enc_j, mask_j)
+            y_i = self.model.decode(z_i, decoder_target.size(1))
+            y_j = self.model.decode(z_j, decoder_target.size(1))
+
+            # slice decoder output to match target token dims (needed for padding, this might cause problems at inference time) 
+            y_i = y_i[:, :, :target_token_dim]
+            y_j = y_j[:, :, :target_token_dim]
+
+            # concatenate for contrastive loss
+            y = torch.cat([y_i, y_j], dim=0)
+            t = torch.cat([decoder_target, decoder_target], dim=0)
+            mask_combined = torch.cat([decoder_mask, decoder_mask], dim=0)
+
+            loss, loss_contrast, loss_recon = self.criterion(z_i, z_j, y, t, mask_combined)
+
+            loss_components = {
+                "loss_contrast": loss_contrast.item(),
+                "loss_recon": loss_recon.item(),
+            }
+            reconstructed = y_i  # return first view for metrics
+
+        elif self.is_combined_loss:
+            # standard reconstruction with combined loss
+            latent = self.model.encode(encoder_input, encoder_mask)
+            reconstructed = self.model.decode(latent, decoder_target.size(1))
+            reconstructed = reconstructed[:, :, :target_token_dim]
+
+            loss, loss_components = self.criterion.compute(
+                reconstructed, decoder_target, decoder_mask
+            )
+
+        else:
+            # standard reconstruction with simple loss
+            latent = self.model.encode(encoder_input, encoder_mask)
+            reconstructed = self.model.decode(latent, decoder_target.size(1))
+            reconstructed = reconstructed[:, :, :target_token_dim]
+
+            loss = self.criterion.compute(reconstructed, decoder_target, decoder_mask)
+            loss_components = {}
+
+        return loss, reconstructed, loss_components
+
     def train(self):
         logger.info("Starting training")
 
@@ -229,61 +294,23 @@ class EncoderDecoderTrainer:
         all_loss_components = {}
 
         progress_bar = tqdm(self.train_loader, desc=f"Train Epoch {epoch + 1}")
-
         for batch_idx, batch in enumerate(progress_bar):
-            tokens = batch["tokenized_weights"].to(self.device)
-            mask = batch["attention_mask"].to(self.device)
-            batch_size = tokens.size(0)
+            encoder_input = batch["encoder_input"].to(self.device)
+            encoder_mask = batch["encoder_mask"].to(self.device)
+            decoder_target = batch["decoder_target"].to(self.device)
+            decoder_mask = batch["decoder_mask"].to(self.device)
+            batch_size = encoder_input.size(0)
             self.optimizer.zero_grad()
 
-            if self.is_contrastive_loss:
-                tokens_i, mask_i = augment_tokenized_weights(
-                    tokens,
-                    mask,
-                    augmentation_type=self.augmentation_type,
-                    noise_std=self.noise_std,
-                    dropout_prob=self.dropout_prob,
-                )
-                tokens_j, mask_j = augment_tokenized_weights(
-                    tokens,
-                    mask,
-                    augmentation_type=self.augmentation_type,
-                    noise_std=self.noise_std,
-                    dropout_prob=self.dropout_prob,
-                )
-                z_i = self.model.encode(tokens_i, mask_i)
-                z_j = self.model.encode(tokens_j, mask_j)
-                y_i = self.model.decode(z_i, tokens.size(1))
-                y_j = self.model.decode(z_j, tokens.size(1))
-                y = torch.cat([y_i, y_j], dim=0)
-                t = torch.cat([tokens_i, tokens_j], dim=0)
-                mask_combined = torch.cat([mask_i, mask_j], dim=0)
-                loss, loss_contrast, loss_recon = self.criterion(
-                    z_i, z_j, y, t, mask_combined
-                )
-                loss_components = {
-                    "loss_contrast": loss_contrast.item(),
-                    "loss_recon": loss_recon.item(),
-                }
-                for key, value in loss_components.items():
-                    if key not in all_loss_components:
-                        all_loss_components[key] = 0
-                    all_loss_components[key] += value * batch_size
+            loss, _, loss_components = self._calculate_loss(
+                encoder_input, encoder_mask, decoder_target, decoder_mask
+            )
 
-            elif self.is_combined_loss:
-                reconstructed = self.model(tokens, mask)
-                loss, loss_components = self.criterion.compute(
-                    reconstructed, tokens, mask
-                )
-                for key, value in loss_components.items():
-                    if key not in all_loss_components:
-                        all_loss_components[key] = 0
-                    all_loss_components[key] += value * batch_size
-
-            else:
-                reconstructed = self.model(tokens, mask)
-                loss = self.criterion.compute(reconstructed, tokens, mask)
-                loss_components = {}
+            # accumulate loss components
+            for key, value in loss_components.items():
+                if key not in all_loss_components:
+                    all_loss_components[key] = 0
+                all_loss_components[key] += value * batch_size
 
             loss.backward()
             self.optimizer.step()
@@ -323,57 +350,41 @@ class EncoderDecoderTrainer:
 
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc=f"Val Epoch {epoch + 1}"):
-                tokens = batch["tokenized_weights"].to(self.device)
-                mask = batch["attention_mask"].to(self.device)
-                batch_size = tokens.size(0)
+                encoder_input = batch["encoder_input"].to(self.device)
+                encoder_mask = batch["encoder_mask"].to(self.device)
+                decoder_target = batch["decoder_target"].to(self.device)
+                decoder_mask = batch["decoder_mask"].to(self.device)
+                batch_size = encoder_input.size(0)
 
-                if self.is_contrastive_loss:
-                    tokens_i, mask_i = augment_tokenized_weights(
-                        tokens,
-                        mask,
-                        augmentation_type=self.augmentation_type,
-                        noise_std=self.noise_std,
-                        dropout_prob=self.dropout_prob,
-                    )
-                    tokens_j, mask_j = augment_tokenized_weights(
-                        tokens,
-                        mask,
-                        augmentation_type=self.augmentation_type,
-                        noise_std=self.noise_std,
-                        dropout_prob=self.dropout_prob,
-                    )
-                    z_i = self.model.encode(tokens_i, mask_i)
-                    z_j = self.model.encode(tokens_j, mask_j)
-                    y_i = self.model.decode(z_i, tokens.size(1))
-                    y_j = self.model.decode(z_j, tokens.size(1))
-                    y = torch.cat([y_i, y_j], dim=0)
-                    t = torch.cat([tokens_i, tokens_j], dim=0)
-                    mask_combined = torch.cat([mask_i, mask_j], dim=0)
-                    loss, _, _ = self.criterion(z_i, z_j, y, t, mask_combined)
-                    reconstructed = y_i
-                    all_reconstructed.append(reconstructed.cpu())
-                    all_targets.append(tokens.cpu())
-                    all_masks.append(mask.cpu())
+                # calculate loss using helper method
+                loss, reconstructed, _ = self._calculate_loss(
+                    encoder_input, encoder_mask, decoder_target, decoder_mask
+                )
 
-                elif self.is_combined_loss:
-                    reconstructed = self.model(tokens, mask)
-                    loss, _ = self.criterion.compute(reconstructed, tokens, mask)
-                    all_reconstructed.append(reconstructed.cpu())
-                    all_targets.append(tokens.cpu())
-                    all_masks.append(mask.cpu())
-
-                else:
-                    reconstructed = self.model(tokens, mask)
-                    loss = self.criterion.compute(reconstructed, tokens, mask)
-                    all_reconstructed.append(reconstructed.cpu())
-                    all_targets.append(tokens.cpu())
-                    all_masks.append(mask.cpu())
+                # store batch-wise (will aggregate later)
+                for i in range(reconstructed.size(0)):
+                    all_reconstructed.append(reconstructed[i:i+1].cpu())
+                    all_targets.append(decoder_target[i:i+1].cpu())
+                    all_masks.append(decoder_mask[i:i+1].cpu())
 
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
 
-        all_reconstructed = torch.cat(all_reconstructed, dim=0)
-        all_targets = torch.cat(all_targets, dim=0)
+        # pad all tensors to consistent dimension before concatenating
+        max_token_dim = max(t.size(2) for t in all_reconstructed)
+
+        padded_reconstructed = []
+        padded_targets = []
+        for recon, target in zip(all_reconstructed, all_targets):
+            if recon.size(2) < max_token_dim:
+                pad_size = max_token_dim - recon.size(2)
+                recon = torch.nn.functional.pad(recon, (0, pad_size))
+                target = torch.nn.functional.pad(target, (0, pad_size))
+            padded_reconstructed.append(recon)
+            padded_targets.append(target)
+
+        all_reconstructed = torch.cat(padded_reconstructed, dim=0)
+        all_targets = torch.cat(padded_targets, dim=0)
         all_masks = torch.cat(all_masks, dim=0)
 
         metrics = compute_reconstruction_metrics(
@@ -393,53 +404,41 @@ class EncoderDecoderTrainer:
 
         with torch.no_grad():
             for batch in tqdm(self.test_loader, desc="Test Set Evaluation"):
-                tokens = batch["tokenized_weights"].to(self.device)
-                mask = batch["attention_mask"].to(self.device)
-                batch_size = tokens.size(0)
+                encoder_input = batch["encoder_input"].to(self.device)
+                encoder_mask = batch["encoder_mask"].to(self.device)
+                decoder_target = batch["decoder_target"].to(self.device)
+                decoder_mask = batch["decoder_mask"].to(self.device)
+                batch_size = encoder_input.size(0)
 
-                if self.is_contrastive_loss:
-                    tokens_i, mask_i = augment_tokenized_weights(
-                        tokens,
-                        mask,
-                        augmentation_type=self.augmentation_type,
-                        noise_std=self.noise_std,
-                        dropout_prob=self.dropout_prob,
-                    )
-                    tokens_j, mask_j = augment_tokenized_weights(
-                        tokens,
-                        mask,
-                        augmentation_type=self.augmentation_type,
-                        noise_std=self.noise_std,
-                        dropout_prob=self.dropout_prob,
-                    )
-                    z_i = self.model.encode(tokens_i, mask_i)
-                    z_j = self.model.encode(tokens_j, mask_j)
-                    y_i = self.model.decode(z_i, tokens.size(1))
-                    y_j = self.model.decode(z_j, tokens.size(1))
-                    y = torch.cat([y_i, y_j], dim=0)
-                    t = torch.cat([tokens_i, tokens_j], dim=0)
-                    mask_combined = torch.cat([mask_i, mask_j], dim=0)
-                    loss, _, _ = self.criterion(z_i, z_j, y, t, mask_combined)
-                    reconstructed = y_i
-                    all_reconstructed.append(reconstructed.cpu())
-                    all_targets.append(tokens.cpu())
-                    all_masks.append(mask.cpu())
+                # calculate loss using helper method
+                loss, reconstructed, _ = self._calculate_loss(
+                    encoder_input, encoder_mask, decoder_target, decoder_mask
+                )
 
-                else:
-                    reconstructed = self.model(tokens, mask)
-                    if self.is_combined_loss:
-                        loss, _ = self.criterion.compute(reconstructed, tokens, mask)
-                    else:
-                        loss = self.criterion.compute(reconstructed, tokens, mask)
-                    all_reconstructed.append(reconstructed.cpu())
-                    all_targets.append(tokens.cpu())
-                    all_masks.append(mask.cpu())
+                # store batch-wise (will aggregate later)
+                for i in range(reconstructed.size(0)):
+                    all_reconstructed.append(reconstructed[i:i+1].cpu())
+                    all_targets.append(decoder_target[i:i+1].cpu())
+                    all_masks.append(decoder_mask[i:i+1].cpu())
 
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
 
-        all_reconstructed = torch.cat(all_reconstructed, dim=0)
-        all_targets = torch.cat(all_targets, dim=0)
+        # pad all tensors to consistent dimension before concatenating
+        max_token_dim = max(t.size(2) for t in all_reconstructed)
+
+        padded_reconstructed = []
+        padded_targets = []
+        for recon, target in zip(all_reconstructed, all_targets):
+            if recon.size(2) < max_token_dim:
+                pad_size = max_token_dim - recon.size(2)
+                recon = torch.nn.functional.pad(recon, (0, pad_size))
+                target = torch.nn.functional.pad(target, (0, pad_size))
+            padded_reconstructed.append(recon)
+            padded_targets.append(target)
+
+        all_reconstructed = torch.cat(padded_reconstructed, dim=0)
+        all_targets = torch.cat(padded_targets, dim=0)
         all_masks = torch.cat(all_masks, dim=0)
 
         metrics = compute_reconstruction_metrics(

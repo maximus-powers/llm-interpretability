@@ -12,10 +12,62 @@ class WeightSpaceEncoderDecoder(nn.Module):
         super().__init__()
         self.config = config
         self.latent_dim = config["architecture"]["latent_dim"]
-        self.token_dim = config["tokenization"]["chunk_size"]
-        if config["tokenization"].get("include_metadata", True):
-            self.token_dim += 5
-        self.max_tokens = config["tokenization"]["max_tokens"]
+        self.input_mode = config["dataset"]["input_mode"]
+        tokenization_config = config["tokenization"]
+        granularity = tokenization_config.get("granularity", "chunk")
+
+        # determine token_dim
+        if granularity == "neuron":
+            if self.input_mode == "signature":
+                neuron_profile = config["dataset"].get("neuron_profile", {})
+                method_names = neuron_profile.get("methods", [])
+                features_per_neuron = len(method_names)
+
+                if tokenization_config.get("include_metadata", True):
+                    self.token_dim = features_per_neuron + 5  # signature + metadata (encoder input)
+                else:
+                    self.token_dim = features_per_neuron
+
+                # decoder outputs weights, not signatures (token_dim: max_neurons + bias + metadata)
+                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
+                self.decoder_token_dim = max_weights_per_neuron + 5  # weights + metadata
+
+            elif self.input_mode == "weights":
+                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
+                self.token_dim = max_weights_per_neuron + 5 # 5 for metadata
+                self.decoder_token_dim = self.token_dim
+
+            elif self.input_mode == "both":
+                # weights + signature + metadata
+                neuron_profile = config["dataset"].get("neuron_profile", {})
+                method_names = neuron_profile.get("methods", [])
+                features_per_neuron = len(method_names) if method_names else 5
+                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_weights_per_neuron = max_neurons + 1
+                self.token_dim = max_weights_per_neuron + features_per_neuron + 5
+                self.decoder_token_dim = max_weights_per_neuron + 5
+                raise ValueError(f"Unknown input_mode: {self.input_mode}")
+
+            self.max_tokens = tokenization_config["max_tokens"]
+
+        else:
+            # chunk-level tokenization
+            if self.input_mode == "signature" or self.input_mode == "both":
+                # placeholders, gets updated by trainer
+                self.token_dim = 1
+                self.max_tokens = 1
+                self.decoder_token_dim = 1
+            elif self.input_mode == "weights":
+                # tokenization dimensions
+                self.token_dim = tokenization_config["chunk_size"]
+                if tokenization_config.get("include_metadata", True):
+                    self.token_dim += 5
+                self.max_tokens = tokenization_config["max_tokens"]
+                self.decoder_token_dim = self.token_dim
+            else:
+                raise ValueError(f"Unknown input_mode: {self.input_mode}")
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError
@@ -73,7 +125,7 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
         )
 
         # build decoder
-        decoder_output_dim = self.max_tokens * self.token_dim
+        decoder_output_dim = self.max_tokens * self.decoder_token_dim
         self.decoder = self._build_mlp(
             input_dim=self.latent_dim,
             hidden_dims=decoder_cfg["hidden_dims"],
@@ -161,7 +213,7 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
     def decode(self, latent: torch.Tensor, num_tokens: int) -> torch.Tensor:
         batch_size = latent.size(0)
         flat_output = self.decoder(latent)
-        reconstructed = flat_output.view(batch_size, self.max_tokens, self.token_dim)
+        reconstructed = flat_output.view(batch_size, self.max_tokens, self.decoder_token_dim)
         return reconstructed
 
 
@@ -304,7 +356,7 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
             encoder_cfg=encoder_cfg,
         )
         self.decoder = TransformerDecoder(
-            token_dim=self.token_dim,
+            token_dim=self.decoder_token_dim,
             latent_dim=self.latent_dim,
             max_tokens=self.max_tokens,
             decoder_cfg=decoder_cfg,
