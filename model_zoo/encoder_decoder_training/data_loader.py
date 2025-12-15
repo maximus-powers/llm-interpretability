@@ -123,33 +123,6 @@ def preprocess_signature(
     return flat_signature, flat_mask
 
 
-def augment_tokenized_weights(
-    tokens: torch.Tensor,
-    mask: torch.Tensor,
-    augmentation_type: str = "noise",
-    noise_std: float = 0.01,
-    dropout_prob: float = 0.1,
-):
-    if augmentation_type == "none":
-        return tokens.clone(), mask.clone()
-    elif augmentation_type == "noise":
-        noise = torch.randn_like(tokens) * noise_std
-        augmented_tokens = tokens + noise
-        return augmented_tokens, mask.clone()
-    elif augmentation_type == "dropout":
-        augmented_tokens = tokens.clone()
-        augmented_mask = mask.clone()
-        dropout_mask = (
-            torch.rand(tokens.size(0), tokens.size(1), device=tokens.device)
-            > dropout_prob
-        )
-        augmented_tokens = augmented_tokens * dropout_mask.unsqueeze(-1).float()
-        augmented_mask = augmented_mask * dropout_mask.float()
-        return augmented_tokens, augmented_mask
-    else:
-        raise ValueError(f"Unknown augmentation type: {augmentation_type}.")
-
-
 class WeightSpaceDataset(Dataset):
     def __init__(
         self,
@@ -190,9 +163,14 @@ class WeightSpaceDataset(Dataset):
     def __getitem__(self, idx):
         example = self.hf_dataset[idx]
         metadata_dict = None
+        behavior_labels = []
+
+        # parse metadata (always needed for behavior labels)
+        metadata_json = json.loads(example["metadata"])
+        behavior_labels = metadata_json.get("selected_patterns", [])
+
         if self.tokenizer.granularity == "neuron":
             # extract architecture info
-            metadata_json = json.loads(example["metadata"])
             architecture = metadata_json.get("architecture", {})
             neurons_per_layer = architecture.get("neurons_per_layer", [])
             # or infer from weights
@@ -361,6 +339,7 @@ class WeightSpaceDataset(Dataset):
             "decoder_target": weights_tokenized["tokens"],
             "decoder_mask": weights_tokenized["attention_mask"],
             "num_real_tokens": weights_tokenized["num_real_tokens"],
+            "behavior_labels": behavior_labels,
         }
 
         # original_shapes if available (for detokenization)
@@ -507,6 +486,9 @@ def custom_collate_fn(batch):
     if "original_shapes" in batch[0]:
         original_shapes_list = [item.pop("original_shapes") for item in batch]
 
+    # extract behavior_labels before collation (can't tensorize string lists)
+    behavior_labels_list = [item.pop("behavior_labels") for item in batch]
+
     # max token_dim for encoder_input within batch
     max_encoder_dim = max(item["encoder_input"].shape[1] for item in batch)
 
@@ -530,6 +512,9 @@ def custom_collate_fn(batch):
             item["decoder_target"] = torch.cat([decoder_target, padding], dim=1)
 
     collated_batch = default_collate(batch)
+
+    # add back non-tensorizable fields
+    collated_batch["behavior_labels"] = behavior_labels_list
 
     if original_shapes_list is not None:
         collated_batch["original_shapes"] = original_shapes_list

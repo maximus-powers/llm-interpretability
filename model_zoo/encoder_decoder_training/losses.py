@@ -10,8 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class ReconstructionLoss:
-    """Unified reconstruction loss supporting MSE, MAE, and Cosine variants"""
-
     def __init__(self, config: Dict[str, Any], loss_type: str = "mse"):
         self.config = config
         self.loss_type = loss_type
@@ -70,33 +68,16 @@ class CombinedReconstructionLoss:
         return total_loss, loss_components
 
 
-class NT_Xent_Loss(nn.Module):
-    """Unified NT-Xent loss supporting full SimCLR and positive-only variants"""
-
+class SupervisedContrastiveLoss(nn.Module):
     def __init__(
         self,
-        batch_size: int,
         temperature: float,
         device: str,
         projection_head_config: Optional[Dict[str, Any]] = None,
-        variant: str = "simclr",
     ):
         super().__init__()
-        self.batch_size = batch_size
         self.temperature = temperature
         self.device = device
-        self.variant = variant
-
-        if variant not in ["simclr", "positive"]:
-            raise ValueError(
-                f"Unknown NT-Xent variant: {variant}. Must be 'simclr' or 'positive'"
-            )
-        if variant == "simclr":
-            self.mask = self._mask_correlated_samples(batch_size)
-            self.criterion = nn.CrossEntropyLoss(reduction="sum")
-        else:
-            self.criterion = nn.MSELoss(reduction="mean")
-
         self.similarity_f = nn.CosineSimilarity(dim=2)
 
         if projection_head_config is not None:
@@ -108,41 +89,59 @@ class NT_Xent_Loss(nn.Module):
         else:
             self.projection_head = None
 
-    def _mask_correlated_samples(self, batch_size: int) -> torch.Tensor:
-        N = 2 * batch_size
-        mask = torch.ones((N, N), dtype=bool)
-        mask = mask.fill_diagonal_(0)
+    def _create_behavior_positive_mask(self, behavior_labels):
+        batch_size = len(behavior_labels)
+        positive_mask = torch.zeros((batch_size, batch_size), dtype=bool)
+
         for i in range(batch_size):
-            mask[i, batch_size + i] = 0
-            mask[batch_size + i, i] = 0
-        return mask
+            for j in range(batch_size):
+                if i != j:
+                    # positive if any pattern overlap
+                    if set(behavior_labels[i]) & set(behavior_labels[j]):
+                        positive_mask[i, j] = True
 
-    def forward(self, z_i: torch.Tensor, z_j: torch.Tensor) -> torch.Tensor:
+        return positive_mask
+
+    def forward(self, latents: torch.Tensor, behavior_labels) -> torch.Tensor:
+        if behavior_labels is None:
+            raise ValueError("behavior_labels required for supervised contrastive loss")
+
         if self.projection_head is not None:
-            z_i = self.projection_head(z_i)
-            z_j = self.projection_head(z_j)
+            latents = self.projection_head(latents)
 
-        N = 2 * self.batch_size
-        z = torch.cat((z_i, z_j), dim=0)
-        sim = self.similarity_f(z.unsqueeze(1), z.unsqueeze(0)) / self.temperature
+        batch_size = latents.size(0)
+        sim = self.similarity_f(latents.unsqueeze(1), latents.unsqueeze(0)) / self.temperature
 
-        sim_i_j = torch.diag(sim, self.batch_size)
-        sim_j_i = torch.diag(sim, -self.batch_size)
+        # create positive mask from behavior labels
+        positive_mask = self._create_behavior_positive_mask(behavior_labels).to(latents.device)
 
-        if self.variant == "simclr":
-            positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).reshape(N, 1)
-            negative_samples = sim[self.mask.to(sim.device)].reshape(N, -1)
+        # supervised contrastive loss
+        # for each anchor, compute loss over its positive pairs
+        loss = 0.0
+        num_valid_anchors = 0
 
-            labels = torch.zeros(N, device=positive_samples.device).long()
-            logits = torch.cat((positive_samples, negative_samples), dim=1)
+        for i in range(batch_size):
+            positives_i = positive_mask[i]
+            num_positives = positives_i.sum().item()
 
-            loss = self.criterion(logits, labels)
-            loss /= N
-        else:  # positive-only variant
-            positive_samples = torch.cat((sim_i_j, sim_j_i), dim=0).unsqueeze(1)
-            labels = torch.zeros_like(positive_samples)
-            loss = self.criterion(positive_samples, labels)
-            loss /= N
+            if num_positives == 0:
+                continue  # skip samples with no positive pairs
+
+            # numerator: exp(sim) for positive pairs
+            pos_sim = sim[i][positives_i]
+
+            # denominator: sum of exp(sim) for all pairs except self
+            all_except_self = torch.ones(batch_size, dtype=bool, device=latents.device)
+            all_except_self[i] = False
+            denom = sim[i][all_except_self].exp().sum()
+
+            # loss for this anchor: -log(exp(pos) / denom) for each positive
+            loss_i = -torch.log(pos_sim.exp() / denom.clamp(min=1e-8)).mean()
+            loss += loss_i
+            num_valid_anchors += 1
+
+        if num_valid_anchors > 0:
+            loss /= num_valid_anchors
 
         return loss
 
@@ -150,14 +149,13 @@ class NT_Xent_Loss(nn.Module):
 class GammaContrastReconLoss(nn.Module):
     """Combined contrastive + reconstruction loss: L = gamma * L_contrastive + (1 - gamma) * L_reconstruction"""
 
-    def __init__(self, config: Dict[str, Any], batch_size: int, device: str):
+    def __init__(self, config: Dict[str, Any], device: str):
         super().__init__()
         loss_cfg = config["loss"]
         self.gamma = loss_cfg.get("gamma", 0.5)
         assert 0 <= self.gamma <= 1, f"gamma must be in [0, 1], got {self.gamma}"
         self.device = device
 
-        contrast_type = loss_cfg.get("contrast_type", "simclr")
         temperature = loss_cfg.get("temperature", 0.1)
 
         projection_head_config = None
@@ -169,17 +167,12 @@ class GammaContrastReconLoss(nn.Module):
                 "output_dim": proj_cfg["output_dim"],
             }
 
-        if contrast_type in ["simclr", "positive"]:
-            logger.info(f"Using {contrast_type} NT-Xent contrastive loss")
-            self.loss_contrast = NT_Xent_Loss(
-                batch_size=batch_size,
-                temperature=temperature,
-                device=device,
-                projection_head_config=projection_head_config,
-                variant=contrast_type,
-            )
-        else:
-            raise ValueError(f"Unknown contrast type: {contrast_type}")
+        logger.info("Using supervised contrastive loss")
+        self.loss_contrast = SupervisedContrastiveLoss(
+            temperature=temperature,
+            device=device,
+            projection_head_config=projection_head_config,
+        )
 
         recon_type = loss_cfg.get("reconstruction_type", "mse")
         if recon_type in ["mse", "mae", "cosine"]:
@@ -187,28 +180,26 @@ class GammaContrastReconLoss(nn.Module):
         else:
             raise ValueError(f"Unknown reconstruction type: {recon_type}")
 
-        logger.info(
-            f"GammaContrastReconLoss: gamma={self.gamma}, contrast={contrast_type}, recon={recon_type}"
-        )
+        logger.info(f"GammaContrastReconLoss: gamma={self.gamma}, recon={recon_type}")
 
     def forward(
         self,
-        z_i: torch.Tensor,
-        z_j: torch.Tensor,
-        y: torch.Tensor,
-        t: torch.Tensor,
+        latents: torch.Tensor,
+        reconstructed: torch.Tensor,
+        target: torch.Tensor,
         mask: torch.Tensor,
+        behavior_labels,
     ):
         if self.gamma < 1e-10:
-            loss_recon = self.loss_recon.compute(y, t, mask)
+            loss_recon = self.loss_recon.compute(reconstructed, target, mask)
             return loss_recon, torch.tensor(0.0, device=self.device), loss_recon
 
         elif abs(1.0 - self.gamma) < 1e-10:
-            loss_contrast = self.loss_contrast(z_i, z_j)
+            loss_contrast = self.loss_contrast(latents, behavior_labels)
             return loss_contrast, loss_contrast, torch.tensor(0.0, device=self.device)
 
         else:
-            loss_contrast = self.loss_contrast(z_i, z_j)
-            loss_recon = self.loss_recon.compute(y, t, mask)
+            loss_contrast = self.loss_contrast(latents, behavior_labels)
+            loss_recon = self.loss_recon.compute(reconstructed, target, mask)
             total_loss = self.gamma * loss_contrast + (1 - self.gamma) * loss_recon
             return total_loss, loss_contrast, loss_recon

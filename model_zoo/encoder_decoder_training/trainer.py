@@ -19,7 +19,6 @@ from .evaluator import (
     format_metrics_for_logging,
 )
 from .tokenizer import WeightTokenizer
-from .data_loader import augment_tokenized_weights
 from .losses import (
     ReconstructionLoss,
     CombinedReconstructionLoss,
@@ -48,7 +47,6 @@ class EncoderDecoderTrainer:
         self.device = device
         self.tokenizer = tokenizer
         self.input_mode = config["dataset"]["input_mode"]
-        batch_size = config["training"]["batch_size"]
 
         # loss
         loss_type = config["loss"]["type"]
@@ -60,22 +58,10 @@ class EncoderDecoderTrainer:
             self.criterion = CombinedReconstructionLoss(config)
             self.is_combined_loss = True
         elif loss_type == "contrastive":
-            if batch_size is None or device is None:
-                raise ValueError(
-                    "batch_size and device are required for contrastive loss"
-                )
-            self.criterion = GammaContrastReconLoss(config, batch_size, device)
+            self.criterion = GammaContrastReconLoss(config, device)
             self.is_contrastive_loss = True
         else:
             raise ValueError(f"Unknown loss type: {loss_type}")
-        if self.is_contrastive_loss:
-            loss_cfg = config["loss"]
-            self.augmentation_type = loss_cfg.get("augmentation_type", "noise")
-            self.noise_std = loss_cfg.get("noise_std", 0.01)
-            self.dropout_prob = loss_cfg.get("dropout_prob", 0.1)
-            logger.info(
-                f"Contrastive loss enabled with augmentation: {self.augmentation_type}"
-            )
 
         # optimizer and scheduler
         self.optimizer = torch.optim.Adam(
@@ -186,51 +172,24 @@ class EncoderDecoderTrainer:
             self.tensorboard_process = None
 
     def _calculate_loss(
-        self, encoder_input, encoder_mask, decoder_target, decoder_mask
+        self, encoder_input, encoder_mask, decoder_target, decoder_mask, behavior_labels=None
     ):
         target_token_dim = decoder_target.size(2)
 
         if self.is_contrastive_loss:
-            # augment encoder input
-            enc_i, mask_i = augment_tokenized_weights(
-                encoder_input,
-                encoder_mask,
-                augmentation_type=self.augmentation_type,
-                noise_std=self.noise_std,
-                dropout_prob=self.dropout_prob,
-            )
-            enc_j, mask_j = augment_tokenized_weights(
-                encoder_input,
-                encoder_mask,
-                augmentation_type=self.augmentation_type,
-                noise_std=self.noise_std,
-                dropout_prob=self.dropout_prob,
-            )
-
-            # encode and decode both augmented views
-            z_i = self.model.encode(enc_i, mask_i)
-            z_j = self.model.encode(enc_j, mask_j)
-            y_i = self.model.decode(z_i, decoder_target.size(1))
-            y_j = self.model.decode(z_j, decoder_target.size(1))
-
-            # slice decoder output to match target token dims (needed for padding, this might cause problems at inference time)
-            y_i = y_i[:, :, :target_token_dim]
-            y_j = y_j[:, :, :target_token_dim]
-
-            # concatenate for contrastive loss
-            y = torch.cat([y_i, y_j], dim=0)
-            t = torch.cat([decoder_target, decoder_target], dim=0)
-            mask_combined = torch.cat([decoder_mask, decoder_mask], dim=0)
+            # supervised contrastive: single encoding, use behavior labels
+            latent = self.model.encode(encoder_input, encoder_mask)
+            reconstructed = self.model.decode(latent, decoder_target.size(1))
+            reconstructed = reconstructed[:, :, :target_token_dim]
 
             loss, loss_contrast, loss_recon = self.criterion(
-                z_i, z_j, y, t, mask_combined
+                latent, reconstructed, decoder_target, decoder_mask, behavior_labels
             )
 
             loss_components = {
                 "loss_contrast": loss_contrast.item(),
                 "loss_recon": loss_recon.item(),
             }
-            reconstructed = y_i  # return first view for metrics
 
         elif self.is_combined_loss:
             # standard reconstruction with combined loss
@@ -303,11 +262,13 @@ class EncoderDecoderTrainer:
             encoder_mask = batch["encoder_mask"].to(self.device)
             decoder_target = batch["decoder_target"].to(self.device)
             decoder_mask = batch["decoder_mask"].to(self.device)
+            behavior_labels = batch.get("behavior_labels", None)
             batch_size = encoder_input.size(0)
             self.optimizer.zero_grad()
 
             loss, _, loss_components = self._calculate_loss(
-                encoder_input, encoder_mask, decoder_target, decoder_mask
+                encoder_input, encoder_mask, decoder_target, decoder_mask,
+                behavior_labels=behavior_labels
             )
 
             # accumulate loss components
@@ -358,11 +319,13 @@ class EncoderDecoderTrainer:
                 encoder_mask = batch["encoder_mask"].to(self.device)
                 decoder_target = batch["decoder_target"].to(self.device)
                 decoder_mask = batch["decoder_mask"].to(self.device)
+                behavior_labels = batch.get("behavior_labels", None)
                 batch_size = encoder_input.size(0)
 
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
-                    encoder_input, encoder_mask, decoder_target, decoder_mask
+                    encoder_input, encoder_mask, decoder_target, decoder_mask,
+                    behavior_labels=behavior_labels
                 )
 
                 # store batch-wise (will aggregate later)
@@ -412,11 +375,13 @@ class EncoderDecoderTrainer:
                 encoder_mask = batch["encoder_mask"].to(self.device)
                 decoder_target = batch["decoder_target"].to(self.device)
                 decoder_mask = batch["decoder_mask"].to(self.device)
+                behavior_labels = batch.get("behavior_labels", None)
                 batch_size = encoder_input.size(0)
 
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
-                    encoder_input, encoder_mask, decoder_target, decoder_mask
+                    encoder_input, encoder_mask, decoder_target, decoder_mask,
+                    behavior_labels=behavior_labels
                 )
 
                 # store batch-wise (will aggregate later)
