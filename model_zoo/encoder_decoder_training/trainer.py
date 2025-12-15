@@ -185,7 +185,9 @@ class EncoderDecoderTrainer:
             self.tensorboard_process.kill()
             self.tensorboard_process = None
 
-    def _calculate_loss(self, encoder_input, encoder_mask, decoder_target, decoder_mask):
+    def _calculate_loss(
+        self, encoder_input, encoder_mask, decoder_target, decoder_mask
+    ):
         target_token_dim = decoder_target.size(2)
 
         if self.is_contrastive_loss:
@@ -211,7 +213,7 @@ class EncoderDecoderTrainer:
             y_i = self.model.decode(z_i, decoder_target.size(1))
             y_j = self.model.decode(z_j, decoder_target.size(1))
 
-            # slice decoder output to match target token dims (needed for padding, this might cause problems at inference time) 
+            # slice decoder output to match target token dims (needed for padding, this might cause problems at inference time)
             y_i = y_i[:, :, :target_token_dim]
             y_j = y_j[:, :, :target_token_dim]
 
@@ -220,7 +222,9 @@ class EncoderDecoderTrainer:
             t = torch.cat([decoder_target, decoder_target], dim=0)
             mask_combined = torch.cat([decoder_mask, decoder_mask], dim=0)
 
-            loss, loss_contrast, loss_recon = self.criterion(z_i, z_j, y, t, mask_combined)
+            loss, loss_contrast, loss_recon = self.criterion(
+                z_i, z_j, y, t, mask_combined
+            )
 
             loss_components = {
                 "loss_contrast": loss_contrast.item(),
@@ -363,9 +367,9 @@ class EncoderDecoderTrainer:
 
                 # store batch-wise (will aggregate later)
                 for i in range(reconstructed.size(0)):
-                    all_reconstructed.append(reconstructed[i:i+1].cpu())
-                    all_targets.append(decoder_target[i:i+1].cpu())
-                    all_masks.append(decoder_mask[i:i+1].cpu())
+                    all_reconstructed.append(reconstructed[i : i + 1].cpu())
+                    all_targets.append(decoder_target[i : i + 1].cpu())
+                    all_masks.append(decoder_mask[i : i + 1].cpu())
 
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size
@@ -417,9 +421,9 @@ class EncoderDecoderTrainer:
 
                 # store batch-wise (will aggregate later)
                 for i in range(reconstructed.size(0)):
-                    all_reconstructed.append(reconstructed[i:i+1].cpu())
-                    all_targets.append(decoder_target[i:i+1].cpu())
-                    all_masks.append(decoder_mask[i:i+1].cpu())
+                    all_reconstructed.append(reconstructed[i : i + 1].cpu())
+                    all_targets.append(decoder_target[i : i + 1].cpu())
+                    all_masks.append(decoder_mask[i : i + 1].cpu())
 
                 total_loss += loss.item() * batch_size
                 total_samples += batch_size

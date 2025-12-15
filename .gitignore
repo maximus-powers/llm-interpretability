@@ -45,3 +45,5 @@ lambdalabs.pem
 
 /model_zoo/configs/*
 /model_zoo/runs/*
+
+.claude/*

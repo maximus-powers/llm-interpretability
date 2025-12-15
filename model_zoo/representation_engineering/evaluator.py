@@ -201,9 +201,7 @@ class RepresentationEvaluator:
 
         return results
 
-    def compute_aggregate_statistics(
-        self, results: List[Dict[str, Any]]
-    ):
+    def compute_aggregate_statistics(self, results: List[Dict[str, Any]]):
         valid_results = [
             r
             for r in results

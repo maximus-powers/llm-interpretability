@@ -24,19 +24,31 @@ class WeightSpaceEncoderDecoder(nn.Module):
                 features_per_neuron = len(method_names)
 
                 if tokenization_config.get("include_metadata", True):
-                    self.token_dim = features_per_neuron + 5  # signature + metadata (encoder input)
+                    self.token_dim = (
+                        features_per_neuron + 5
+                    )  # signature + metadata (encoder input)
                 else:
                     self.token_dim = features_per_neuron
 
                 # decoder outputs weights, not signatures (token_dim: max_neurons + bias + metadata)
-                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_neurons = (
+                    config["dataset"]
+                    .get("max_dimensions", {})
+                    .get("max_neurons_per_layer", 8)
+                )
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
-                self.decoder_token_dim = max_weights_per_neuron + 5  # weights + metadata
+                self.decoder_token_dim = (
+                    max_weights_per_neuron + 5
+                )  # weights + metadata
 
             elif self.input_mode == "weights":
-                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_neurons = (
+                    config["dataset"]
+                    .get("max_dimensions", {})
+                    .get("max_neurons_per_layer", 8)
+                )
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
-                self.token_dim = max_weights_per_neuron + 5 # 5 for metadata
+                self.token_dim = max_weights_per_neuron + 5  # 5 for metadata
                 self.decoder_token_dim = self.token_dim
 
             elif self.input_mode == "both":
@@ -44,7 +56,11 @@ class WeightSpaceEncoderDecoder(nn.Module):
                 neuron_profile = config["dataset"].get("neuron_profile", {})
                 method_names = neuron_profile.get("methods", [])
                 features_per_neuron = len(method_names) if method_names else 5
-                max_neurons = config["dataset"].get("max_dimensions", {}).get("max_neurons_per_layer", 8)
+                max_neurons = (
+                    config["dataset"]
+                    .get("max_dimensions", {})
+                    .get("max_neurons_per_layer", 8)
+                )
                 max_weights_per_neuron = max_neurons + 1
                 self.token_dim = max_weights_per_neuron + features_per_neuron + 5
                 self.decoder_token_dim = max_weights_per_neuron + 5
@@ -213,7 +229,9 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
     def decode(self, latent: torch.Tensor, num_tokens: int) -> torch.Tensor:
         batch_size = latent.size(0)
         flat_output = self.decoder(latent)
-        reconstructed = flat_output.view(batch_size, self.max_tokens, self.decoder_token_dim)
+        reconstructed = flat_output.view(
+            batch_size, self.max_tokens, self.decoder_token_dim
+        )
         return reconstructed
 
 

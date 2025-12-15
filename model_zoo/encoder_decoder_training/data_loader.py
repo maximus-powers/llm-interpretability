@@ -198,7 +198,11 @@ class WeightSpaceDataset(Dataset):
             # or infer from weights
             if not neurons_per_layer:
                 weights_json = json.loads(example["improved_model_weights"])
-                weights_dict = weights_json["weights"] if "weights" in weights_json else weights_json
+                weights_dict = (
+                    weights_json["weights"]
+                    if "weights" in weights_json
+                    else weights_json
+                )
                 neurons_per_layer = []
                 sorted_keys = sorted(weights_dict.keys())
                 for key in sorted_keys:
@@ -206,19 +210,25 @@ class WeightSpaceDataset(Dataset):
                         weight = weights_dict[key]
                         if isinstance(weight, (list, np.ndarray)):
                             weight = np.array(weight)
-                        shape = weight.shape if hasattr(weight, 'shape') else np.array(weight).shape
+                        shape = (
+                            weight.shape
+                            if hasattr(weight, "shape")
+                            else np.array(weight).shape
+                        )
 
                         if len(shape) >= 2:
                             # For linear layers, neurons are in dimension 0
                             neurons_per_layer.append(shape[0])
             metadata_dict = {
                 "neurons_per_layer": neurons_per_layer,
-                "features_per_neuron":  len(self.method_names),
+                "features_per_neuron": len(self.method_names),
             }
 
         # tokenize weights for decoder target
         weights_json = json.loads(example["improved_model_weights"])
-        weights_dict = weights_json["weights"] if "weights" in weights_json else weights_json
+        weights_dict = (
+            weights_json["weights"] if "weights" in weights_json else weights_json
+        )
         weights_tokenized = self.tokenizer.tokenize(weights_dict, metadata_dict)
 
         # tokenize input (signature, weights, or both)
@@ -243,8 +253,10 @@ class WeightSpaceDataset(Dataset):
                                 else:
                                     neuron_features.append(value)
                         features_list.extend(neuron_features)
-                signature_flat =  np.array(features_list, dtype=np.float32)
-                encoder_tokenized = self.tokenizer.tokenize(signature_flat, metadata_dict)
+                signature_flat = np.array(features_list, dtype=np.float32)
+                encoder_tokenized = self.tokenizer.tokenize(
+                    signature_flat, metadata_dict
+                )
             else:
                 signature_features, signature_mask = preprocess_signature(
                     example["improved_signature"], self.max_dims, self.method_names
@@ -265,28 +277,41 @@ class WeightSpaceDataset(Dataset):
             else:
                 # flattened weights
                 weights_json = json.loads(example["improved_model_weights"])
-                weights_dict_raw = weights_json["weights"] if "weights" in weights_json else weights_json
+                weights_dict_raw = (
+                    weights_json["weights"]
+                    if "weights" in weights_json
+                    else weights_json
+                )
                 weights_flat_list = []
                 for key in sorted(weights_dict_raw.keys()):
                     weight_tensor = weights_dict_raw[key]
                     if isinstance(weight_tensor, (list, np.ndarray)):
-                        weights_flat_list.extend(np.array(weight_tensor).flatten().tolist())
+                        weights_flat_list.extend(
+                            np.array(weight_tensor).flatten().tolist()
+                        )
                 # flattened signature
                 signature_features, signature_mask = preprocess_signature(
                     example["improved_signature"], self.max_dims, self.method_names
                 )
                 signature_flat = signature_features.flatten()
                 # concat
-                combined_array = np.array(weights_flat_list + signature_flat.tolist(), dtype=np.float32)
+                combined_array = np.array(
+                    weights_flat_list + signature_flat.tolist(), dtype=np.float32
+                )
                 # chunk
                 chunk_size = self.tokenizer.chunk_size
                 num_chunks = int(np.ceil(len(combined_array) / chunk_size))
                 if num_chunks > self.tokenizer.max_tokens:
                     num_chunks = self.tokenizer.max_tokens
-                    combined_array = combined_array[:self.tokenizer.max_tokens * chunk_size]
+                    combined_array = combined_array[
+                        : self.tokenizer.max_tokens * chunk_size
+                    ]
 
                 # chunked tokens
-                tokens = np.zeros((self.tokenizer.max_tokens, self.tokenizer.token_dim), dtype=np.float32)
+                tokens = np.zeros(
+                    (self.tokenizer.max_tokens, self.tokenizer.token_dim),
+                    dtype=np.float32,
+                )
                 attention_mask = np.zeros(self.tokenizer.max_tokens, dtype=np.float32)
                 for chunk_idx in range(num_chunks):
                     start_idx = chunk_idx * chunk_size
@@ -294,15 +319,27 @@ class WeightSpaceDataset(Dataset):
                     chunk_data = combined_array[start_idx:end_idx]
                     # padding
                     if len(chunk_data) < chunk_size:
-                        chunk_data = np.pad(chunk_data, (0, chunk_size - len(chunk_data)), mode='constant')
+                        chunk_data = np.pad(
+                            chunk_data,
+                            (0, chunk_size - len(chunk_data)),
+                            mode="constant",
+                        )
                     tokens[chunk_idx, :chunk_size] = chunk_data
                     # metadata
                     if self.tokenizer.include_metadata:
-                        tokens[chunk_idx, chunk_size] = 0.0  # layer_idx (not meaningful here)
+                        tokens[chunk_idx, chunk_size] = (
+                            0.0  # layer_idx (not meaningful here)
+                        )
                         tokens[chunk_idx, chunk_size + 1] = 0.0  # param_type
-                        tokens[chunk_idx, chunk_size + 2] = chunk_idx / max(num_chunks - 1, 1)  # position
-                        tokens[chunk_idx, chunk_size + 3] = np.log1p(len(combined_array))  # shape_log
-                        tokens[chunk_idx, chunk_size + 4] = chunk_idx / max(num_chunks - 1, 1)  # chunk_idx
+                        tokens[chunk_idx, chunk_size + 2] = chunk_idx / max(
+                            num_chunks - 1, 1
+                        )  # position
+                        tokens[chunk_idx, chunk_size + 3] = np.log1p(
+                            len(combined_array)
+                        )  # shape_log
+                        tokens[chunk_idx, chunk_size + 4] = chunk_idx / max(
+                            num_chunks - 1, 1
+                        )  # chunk_idx
 
                     attention_mask[chunk_idx] = 1.0
 
@@ -362,7 +399,7 @@ class WeightSpaceDataset(Dataset):
         combined_neurons = []
         if len(weight_neurons) != len(signature_neurons):
             raise ValueError(
-            f"Mismatch between weight neurons ({len(weight_neurons)}) and signature neurons ({len(signature_neurons)})"
+                f"Mismatch between weight neurons ({len(weight_neurons)}) and signature neurons ({len(signature_neurons)})"
             )
 
         # concat within neuron
@@ -381,9 +418,9 @@ class WeightSpaceDataset(Dataset):
         # group weights and biases by layer
         layer_groups = {}
         for key in sorted_keys:
-            parts = key.split('.')
+            parts = key.split(".")
             if len(parts) >= 2:
-                layer_name = '.'.join(parts[:-1])
+                layer_name = ".".join(parts[:-1])
                 param_type = parts[-1]
             else:
                 layer_name = key
@@ -401,8 +438,8 @@ class WeightSpaceDataset(Dataset):
         max_neuron_size = 0
         for layer_name in sorted(layer_groups.keys()):
             layer_params = layer_groups[layer_name]
-            weight = layer_params.get('weight', layer_params.get('weights', None))
-            bias = layer_params.get('bias', None)
+            weight = layer_params.get("weight", layer_params.get("weights", None))
+            bias = layer_params.get("bias", None)
             if weight is None:
                 continue
             weight = np.atleast_2d(weight)
@@ -425,7 +462,7 @@ class WeightSpaceDataset(Dataset):
                 padded = np.pad(
                     neuron_data,
                     (0, max_neuron_size - len(neuron_data)),
-                    mode='constant'
+                    mode="constant",
                 )
                 padded_neurons.append(padded)
             else:
@@ -447,9 +484,7 @@ def load_dataset(config: Dict[str, Any]):
         include_metadata=tokenization_config.get("include_metadata", True),
         granularity=tokenization_config.get("granularity", "chunk"),
     )
-    logger.info(
-        "Tokenizer created"
-    )
+    logger.info("Tokenizer created")
 
     input_dims = {"token_dim": tokenizer.token_dim, "max_tokens": tokenizer.max_tokens}
     neuron_profile = dataset_config.get("neuron_profile", {})
@@ -482,12 +517,16 @@ def custom_collate_fn(batch):
     for item in batch:
         encoder_input = item["encoder_input"]
         if encoder_input.shape[1] < max_encoder_dim:
-            padding = torch.zeros(encoder_input.shape[0], max_encoder_dim - encoder_input.shape[1])
+            padding = torch.zeros(
+                encoder_input.shape[0], max_encoder_dim - encoder_input.shape[1]
+            )
             item["encoder_input"] = torch.cat([encoder_input, padding], dim=1)
 
         decoder_target = item["decoder_target"]
         if decoder_target.shape[1] < max_decoder_dim:
-            padding = torch.zeros(decoder_target.shape[0], max_decoder_dim - decoder_target.shape[1])
+            padding = torch.zeros(
+                decoder_target.shape[0], max_decoder_dim - decoder_target.shape[1]
+            )
             item["decoder_target"] = torch.cat([decoder_target, padding], dim=1)
 
     collated_batch = default_collate(batch)

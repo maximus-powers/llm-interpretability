@@ -12,7 +12,7 @@ class WeightTokenizer:
         chunk_size: int = 64,
         max_tokens: int = 512,
         include_metadata: bool = True,
-        granularity: str = "chunk"
+        granularity: str = "chunk",
     ):
         self.chunk_size = chunk_size
         self.max_tokens = max_tokens
@@ -144,7 +144,9 @@ class WeightTokenizer:
             self.token_dim = batch_token_dim
 
         if len(neurons) > self.max_tokens:
-            raise ValueError(f"Number of neurons ({len(neurons)}) exceeds max_tokens ({self.max_tokens}). ")
+            raise ValueError(
+                f"Number of neurons ({len(neurons)}) exceeds max_tokens ({self.max_tokens}). "
+            )
 
         # init token array and attention mask
         tokens = np.zeros((self.max_tokens, batch_token_dim), dtype=np.float32)
@@ -157,18 +159,20 @@ class WeightTokenizer:
             # add metadata
             if self.include_metadata:
                 # find layer idx
-                neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
-                layer_idx =  max(0, len(neurons_per_layer) - 1)
+                neurons_per_layer = metadata_dict.get("neurons_per_layer", [])
+                layer_idx = max(0, len(neurons_per_layer) - 1)
                 cumulative = 0
                 for layer_idx, num_neurons in enumerate(neurons_per_layer):
                     if neuron_idx < cumulative + num_neurons:
                         layer_idx = layer_idx
                     cumulative += num_neurons
-                
-                norm_layer_idx = layer_idx / max(len(metadata_dict.get('neurons_per_layer', [1])) - 1, 1)
+
+                norm_layer_idx = layer_idx / max(
+                    len(metadata_dict.get("neurons_per_layer", [1])) - 1, 1
+                )
 
                 # find position in layer
-                neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
+                neurons_per_layer = metadata_dict.get("neurons_per_layer", [])
                 neuron_in_layer = 0
                 cumulative = 0
                 for num_neurons in neurons_per_layer:
@@ -176,7 +180,7 @@ class WeightTokenizer:
                         neuron_in_layer = neuron_idx - cumulative
                     cumulative += num_neurons
 
-                neurons_in_layer = metadata_dict['neurons_per_layer'][layer_idx]
+                neurons_in_layer = metadata_dict["neurons_per_layer"][layer_idx]
                 norm_position = neuron_in_layer / max(neurons_in_layer - 1, 1)
                 shape_log = np.log1p(neuron_data_size)
                 param_type = 0
@@ -196,18 +200,22 @@ class WeightTokenizer:
         }
 
     def _extract_neurons(self, input_data, metadata_dict) -> List[np.ndarray]:
-        if isinstance(input_data, list) and len(input_data) > 0 and isinstance(input_data[0], np.ndarray): # input is already a list of neuron arrays (from "both" mode preprocessing)
-            return input_data        
-        
-        if isinstance(input_data, np.ndarray): # input is flat array (signature mode)
-            neurons_per_layer = metadata_dict.get('neurons_per_layer', [])
-            features_per_neuron = metadata_dict.get('features_per_neuron')
+        if (
+            isinstance(input_data, list)
+            and len(input_data) > 0
+            and isinstance(input_data[0], np.ndarray)
+        ):  # input is already a list of neuron arrays (from "both" mode preprocessing)
+            return input_data
+
+        if isinstance(input_data, np.ndarray):  # input is flat array (signature mode)
+            neurons_per_layer = metadata_dict.get("neurons_per_layer", [])
+            features_per_neuron = metadata_dict.get("features_per_neuron")
             neurons = []
             idx = 0
             for layer_neurons in neurons_per_layer:
                 for _ in range(layer_neurons):
                     if idx + features_per_neuron <= len(input_data):
-                        neuron_features = input_data[idx:idx + features_per_neuron]
+                        neuron_features = input_data[idx : idx + features_per_neuron]
                         neurons.append(neuron_features)
                         idx += features_per_neuron
                     else:
@@ -217,16 +225,18 @@ class WeightTokenizer:
                             neuron_features = np.pad(
                                 input_data[idx:],
                                 (0, features_per_neuron - remaining),
-                                mode='constant'
+                                mode="constant",
                             )
                             neurons.append(neuron_features)
                         else:
                             # no data left zero padding
-                            neurons.append(np.zeros(features_per_neuron, dtype=np.float32))
+                            neurons.append(
+                                np.zeros(features_per_neuron, dtype=np.float32)
+                            )
                         idx = len(input_data)
             return neurons
-        
-        if isinstance(input_data, dict): # input is weights dict (weights mode)
+
+        if isinstance(input_data, dict):  # input is weights dict (weights mode)
             if "weights" in input_data:
                 state_dict = input_data["weights"]
             else:
@@ -237,9 +247,9 @@ class WeightTokenizer:
             # group weights and biases by layer
             layer_groups = {}
             for key in sorted_keys:
-                parts = key.split('.')
+                parts = key.split(".")
                 if len(parts) >= 2:
-                    layer_name = '.'.join(parts[:-1])
+                    layer_name = ".".join(parts[:-1])
                     param_type = parts[-1]
                 else:
                     layer_name = key
@@ -258,8 +268,8 @@ class WeightTokenizer:
             max_neuron_size = 0
             for layer_name in sorted(layer_groups.keys()):
                 layer_params = layer_groups[layer_name]
-                weight = layer_params.get('weight', layer_params.get('weights', None))
-                bias = layer_params.get('bias', None)
+                weight = layer_params.get("weight", layer_params.get("weights", None))
+                bias = layer_params.get("bias", None)
                 if weight is None:
                     continue
                 weight = np.atleast_2d(weight)
@@ -271,7 +281,9 @@ class WeightTokenizer:
                     neuron_weights = weight[neuron_idx].flatten()
                     # add bias
                     if bias is not None and neuron_idx < len(bias):
-                        neuron_data = np.concatenate([neuron_weights, [bias[neuron_idx]]])
+                        neuron_data = np.concatenate(
+                            [neuron_weights, [bias[neuron_idx]]]
+                        )
                     else:
                         neuron_data = neuron_weights
                     neurons.append(neuron_data)
@@ -284,7 +296,7 @@ class WeightTokenizer:
                     padded = np.pad(
                         neuron_data,
                         (0, max_neuron_size - len(neuron_data)),
-                        mode='constant'
+                        mode="constant",
                     )
                     padded_neurons.append(padded)
                 else:
@@ -292,7 +304,7 @@ class WeightTokenizer:
 
             return padded_neurons
         raise ValueError(f"Unsupported input_data type: {type(input_data)}")
-        
+
     def detokenize(
         self,
         tokens: torch.Tensor,
