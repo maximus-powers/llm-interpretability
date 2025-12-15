@@ -88,13 +88,10 @@ class WeightTokenizer:
         num_chunks = int(np.ceil(len(all_weights) / self.chunk_size))
 
         if num_chunks > self.max_tokens:
-            logger.warning(
+            raise ValueError(
                 f"Number of chunks ({num_chunks}) exceeds max_tokens ({self.max_tokens}). "
-                f"Truncating. This may lose information."
+                f"Increase max_tokens or reduce model size."
             )
-            num_chunks = self.max_tokens
-            all_weights = all_weights[: self.max_tokens * self.chunk_size]
-            weight_metadata = weight_metadata[: self.max_tokens * self.chunk_size]
 
         tokens = np.zeros((self.max_tokens, self.token_dim), dtype=np.float32)
         attention_mask = np.zeros(self.max_tokens, dtype=np.float32)

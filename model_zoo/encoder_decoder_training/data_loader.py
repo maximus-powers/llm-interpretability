@@ -362,10 +362,10 @@ class WeightSpaceDataset(Dataset):
                 chunk_size = self.tokenizer.chunk_size
                 num_chunks = int(np.ceil(len(combined_array) / chunk_size))
                 if num_chunks > self.tokenizer.max_tokens:
-                    num_chunks = self.tokenizer.max_tokens
-                    combined_array = combined_array[
-                        : self.tokenizer.max_tokens * chunk_size
-                    ]
+                    raise ValueError(
+                        f"Number of chunks ({num_chunks}) exceeds max_tokens ({self.tokenizer.max_tokens}). "
+                        f"Increase max_tokens or reduce model size."
+                    )
 
                 # chunked tokens
                 tokens = np.zeros(
