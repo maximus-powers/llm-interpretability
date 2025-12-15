@@ -64,8 +64,21 @@ class EncoderDecoderTrainer:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
         # optimizer and scheduler
+        params_to_optimize = list(model.parameters())
+
+        # add projection head parameters if using contrastive loss
+        if self.is_contrastive_loss:
+            if (
+                hasattr(self.criterion, "loss_contrast")
+                and hasattr(self.criterion.loss_contrast, "projection_head")
+                and self.criterion.loss_contrast.projection_head is not None
+            ):
+                params_to_optimize += list(
+                    self.criterion.loss_contrast.projection_head.parameters()
+                )
+
         self.optimizer = torch.optim.AdamW(
-            model.parameters(),
+            params_to_optimize,
             lr=config["training"]["learning_rate"],
             weight_decay=config["training"]["weight_decay"],
         )
