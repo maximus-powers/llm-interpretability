@@ -3,6 +3,9 @@ import torch.nn as nn
 import logging
 import math
 from typing import Dict, List, Any
+from datasets import load_dataset
+
+from .data_loader import infer_signature_dimensions
 
 logger = logging.getLogger(__name__)
 
@@ -20,50 +23,41 @@ class WeightSpaceEncoderDecoder(nn.Module):
         if granularity == "neuron":
             if self.input_mode == "signature":
                 neuron_profile = config["dataset"].get("neuron_profile", {})
-                method_names = neuron_profile.get("methods", [])
-                features_per_neuron = len(method_names)
+                features_per_neuron = neuron_profile.get("features_per_neuron")
+                if features_per_neuron is None:
+                    features_per_neuron = self._infer_features_per_neuron(config)
+
+                logger.info(f"Signature mode: {features_per_neuron} features per neuron")
 
                 if tokenization_config.get("include_metadata", True):
-                    self.token_dim = (
-                        features_per_neuron + 5
-                    )  # signature + metadata (encoder input)
+                    self.token_dim = features_per_neuron + 5  # signature + metadata
                 else:
                     self.token_dim = features_per_neuron
 
-                # decoder outputs weights, not signatures (token_dim: max_neurons + bias + metadata)
-                max_neurons = (
-                    config["dataset"]
-                    .get("max_dimensions", {})
-                    .get("max_neurons_per_layer", 8)
-                )
+                # decoder outputs weights, not signatures
+                max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
-                self.decoder_token_dim = (
-                    max_weights_per_neuron + 5
-                )  # weights + metadata
+                self.decoder_token_dim = max_weights_per_neuron + 5  # weights + metadata
 
             elif self.input_mode == "weights":
-                max_neurons = (
-                    config["dataset"]
-                    .get("max_dimensions", {})
-                    .get("max_neurons_per_layer", 8)
-                )
+                max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
                 self.token_dim = max_weights_per_neuron + 5  # 5 for metadata
                 self.decoder_token_dim = self.token_dim
 
             elif self.input_mode == "both":
-                # weights + signature + metadata
                 neuron_profile = config["dataset"].get("neuron_profile", {})
-                method_names = neuron_profile.get("methods", [])
-                features_per_neuron = len(method_names) if method_names else 5
-                max_neurons = (
-                    config["dataset"]
-                    .get("max_dimensions", {})
-                    .get("max_neurons_per_layer", 8)
-                )
+                features_per_neuron = neuron_profile.get("features_per_neuron")
+                if features_per_neuron is None:
+                    features_per_neuron = self._infer_features_per_neuron(config)
+
+                logger.info(f"Both mode: {features_per_neuron} features per neuron")
+                max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1
                 self.token_dim = max_weights_per_neuron + features_per_neuron + 5
                 self.decoder_token_dim = max_weights_per_neuron + 5
+
+            else:
                 raise ValueError(f"Unknown input_mode: {self.input_mode}")
 
             self.max_tokens = tokenization_config["max_tokens"]
@@ -84,6 +78,28 @@ class WeightSpaceEncoderDecoder(nn.Module):
                 self.decoder_token_dim = self.token_dim
             else:
                 raise ValueError(f"Unknown input_mode: {self.input_mode}")
+
+    def _infer_features_per_neuron(self, config: Dict[str, Any]) -> int:
+        dataset_name = config["dataset"]["hf_dataset"]
+        neuron_profile = config["dataset"].get("neuron_profile", {})
+        method_names = neuron_profile.get("methods", [])
+        if not method_names:
+            raise ValueError(
+                "neuron_profile.methods is required for signature/both mode. Specify which methods to extract (e.g., ['fourier'], ['mean', 'std'])."
+            )
+        logger.info(f"Inferring features_per_neuron from dataset '{dataset_name}'...")
+        dataset = load_dataset(dataset_name, split="train", streaming=True)
+        first_example = next(iter(dataset))
+        if "signature" not in first_example:
+            raise ValueError(
+                f"Dataset '{dataset_name}' does not contain 'signature' field. Cannot auto-infer features_per_neuron."
+            )
+        dims = infer_signature_dimensions(first_example["signature"], method_names)
+        features_per_neuron = dims["signature_features_per_neuron"]
+        logger.info(
+            f"Inferred features_per_neuron={features_per_neuron} from methods {dims['method_shapes']}"
+        )
+        return features_per_neuron
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         raise NotImplementedError

@@ -17,7 +17,7 @@ dataset:
     max_neurons_per_layer: 40
     max_sequence_length: 7
   
-  neuron_profile: # Only needed if input_mode "signature"
+  neuron_profile: # Only needed if input_mode "signature" or "both"
     # list of methods to use from signatures, make sure your signature contains the ones you choose.
     # they will be concatenated in the order given before being used as input
     methods: ["mean", "std"]  # mean, std, max, min, sparsity, entropy, pca, svd, clustering, fourier, pattern_wise
