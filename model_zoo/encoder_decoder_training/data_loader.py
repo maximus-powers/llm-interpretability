@@ -22,16 +22,16 @@ class BehaviorAwareBatchSampler(Sampler):
         batch_size: int,
         drop_last: bool = False,
         seed: int = 42,
+        samples_per_behavior: int = 2,
     ):
         self.dataset = dataset
         self.batch_size = batch_size
         self.drop_last = drop_last
-        self.rng = random.Random(seed)
+        self.seed = seed
+        self.samples_per_behavior = samples_per_behavior
 
-        # behavior -> indices mapping and index -> behaviors mapping
+        # behavior idx mapping
         self.behavior_to_indices = defaultdict(list)
-        self.index_to_behaviors = {}
-
         for idx in range(len(self.dataset)):
             if hasattr(self.dataset, "hf_dataset"):
                 example = self.dataset.hf_dataset[idx]
@@ -41,58 +41,97 @@ class BehaviorAwareBatchSampler(Sampler):
                 item = self.dataset[idx]
                 behavior_labels = item.get("behavior_labels", [])
 
-            self.index_to_behaviors[idx] = behavior_labels
             for behavior in behavior_labels:
                 self.behavior_to_indices[behavior].append(idx)
 
-    def __iter__(self):
-        all_indices = list(range(len(self.dataset)))
-        self.rng.shuffle(all_indices)
-        used = set()
+        # filter to behaviors with enough samples
+        self.viable_behaviors = [
+            b for b, indices in self.behavior_to_indices.items()
+            if len(indices) >= samples_per_behavior
+        ]
+        self._batches = None
+        self._epoch = 0
+
+    def _build_batches(self):
+        rng = random.Random(self.seed + self._epoch)
         batches = []
-        current_batch = []
+        used = set()
 
-        for idx in all_indices:
-            if idx in used:
-                continue
-            current_batch.append(idx)
-            used.add(idx)
+        # shuffled pools for each behavior
+        pools = {b: list(self.behavior_to_indices[b]) for b in self.viable_behaviors}
+        for pool in pools.values():
+            rng.shuffle(pool)
 
-            # find a buddy sample sharing a behavior
-            behaviors = list(self.index_to_behaviors.get(idx, []))
-            self.rng.shuffle(behaviors)
-            buddy = None
-            for behavior in behaviors:
-                candidates = [
-                    i
-                    for i in self.behavior_to_indices[behavior]
-                    if i != idx and i not in used
+        # 4 behaviors per batch, calculate samples per behavior from that
+        behaviors_per_batch = 4
+        samples_per_behavior_target = self.batch_size // behaviors_per_batch
+
+        # shuffle behavior order
+        behaviors = list(self.viable_behaviors)
+        rng.shuffle(behaviors)
+
+        behavior_idx = 0
+        while behaviors:
+            batch = []
+            behaviors_used = 0
+
+            # fill batch with samples from each selected behavior
+            while len(batch) < self.batch_size and behavior_idx < len(behaviors):
+                behavior = behaviors[behavior_idx]
+                behavior_idx += 1
+
+                available = [i for i in pools[behavior] if i not in used]
+
+                # at least 2 samples
+                if len(available) >= self.samples_per_behavior:
+                    remaining_slots = self.batch_size - len(batch)
+                    remaining_behaviors = behaviors_per_batch - behaviors_used
+                    if remaining_behaviors > 0:
+                        max_for_this = remaining_slots - (remaining_behaviors - 1) * self.samples_per_behavior
+                        samples_to_take = min(len(available), samples_per_behavior_target, max_for_this)
+                    else:
+                        samples_to_take = min(len(available), remaining_slots)
+
+                    samples_to_take = max(samples_to_take, self.samples_per_behavior)  # at least 2
+                    samples_to_take = min(samples_to_take, len(available), remaining_slots)
+
+                    if samples_to_take >= self.samples_per_behavior:
+                        for _ in range(samples_to_take):
+                            idx = available.pop(0)
+                            batch.append(idx)
+                            used.add(idx)
+                        pools[behavior] = available
+                        behaviors_used += 1
+
+            # only keep full batches
+            if len(batch) == self.batch_size:
+                batches.append(batch)
+
+            # check if we've gone through all behaviors
+            if behavior_idx >= len(behaviors):
+                behaviors = [
+                    b for b in self.viable_behaviors
+                    if len([i for i in pools[b] if i not in used]) >= self.samples_per_behavior
                 ]
-                if candidates:
-                    buddy = self.rng.choice(candidates)
-            if buddy is not None:
-                current_batch.append(buddy)
-                used.add(buddy)
+                rng.shuffle(behaviors)
+                behavior_idx = 0
 
-            # check if batch is full
-            if len(current_batch) >= self.batch_size:
-                batches.append(current_batch[: self.batch_size])
-                # carry over extras to next batch
-                current_batch = current_batch[self.batch_size :]
+                if not behaviors:
+                    break
 
-        # handle remaining samples
-        if current_batch and not self.drop_last:
-            batches.append(current_batch)
+        rng.shuffle(batches)
+        return batches
 
-        self.rng.shuffle(batches)
-
-        for batch in batches:
+    def __iter__(self):
+        self._batches = self._build_batches()
+        self._epoch += 1
+        for batch in self._batches:
             yield batch
 
     def __len__(self):
-        if self.drop_last:
-            return len(self.dataset) // self.batch_size
-        return (len(self.dataset) + self.batch_size - 1) // self.batch_size
+        if self._batches is None:
+            self._batches = self._build_batches()
+        return len(self._batches)
 
 
 def compute_dimensions_from_config(config: Dict[str, Any]):
@@ -571,15 +610,41 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
 
     # behavior aware sampling for contrastive learning
     if use_contrastive:
-        batch_sampler = BehaviorAwareBatchSampler(
+        train_batch_sampler = BehaviorAwareBatchSampler(
             train_dataset,
             batch_size=config["training"]["batch_size"],
             drop_last=False,
             seed=dataset_config.get("random_seed", 42),
         )
+        val_batch_sampler = BehaviorAwareBatchSampler(
+            val_dataset,
+            batch_size=config["training"]["batch_size"],
+            drop_last=False,
+            seed=dataset_config.get("random_seed", 42) + 1,  # different seed for variety
+        )
+        test_batch_sampler = BehaviorAwareBatchSampler(
+            test_dataset,
+            batch_size=config["training"]["batch_size"],
+            drop_last=False,
+            seed=dataset_config.get("random_seed", 42) + 2,
+        )
         train_loader = DataLoader(
             train_dataset,
-            batch_sampler=batch_sampler,
+            batch_sampler=train_batch_sampler,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_sampler=val_batch_sampler,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_sampler=test_batch_sampler,
             num_workers=dataloader_config.get("num_workers", 0),
             pin_memory=dataloader_config.get("pin_memory", False),
             collate_fn=custom_collate_fn,
@@ -593,23 +658,22 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
             pin_memory=dataloader_config.get("pin_memory", False),
             collate_fn=custom_collate_fn,
         )
-
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=config["training"]["batch_size"],
-        shuffle=False,
-        num_workers=dataloader_config.get("num_workers", 0),
-        pin_memory=dataloader_config.get("pin_memory", False),
-        collate_fn=custom_collate_fn,
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=config["training"]["batch_size"],
-        shuffle=False,
-        num_workers=dataloader_config.get("num_workers", 0),
-        pin_memory=dataloader_config.get("pin_memory", False),
-        collate_fn=custom_collate_fn,
-    )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=config["training"]["batch_size"],
+            shuffle=False,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=config["training"]["batch_size"],
+            shuffle=False,
+            num_workers=dataloader_config.get("num_workers", 0),
+            pin_memory=dataloader_config.get("pin_memory", False),
+            collate_fn=custom_collate_fn,
+        )
 
     logger.info(
         f"Created dataloaders: batch_size={config['training']['batch_size']}, train_batches={len(train_loader)}, val_batches={len(val_loader)}, test_batches={len(test_loader)}"

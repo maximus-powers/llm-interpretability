@@ -78,7 +78,7 @@ class SupervisedContrastiveLoss(nn.Module):
         super().__init__()
         self.temperature = temperature
         self.device = device
-        self.similarity_f = nn.CosineSimilarity(dim=2)
+        self._log_counter = 0
 
         if projection_head_config is not None:
             self.projection_head = ProjectionHead(
@@ -89,16 +89,30 @@ class SupervisedContrastiveLoss(nn.Module):
         else:
             self.projection_head = None
 
-    def _create_behavior_positive_mask(self, behavior_labels):
+    def _create_behavior_positive_mask(self, behavior_labels, device):
         batch_size = len(behavior_labels)
-        positive_mask = torch.zeros((batch_size, batch_size), dtype=bool)
 
-        for i in range(batch_size):
-            for j in range(batch_size):
-                if i != j:
-                    # positive if any pattern overlap
-                    if set(behavior_labels[i]) & set(behavior_labels[j]):
-                        positive_mask[i, j] = True
+        # get all unique behaviors
+        all_behaviors = set()
+        for labels in behavior_labels:
+            all_behaviors.update(labels)
+        behavior_to_idx = {b: i for i, b in enumerate(all_behaviors)}
+        num_behaviors = len(all_behaviors)
+
+        # create binary label matrix: [batch_size, num_behaviors]
+        label_matrix = torch.zeros(batch_size, num_behaviors, device=device)
+        for i, labels in enumerate(behavior_labels):
+            for label in labels:
+                label_matrix[i, behavior_to_idx[label]] = 1.0
+
+        # positive mask: samples share at least one behavior
+        # (label_matrix @ label_matrix.T) > 0 means overlap exists
+        overlap = torch.mm(label_matrix, label_matrix.T)  # [batch, batch]
+        positive_mask = (overlap > 0).float()
+
+        # remove self-connections
+        positive_mask = positive_mask - torch.eye(batch_size, device=device)
+        positive_mask = positive_mask.clamp(min=0)
 
         return positive_mask
 
@@ -109,44 +123,51 @@ class SupervisedContrastiveLoss(nn.Module):
         if self.projection_head is not None:
             latents = self.projection_head(latents)
 
+        device = latents.device
         batch_size = latents.size(0)
-        sim = (
-            self.similarity_f(latents.unsqueeze(1), latents.unsqueeze(0))
-            / self.temperature
-        )
+
+        # L2 normalize features (standard for contrastive learning)
+        features = F.normalize(latents, p=2, dim=1)
+
+        # compute similarity matrix: [batch, batch]
+        sim_matrix = torch.mm(features, features.T) / self.temperature
 
         # create positive mask from behavior labels
-        positive_mask = self._create_behavior_positive_mask(behavior_labels).to(
-            latents.device
-        )
+        positive_mask = self._create_behavior_positive_mask(behavior_labels, device)
 
-        # supervised contrastive loss
-        # for each anchor, compute loss over its positive pairs
-        loss = 0.0
-        num_valid_anchors = 0
+        # for numerical stability: subtract max from each row
+        sim_max, _ = sim_matrix.max(dim=1, keepdim=True)
+        sim_matrix = sim_matrix - sim_max.detach()
 
-        for i in range(batch_size):
-            positives_i = positive_mask[i]
-            num_positives = positives_i.sum().item()
+        # compute log-sum-exp for denominator (all pairs except self)
+        self_mask = torch.eye(batch_size, device=device)
+        exp_sim = torch.exp(sim_matrix) * (1 - self_mask)  # mask out self
+        log_sum_exp = torch.log(exp_sim.sum(dim=1, keepdim=True) + 1e-8)
 
-            if num_positives == 0:
-                continue  # skip samples with no positive pairs
+        # log probabilities: log(exp(sim_ij/T) / sum_k≠i exp(sim_ik/T))
+        log_prob = sim_matrix - log_sum_exp
 
-            # numerator: exp(sim) for positive pairs
-            pos_sim = sim[i][positives_i]
+        # mean log prob over positive pairs for each anchor
+        # mask: only consider positive pairs
+        num_positives_per_anchor = positive_mask.sum(dim=1)  # [batch]
 
-            # denominator: sum of exp(sim) for all pairs except self
-            all_except_self = torch.ones(batch_size, dtype=bool, device=latents.device)
-            all_except_self[i] = False
-            denom = sim[i][all_except_self].exp().sum()
+        # compute mean log prob for positives (avoiding division by zero)
+        # for anchors with no positives, we'll handle separately
+        has_positives = num_positives_per_anchor > 0
 
-            # loss for this anchor: -log(exp(pos) / denom) for each positive
-            loss_i = -torch.log(pos_sim.exp() / denom.clamp(min=1e-8)).mean()
-            loss += loss_i
-            num_valid_anchors += 1
+        if not has_positives.any():
+            logger.warning("No positive pairs found in batch!")
+            return torch.tensor(0.0, device=device, requires_grad=True)
 
-        if num_valid_anchors > 0:
-            loss /= num_valid_anchors
+        # sum of log_prob for positive pairs, divided by num positives
+        masked_log_prob = log_prob * positive_mask
+        sum_log_prob_pos = masked_log_prob.sum(dim=1)  # [batch]
+
+        # only average over anchors that have positives
+        mean_log_prob_pos = sum_log_prob_pos[has_positives] / num_positives_per_anchor[has_positives]
+
+        # loss is negative mean log probability
+        loss = -mean_log_prob_pos.mean()
 
         return loss
 

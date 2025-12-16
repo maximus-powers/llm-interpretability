@@ -64,24 +64,44 @@ class EncoderDecoderTrainer:
             raise ValueError(f"Unknown loss type: {loss_type}")
 
         # optimizer and scheduler
-        params_to_optimize = list(model.parameters())
+        base_lr = config["training"]["learning_rate"]
+        weight_decay = config["training"]["weight_decay"]
 
-        # add projection head parameters if using contrastive loss
+        # add projection head parameters with separate learning rate if using contrastive loss
         if self.is_contrastive_loss:
             if (
                 hasattr(self.criterion, "loss_contrast")
                 and hasattr(self.criterion.loss_contrast, "projection_head")
                 and self.criterion.loss_contrast.projection_head is not None
             ):
-                params_to_optimize += list(
-                    self.criterion.loss_contrast.projection_head.parameters()
-                )
+                proj_head = self.criterion.loss_contrast.projection_head
+                proj_head_lr = config["loss"].get("projection_head_lr", base_lr)
 
-        self.optimizer = torch.optim.AdamW(
-            params_to_optimize,
-            lr=config["training"]["learning_rate"],
-            weight_decay=config["training"]["weight_decay"],
-        )
+                # use parameter groups for different learning rates
+                param_groups = [
+                    {"params": model.parameters(), "lr": base_lr},
+                    {"params": proj_head.parameters(), "lr": proj_head_lr},
+                ]
+                self.optimizer = torch.optim.AdamW(
+                    param_groups,
+                    weight_decay=weight_decay,
+                )
+                logger.info(
+                    f"Optimizer: model lr={base_lr}, projection_head lr={proj_head_lr}"
+                )
+            else:
+                logger.warning("Contrastive loss enabled but projection head not found or is None")
+                self.optimizer = torch.optim.AdamW(
+                    model.parameters(),
+                    lr=base_lr,
+                    weight_decay=weight_decay,
+                )
+        else:
+            self.optimizer = torch.optim.AdamW(
+                model.parameters(),
+                lr=base_lr,
+                weight_decay=weight_decay,
+            )
         self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
         self.base_lr = config["training"]["learning_rate"]
         self.warmup_epochs = config["training"]["lr_scheduler"].get("warmup_epochs", 0)
@@ -324,6 +344,40 @@ class EncoderDecoderTrainer:
                 all_loss_components[key] += value * batch_size
 
             loss.backward()
+
+            # log gradient norms for debugging
+            if self.writer:
+                global_step = epoch * len(self.train_loader) + batch_idx
+
+                # encoder gradient norm
+                encoder_grad_norm = 0.0
+                for p in self.model.encoder.parameters():
+                    if p.grad is not None:
+                        encoder_grad_norm += p.grad.data.norm(2).item() ** 2
+                encoder_grad_norm = encoder_grad_norm ** 0.5
+                self.writer.add_scalar("train/encoder_grad_norm", encoder_grad_norm, global_step)
+
+                # decoder gradient norm
+                decoder_grad_norm = 0.0
+                for p in self.model.decoder.parameters():
+                    if p.grad is not None:
+                        decoder_grad_norm += p.grad.data.norm(2).item() ** 2
+                decoder_grad_norm = decoder_grad_norm ** 0.5
+                self.writer.add_scalar("train/decoder_grad_norm", decoder_grad_norm, global_step)
+
+                # projection head gradient norm (for contrastive learning)
+                if self.is_contrastive_loss:
+                    proj_head = getattr(
+                        getattr(self.criterion, "loss_contrast", None), "projection_head", None
+                    )
+                    if proj_head is not None:
+                        proj_grad_norm = 0.0
+                        for p in proj_head.parameters():
+                            if p.grad is not None:
+                                proj_grad_norm += p.grad.data.norm(2).item() ** 2
+                        proj_grad_norm = proj_grad_norm ** 0.5
+                        self.writer.add_scalar("train/proj_head_grad_norm", proj_grad_norm, global_step)
+
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             total_loss += loss.item() * batch_size
