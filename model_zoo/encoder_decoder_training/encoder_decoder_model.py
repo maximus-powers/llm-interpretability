@@ -115,16 +115,27 @@ class WeightSpaceEncoderDecoder(nn.Module):
 class ProjectionHead(nn.Module):
     def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
         super().__init__()
+        # 3-layer MLP with BatchNorm (proven to work better for contrastive learning)
         self.layers = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.BatchNorm1d(hidden_dim),
             nn.ReLU(inplace=True),
             nn.Linear(hidden_dim, output_dim),
         )
+        self._init_weights()
+
+    def _init_weights(self):
         for module in self.modules():
             if isinstance(module, nn.Linear):
-                nn.init.xavier_normal_(module.weight)
+                nn.init.xavier_normal_(module.weight, gain=1.0)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.BatchNorm1d):
+                nn.init.constant_(module.weight, 1)
+                nn.init.constant_(module.bias, 0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.layers(x)
@@ -278,7 +289,7 @@ class TransformerEncoder(nn.Module):
             dropout=encoder_cfg["dropout"],
             activation=encoder_cfg.get("activation", "relu"),
             batch_first=True,
-            norm_first=False,
+            norm_first=encoder_cfg.get("norm_first", True),
         )
         self.transformer_encoder = nn.TransformerEncoder(
             encoder_layer,
@@ -351,7 +362,7 @@ class TransformerDecoder(nn.Module):
                 dropout=decoder_cfg["dropout"],
                 activation=decoder_cfg.get("activation", "relu"),
                 batch_first=True,
-                norm_first=False,
+                norm_first=decoder_cfg.get("norm_first", True),
             ),
             num_layers=decoder_cfg["num_layers"],
         )
@@ -446,11 +457,17 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         return pe
 
     def _init_weights(self):
-        for module in self.modules():
+        for name, module in self.named_modules():
             if isinstance(module, nn.Linear):
-                nn.init.xavier_normal_(module.weight)
+                if "output_projection" in name or "latent_projection" in name:
+                    nn.init.xavier_normal_(module.weight, gain=0.1)
+                else:
+                    nn.init.xavier_normal_(module.weight, gain=1.0)
                 if module.bias is not None:
                     nn.init.constant_(module.bias, 0)
+            elif isinstance(module, nn.LayerNorm):
+                nn.init.constant_(module.bias, 0)
+                nn.init.constant_(module.weight, 1.0)
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         return self.encoder(tokens, mask)
