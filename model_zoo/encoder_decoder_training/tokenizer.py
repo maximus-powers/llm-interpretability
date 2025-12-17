@@ -136,6 +136,25 @@ class WeightTokenizer:
         if metadata_dict is None:
             raise ValueError("metadata_dict is required for neuron-level tokenization")
 
+        # compute original_shapes if input is a weights dict (needed for detokenization)
+        original_shapes = None
+        if isinstance(input_data, dict):
+            if "weights" in input_data:
+                state_dict = input_data["weights"]
+            else:
+                state_dict = input_data
+            sorted_keys = sorted(state_dict.keys())
+            original_shapes = []
+            for key in sorted_keys:
+                value = state_dict[key]
+                if isinstance(value, (list, np.ndarray)):
+                    shape = tuple(np.array(value).shape)
+                elif isinstance(value, torch.Tensor):
+                    shape = tuple(value.shape)
+                else:
+                    shape = ()
+                original_shapes.append((key, shape))
+
         neurons = self._extract_neurons(input_data, metadata_dict)
 
         # find token_dim for this batch, token_dim = neuron data size + metadata
@@ -194,11 +213,14 @@ class WeightTokenizer:
 
             attention_mask[neuron_idx] = 1.0
 
-        return {
+        result = {
             "tokens": torch.from_numpy(tokens),
             "attention_mask": torch.from_numpy(attention_mask),
             "num_real_tokens": len(neurons),
         }
+        if original_shapes is not None:
+            result["original_shapes"] = original_shapes
+        return result
 
     def _extract_neurons(self, input_data, metadata_dict) -> List[np.ndarray]:
         if (
@@ -331,7 +353,9 @@ class WeightTokenizer:
         num_real_tokens = int(mask_np.sum())
         real_tokens = tokens_np[:num_real_tokens]
 
-        weight_values = real_tokens[:, : self.chunk_size]
+        # max_neuron_data_size for neuron granularity, chunk_size otherwise
+        data_size = self.max_neuron_data_size if self.granularity == "neuron" and self.max_neuron_data_size else self.chunk_size
+        weight_values = real_tokens[:, :data_size]
         all_weights = weight_values.flatten()
 
         state_dict = {}
