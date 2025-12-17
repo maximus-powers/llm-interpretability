@@ -244,7 +244,7 @@ class RepresentationDatasetLoader:
                             neurons_per_layer = infer_neurons_from_weights(weights_dict)
                         metadata_dict = {
                             "neurons_per_layer": neurons_per_layer,
-                            "features_per_neuron": len(self.method_names),
+                            "features_per_neuron": self.max_dims["signature_features_per_neuron"],
                         }
 
                         tokenized = self.tokenizer.tokenize(
@@ -286,7 +286,7 @@ class RepresentationDatasetLoader:
                             neurons_per_layer = infer_neurons_from_weights(weights_dict)
                         metadata_dict = {
                             "neurons_per_layer": neurons_per_layer,
-                            "features_per_neuron": len(self.method_names),
+                            "features_per_neuron": self.max_dims["signature_features_per_neuron"],
                         }
 
                         combined = interleave_weights_signatures(

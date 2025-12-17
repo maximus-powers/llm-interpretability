@@ -82,10 +82,9 @@ class RepresentationPipeline:
             )
 
             steering_models_data = steering_loader.load_and_encode_models()
+            pattern_clusters = steering_loader.group_by_patterns()
             all_patterns = steering_loader.get_all_patterns()
             logger.info(f"Discovered {len(all_patterns)} patterns: {all_patterns}")
-
-            pattern_clusters = steering_loader.group_by_patterns()
 
             steering_computer = SteeringVectorComputer(
                 pattern_clusters=pattern_clusters,
@@ -197,7 +196,7 @@ class RepresentationPipeline:
                 decoder=subject_loader.decoder,
                 tokenizer=subject_loader.tokenizer,
                 input_mode=input_mode,
-                max_dims=max_dimensions,
+                max_dims=subject_loader.max_dims,
                 method_names=method_names,
                 device=self.device,
             )
@@ -247,8 +246,8 @@ class RepresentationPipeline:
                 transformations_tried = 0
                 # try transforming to each other pattern
                 for target_pattern in all_patterns:
-                    # skip if target is already in source patterns
-                    if target_pattern in source_patterns:
+                    # skip if target is already in source patterns or same as detected
+                    if target_pattern in source_patterns or target_pattern == detected_pattern:
                         continue
 
                     transformations_tried += 1
@@ -289,6 +288,7 @@ class RepresentationPipeline:
                             original_patterns=source_patterns,  # full pattern list from metadata
                             all_patterns=all_patterns,
                             metadata=metadata,
+                            target_pattern=target_pattern,
                         )
 
                         all_results.append(

@@ -130,9 +130,9 @@ class RepresentationEvaluator:
         original_patterns: List[str],
         all_patterns: List[str],
         metadata: Dict[str, Any],
+        target_pattern: str = None,
     ):
-        logger.info(f"Evaluating modification: original_patterns={original_patterns}")
-        logger.info(f"Evaluating on all {len(all_patterns)} patterns (observational)")
+        logger.info(f"Evaluating modification: original_patterns={original_patterns}, target={target_pattern}")
 
         model_config = metadata.get("model_config", {})
         subject_architecture = {
@@ -145,12 +145,25 @@ class RepresentationEvaluator:
             "precision": model_config.get("precision", "float32"),
         }
 
+        def to_tensor_dict(weights_dict):
+            result = {}
+            for k, v in weights_dict.items():
+                if isinstance(v, torch.Tensor):
+                    result[k] = v
+                elif isinstance(v, list):
+                    result[k] = torch.tensor(v)
+                else:
+                    result[k] = torch.tensor(v)
+            return result
+        original_weights_tensors = to_tensor_dict(original_weights)
+        modified_weights_tensors = to_tensor_dict(modified_weights)
+
         original_model = SubjectModel(**subject_architecture)
-        original_model.load_state_dict(original_weights)
+        original_model.load_state_dict(original_weights_tensors)
         original_model.to(self.device)
 
         modified_model = SubjectModel(**subject_architecture)
-        modified_model.load_state_dict(modified_weights)
+        modified_model.load_state_dict(modified_weights_tensors)
         modified_model.to(self.device)
 
         vocab = [chr(ord("A") + i) for i in range(subject_architecture["vocab_size"])]
@@ -197,7 +210,7 @@ class RepresentationEvaluator:
         }
 
         # Log summary
-        self._log_evaluation_summary_new(results, original_patterns, all_patterns)
+        self._log_evaluation_summary_new(results, original_patterns, target_pattern)
 
         return results
 
@@ -381,81 +394,40 @@ class RepresentationEvaluator:
         self,
         results: Dict[str, Any],
         original_patterns: List[str],
-        all_patterns: List[str],
+        target_pattern: str = None,
     ):
         logger.info("=" * 60)
-        logger.info("EVALUATION SUMMARY (OBSERVATIONAL)")
+        logger.info("EVALUATION SUMMARY")
         logger.info("=" * 60)
 
         original_metrics = results["original_metrics"]
         modified_metrics = results["modified_metrics"]
 
-        # Cumulative metrics - Macro-averaged
-        logger.info(f"\nCumulative Metrics (Macro-averaged):")
+        # Cumulative metrics - Macro-averaged only
+        orig_cum = original_metrics["cumulative"]
+        mod_cum = modified_metrics["cumulative"]
         logger.info(
-            f"  Original - F1: {original_metrics['cumulative']['macro_f1']:.3f}, "
-            f"Acc: {original_metrics['cumulative']['macro_accuracy']:.3f}, "
-            f"Prec: {original_metrics['cumulative']['macro_precision']:.3f}, "
-            f"Rec: {original_metrics['cumulative']['macro_recall']:.3f}"
-        )
-        logger.info(
-            f"  Modified - F1: {modified_metrics['cumulative']['macro_f1']:.3f}, "
-            f"Acc: {modified_metrics['cumulative']['macro_accuracy']:.3f}, "
-            f"Prec: {modified_metrics['cumulative']['macro_precision']:.3f}, "
-            f"Rec: {modified_metrics['cumulative']['macro_recall']:.3f}"
+            f"Macro Avg - Orig F1: {orig_cum['macro_f1']:.3f}, Mod F1: {mod_cum['macro_f1']:.3f}, "
+            f"Delta: {mod_cum['macro_f1'] - orig_cum['macro_f1']:+.3f}"
         )
 
-        # Cumulative metrics - Micro-averaged
-        logger.info(f"\nCumulative Metrics (Micro-averaged):")
-        logger.info(
-            f"  Original - F1: {original_metrics['cumulative']['micro_f1']:.3f}, "
-            f"Acc: {original_metrics['cumulative']['micro_accuracy']:.3f}, "
-            f"Prec: {original_metrics['cumulative']['micro_precision']:.3f}, "
-            f"Rec: {original_metrics['cumulative']['micro_recall']:.3f}"
-        )
-        logger.info(
-            f"  Modified - F1: {modified_metrics['cumulative']['micro_f1']:.3f}, "
-            f"Acc: {modified_metrics['cumulative']['micro_accuracy']:.3f}, "
-            f"Prec: {modified_metrics['cumulative']['micro_precision']:.3f}, "
-            f"Rec: {modified_metrics['cumulative']['micro_recall']:.3f}"
-        )
-
-        # Per-pattern metrics for trained patterns
-        logger.info(f"\nTrained Patterns ({len(original_patterns)}):")
+        # Trained pattern metrics
         for pattern in original_patterns:
             if pattern in original_metrics and pattern in modified_metrics:
                 orig = original_metrics[pattern]
                 mod = modified_metrics[pattern]
-                logger.info(f"  {pattern}:")
                 logger.info(
-                    f"    Original - F1: {orig['f1']:.3f}, Acc: {orig['accuracy']:.3f}"
-                )
-                logger.info(
-                    f"    Modified - F1: {mod['f1']:.3f}, Acc: {mod['accuracy']:.3f}"
-                )
-                logger.info(
-                    f"    Delta    - F1: {mod['f1'] - orig['f1']:+.3f}, Acc: {mod['accuracy'] - orig['accuracy']:+.3f}"
+                    f"Trained ({pattern}) - Orig F1: {orig['f1']:.3f}, Mod F1: {mod['f1']:.3f}, "
+                    f"Delta: {mod['f1'] - orig['f1']:+.3f}"
                 )
 
-        # Sample of untrained patterns (show first 3)
-        untrained_patterns = [p for p in all_patterns if p not in original_patterns]
-        if untrained_patterns:
+        # Target (added) pattern metrics
+        if target_pattern and target_pattern in original_metrics and target_pattern in modified_metrics:
+            orig = original_metrics[target_pattern]
+            mod = modified_metrics[target_pattern]
             logger.info(
-                f"\nSample Untrained Patterns (showing 3 of {len(untrained_patterns)}):"
+                f"Target ({target_pattern}) - Orig F1: {orig['f1']:.3f}, Mod F1: {mod['f1']:.3f}, "
+                f"Delta: {mod['f1'] - orig['f1']:+.3f}"
             )
-            for pattern in untrained_patterns[:3]:
-                if pattern in original_metrics and pattern in modified_metrics:
-                    orig = original_metrics[pattern]
-                    mod = modified_metrics[pattern]
-                    logger.info(f"  {pattern}:")
-                    logger.info(
-                        f"    Original - F1: {orig['f1']:.3f}, Acc: {orig['accuracy']:.3f}"
-                    )
-                    logger.info(
-                        f"    Modified - F1: {mod['f1']:.3f}, Acc: {mod['accuracy']:.3f}"
-                    )
-                    logger.info(
-                        f"    Delta    - F1: {mod['f1'] - orig['f1']:+.3f}, Acc: {mod['accuracy'] - orig['accuracy']:+.3f}"
-                    )
 
         logger.info("=" * 60)
