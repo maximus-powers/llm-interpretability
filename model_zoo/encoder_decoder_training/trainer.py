@@ -7,6 +7,7 @@ import json
 import yaml
 import subprocess
 import atexit
+import math
 from pathlib import Path
 from typing import Dict, Any, Optional
 from torch.utils.tensorboard import SummaryWriter
@@ -26,6 +27,106 @@ from .losses import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class CosineAnnealingWarmupScheduler:
+    """Learning rate scheduler with linear warmup followed by cosine annealing."""
+
+    def __init__(
+        self,
+        optimizer,
+        warmup_epochs: int,
+        total_epochs: int,
+        min_lr: float,
+        base_lr: float,
+    ):
+        self.optimizer = optimizer
+        self.warmup_epochs = warmup_epochs
+        self.total_epochs = total_epochs
+        self.min_lr = min_lr
+        self.base_lr = base_lr
+        self.current_epoch = 0
+
+    def step(self, epoch: int = None):
+        if epoch is not None:
+            self.current_epoch = epoch
+        else:
+            self.current_epoch += 1
+
+        lr = self.get_lr()
+        for param_group in self.optimizer.param_groups:
+            # scale by the ratio if param group has custom lr
+            if "initial_lr" in param_group:
+                ratio = param_group["initial_lr"] / self.base_lr
+                param_group["lr"] = lr * ratio
+            else:
+                param_group["lr"] = lr
+        return lr
+
+    def get_lr(self) -> float:
+        if self.current_epoch < self.warmup_epochs:
+            # linear warmup
+            return self.min_lr + (self.base_lr - self.min_lr) * (
+                self.current_epoch / self.warmup_epochs
+            )
+        else:
+            # cosine annealing
+            progress = (self.current_epoch - self.warmup_epochs) / max(
+                1, (self.total_epochs - self.warmup_epochs)
+            )
+            return self.min_lr + 0.5 * (self.base_lr - self.min_lr) * (
+                1 + math.cos(math.pi * progress)
+            )
+
+    def state_dict(self):
+        return {"current_epoch": self.current_epoch}
+
+    def load_state_dict(self, state_dict):
+        self.current_epoch = state_dict["current_epoch"]
+
+
+class EMA:
+    """Exponential Moving Average of model parameters for smoother training."""
+
+    def __init__(self, model: nn.Module, decay: float = 0.999):
+        self.model = model
+        self.decay = decay
+        self.shadow = {}
+        self.backup = {}
+
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name] = param.data.clone()
+
+    def update(self):
+        """Update shadow weights with current model weights."""
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                new_average = (
+                    1.0 - self.decay
+                ) * param.data + self.decay * self.shadow[name]
+                self.shadow[name] = new_average.clone()
+
+    def apply_shadow(self):
+        """Apply shadow weights to model for evaluation."""
+        for name, param in self.model.named_parameters():
+            if param.requires_grad:
+                self.backup[name] = param.data.clone()
+                param.data = self.shadow[name]
+
+    def restore(self):
+        """Restore original weights after evaluation."""
+        for name, param in self.model.named_parameters():
+            if param.requires_grad and name in self.backup:
+                param.data = self.backup[name]
+        self.backup = {}
+
+    def state_dict(self):
+        return {"shadow": self.shadow, "decay": self.decay}
+
+    def load_state_dict(self, state_dict):
+        self.shadow = state_dict["shadow"]
+        self.decay = state_dict["decay"]
 
 
 class EncoderDecoderTrainer:
@@ -105,15 +206,47 @@ class EncoderDecoderTrainer:
         self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
         self.base_lr = config["training"]["learning_rate"]
         self.warmup_epochs = config["training"]["lr_scheduler"].get("warmup_epochs", 0)
+        self.gradient_accumulation_steps = config["training"].get(
+            "gradient_accumulation_steps", 1
+        )
+
+        # scheduler setup - support both cosine_warmup and reduce_on_plateau
         self.scheduler = None
+        self.scheduler_type = config["training"]["lr_scheduler"].get(
+            "type", "reduce_on_plateau"
+        )
         if config["training"]["lr_scheduler"]["enabled"]:
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer,
-                mode=config["training"]["early_stopping"]["mode"],
-                patience=config["training"]["lr_scheduler"]["patience"],
-                factor=config["training"]["lr_scheduler"]["factor"],
-                min_lr=config["training"]["lr_scheduler"]["min_lr"],
-            )
+            if self.scheduler_type == "cosine_warmup":
+                # store initial lr for each param group for scaling
+                for param_group in self.optimizer.param_groups:
+                    param_group["initial_lr"] = param_group["lr"]
+                self.scheduler = CosineAnnealingWarmupScheduler(
+                    optimizer=self.optimizer,
+                    warmup_epochs=self.warmup_epochs,
+                    total_epochs=config["training"]["epochs"],
+                    min_lr=config["training"]["lr_scheduler"]["min_lr"],
+                    base_lr=self.base_lr,
+                )
+                logger.info(
+                    f"Using CosineAnnealingWarmup scheduler: warmup={self.warmup_epochs}, "
+                    f"min_lr={config['training']['lr_scheduler']['min_lr']}"
+                )
+            else:
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.optimizer,
+                    mode=config["training"]["early_stopping"]["mode"],
+                    patience=config["training"]["lr_scheduler"]["patience"],
+                    factor=config["training"]["lr_scheduler"]["factor"],
+                    min_lr=config["training"]["lr_scheduler"]["min_lr"],
+                )
+                logger.info("Using ReduceLROnPlateau scheduler")
+
+        # EMA setup
+        self.ema = None
+        if config["training"].get("use_ema", False):
+            ema_decay = config["training"].get("ema_decay", 0.999)
+            self.ema = EMA(model, decay=ema_decay)
+            logger.info(f"Using EMA with decay={ema_decay}")
 
         # logs
         run_dir = Path(config.get("run_dir", "."))
@@ -263,8 +396,22 @@ class EncoderDecoderTrainer:
         for epoch in range(self.config["training"]["epochs"]):
             logger.info(f"Epoch {epoch + 1}/{self.config['training']['epochs']}")
 
-            # learning rate warmup
-            if self.warmup_epochs > 0 and epoch < self.warmup_epochs:
+            # update loss schedules (gamma, temperature) if using contrastive loss
+            if self.is_contrastive_loss and hasattr(self.criterion, "update_schedule"):
+                gamma, temp = self.criterion.update_schedule(epoch)
+                logger.info(f"Loss schedule: gamma={gamma:.4f}, temperature={temp:.4f}")
+                if self.writer:
+                    self.writer.add_scalar("train/gamma", gamma, epoch)
+                    self.writer.add_scalar("train/temperature", temp, epoch)
+
+            # update learning rate based on scheduler type
+            if self.scheduler and self.scheduler_type == "cosine_warmup":
+                # cosine scheduler handles warmup internally
+                self.scheduler.step(epoch)
+                current_lr = self.optimizer.param_groups[0]["lr"]
+                logger.info(f"LR: {current_lr:.6f}")
+            elif self.warmup_epochs > 0 and epoch < self.warmup_epochs:
+                # manual warmup for reduce_on_plateau
                 warmup_factor = (epoch + 1) / self.warmup_epochs
                 warmup_lr = self.base_lr * warmup_factor
                 for param_group in self.optimizer.param_groups:
@@ -275,15 +422,22 @@ class EncoderDecoderTrainer:
             val_metrics = self._validate_epoch(epoch)
             self._log_epoch(epoch, train_metrics, val_metrics)
             current_lr = self.optimizer.param_groups[0]["lr"]
-            # only reduce on plateau after warmup
-            if self.scheduler and epoch >= self.warmup_epochs:
-                monitor_value = val_metrics.get(self.monitor_metric, val_metrics.get("loss"))
-                if monitor_value is not None:
-                    self.scheduler.step(monitor_value)
-                    new_lr = self.optimizer.param_groups[0]["lr"]
-                    if new_lr != current_lr:
-                        logger.info(f"Learning rate reduced: {current_lr:.6f} -> {new_lr:.6f}")
-                    current_lr = new_lr
+
+            # update scheduler (only reduce_on_plateau needs val_loss)
+            if self.scheduler and self.scheduler_type == "reduce_on_plateau":
+                if epoch >= self.warmup_epochs:
+                    monitor_value = val_metrics.get(
+                        self.monitor_metric, val_metrics.get("loss")
+                    )
+                    if monitor_value is not None:
+                        self.scheduler.step(monitor_value)
+                        new_lr = self.optimizer.param_groups[0]["lr"]
+                        if new_lr != current_lr:
+                            logger.info(
+                                f"Learning rate reduced: {current_lr:.6f} -> {new_lr:.6f}"
+                            )
+                        current_lr = new_lr
+
             if self.writer:
                 self.writer.add_scalar("train/learning_rate", current_lr, epoch)
             is_best = self._is_best(val_metrics)
@@ -318,6 +472,9 @@ class EncoderDecoderTrainer:
         total_loss = 0
         total_samples = 0
         all_loss_components = {}
+        accumulation_steps = self.gradient_accumulation_steps
+
+        self.optimizer.zero_grad()  # zero gradients at start of epoch
 
         progress_bar = tqdm(self.train_loader, desc=f"Train Epoch {epoch + 1}")
         for batch_idx, batch in enumerate(progress_bar):
@@ -327,7 +484,6 @@ class EncoderDecoderTrainer:
             decoder_mask = batch["decoder_mask"].to(self.device)
             behavior_labels = batch.get("behavior_labels", None)
             batch_size = encoder_input.size(0)
-            self.optimizer.zero_grad()
 
             loss, _, loss_components = self._calculate_loss(
                 encoder_input,
@@ -337,51 +493,70 @@ class EncoderDecoderTrainer:
                 behavior_labels=behavior_labels,
             )
 
+            # scale loss for gradient accumulation
+            scaled_loss = loss / accumulation_steps
+            scaled_loss.backward()
+
             # accumulate loss components
             for key, value in loss_components.items():
                 if key not in all_loss_components:
                     all_loss_components[key] = 0
                 all_loss_components[key] += value * batch_size
 
-            loss.backward()
-
-            # log gradient norms for debugging
-            if self.writer:
-                global_step = epoch * len(self.train_loader) + batch_idx
-
-                # encoder gradient norm
-                encoder_grad_norm = 0.0
-                for p in self.model.encoder.parameters():
-                    if p.grad is not None:
-                        encoder_grad_norm += p.grad.data.norm(2).item() ** 2
-                encoder_grad_norm = encoder_grad_norm ** 0.5
-                self.writer.add_scalar("train/encoder_grad_norm", encoder_grad_norm, global_step)
-
-                # decoder gradient norm
-                decoder_grad_norm = 0.0
-                for p in self.model.decoder.parameters():
-                    if p.grad is not None:
-                        decoder_grad_norm += p.grad.data.norm(2).item() ** 2
-                decoder_grad_norm = decoder_grad_norm ** 0.5
-                self.writer.add_scalar("train/decoder_grad_norm", decoder_grad_norm, global_step)
-
-                # projection head gradient norm (for contrastive learning)
-                if self.is_contrastive_loss:
-                    proj_head = getattr(
-                        getattr(self.criterion, "loss_contrast", None), "projection_head", None
-                    )
-                    if proj_head is not None:
-                        proj_grad_norm = 0.0
-                        for p in proj_head.parameters():
-                            if p.grad is not None:
-                                proj_grad_norm += p.grad.data.norm(2).item() ** 2
-                        proj_grad_norm = proj_grad_norm ** 0.5
-                        self.writer.add_scalar("train/proj_head_grad_norm", proj_grad_norm, global_step)
-
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
-            self.optimizer.step()
             total_loss += loss.item() * batch_size
             total_samples += batch_size
+
+            # only step optimizer every accumulation_steps batches
+            if (batch_idx + 1) % accumulation_steps == 0:
+                # log gradient norms for debugging
+                if self.writer:
+                    global_step = epoch * len(self.train_loader) + batch_idx
+
+                    # encoder gradient norm
+                    encoder_grad_norm = 0.0
+                    for p in self.model.encoder.parameters():
+                        if p.grad is not None:
+                            encoder_grad_norm += p.grad.data.norm(2).item() ** 2
+                    encoder_grad_norm = encoder_grad_norm**0.5
+                    self.writer.add_scalar(
+                        "train/encoder_grad_norm", encoder_grad_norm, global_step
+                    )
+
+                    # decoder gradient norm
+                    decoder_grad_norm = 0.0
+                    for p in self.model.decoder.parameters():
+                        if p.grad is not None:
+                            decoder_grad_norm += p.grad.data.norm(2).item() ** 2
+                    decoder_grad_norm = decoder_grad_norm**0.5
+                    self.writer.add_scalar(
+                        "train/decoder_grad_norm", decoder_grad_norm, global_step
+                    )
+
+                    # projection head gradient norm (for contrastive learning)
+                    if self.is_contrastive_loss:
+                        proj_head = getattr(
+                            getattr(self.criterion, "loss_contrast", None),
+                            "projection_head",
+                            None,
+                        )
+                        if proj_head is not None:
+                            proj_grad_norm = 0.0
+                            for p in proj_head.parameters():
+                                if p.grad is not None:
+                                    proj_grad_norm += p.grad.data.norm(2).item() ** 2
+                            proj_grad_norm = proj_grad_norm**0.5
+                            self.writer.add_scalar(
+                                "train/proj_head_grad_norm", proj_grad_norm, global_step
+                            )
+
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+                self.optimizer.step()
+                self.optimizer.zero_grad()
+
+                # update EMA after optimizer step
+                if self.ema is not None:
+                    self.ema.update()
+
             progress_bar.set_postfix({"loss": loss.item()})
 
             if (
@@ -400,6 +575,14 @@ class EncoderDecoderTrainer:
 
             self.global_step += 1
 
+        # handle remaining gradients if batch count isn't divisible by accumulation_steps
+        if len(self.train_loader) % accumulation_steps != 0:
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
+            self.optimizer.step()
+            self.optimizer.zero_grad()
+            if self.ema is not None:
+                self.ema.update()
+
         metrics = {"loss": total_loss / total_samples}
         for key, value in all_loss_components.items():
             metrics[key] = value / total_samples
@@ -413,6 +596,10 @@ class EncoderDecoderTrainer:
         all_reconstructed = []
         all_targets = []
         all_masks = []
+
+        # use EMA weights for validation if available
+        if self.ema is not None:
+            self.ema.apply_shadow()
 
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc=f"Val Epoch {epoch + 1}"):
@@ -463,6 +650,10 @@ class EncoderDecoderTrainer:
         )
         metrics["loss"] = total_loss / total_samples
 
+        # restore original weights after validation
+        if self.ema is not None:
+            self.ema.restore()
+
         return metrics
 
     def _evaluate_test_set(self):
@@ -472,6 +663,10 @@ class EncoderDecoderTrainer:
         all_reconstructed = []
         all_targets = []
         all_masks = []
+
+        # use EMA weights for test evaluation if available
+        if self.ema is not None:
+            self.ema.apply_shadow()
 
         with torch.no_grad():
             for batch in tqdm(self.test_loader, desc="Test Set Evaluation"):
@@ -521,6 +716,10 @@ class EncoderDecoderTrainer:
             all_reconstructed, all_targets, all_masks, self.config
         )
         metrics["loss"] = total_loss / total_samples
+
+        # restore original weights after test evaluation
+        if self.ema is not None:
+            self.ema.restore()
 
         return metrics
 
