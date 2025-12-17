@@ -2,11 +2,70 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import logging
+import math
 from typing import Dict, Any, Optional
 
 from .encoder_decoder_model import ProjectionHead
 
 logger = logging.getLogger(__name__)
+
+
+class TemperatureScheduler:
+    """Schedules temperature from high (soft clustering) to low (hard clustering)."""
+
+    def __init__(
+        self,
+        initial_temp: float = 0.3,
+        final_temp: float = 0.08,
+        warmup_epochs: int = 20,
+        decay_type: str = "linear",
+    ):
+        self.initial_temp = initial_temp
+        self.final_temp = final_temp
+        self.warmup_epochs = warmup_epochs
+        self.decay_type = decay_type
+
+    def get_temperature(self, epoch: int) -> float:
+        if epoch >= self.warmup_epochs:
+            return self.final_temp
+
+        progress = epoch / max(1, self.warmup_epochs)
+        if self.decay_type == "linear":
+            return self.initial_temp - (self.initial_temp - self.final_temp) * progress
+        elif self.decay_type == "cosine":
+            return self.final_temp + 0.5 * (self.initial_temp - self.final_temp) * (
+                1 + math.cos(math.pi * progress)
+            )
+        return self.initial_temp
+
+
+class GammaScheduler:
+    """Schedules gamma from reconstruction-focused to contrastive-focused."""
+
+    def __init__(
+        self,
+        initial_gamma: float = 0.1,
+        final_gamma: float = 0.5,
+        warmup_epochs: int = 30,
+        decay_type: str = "linear",
+    ):
+        self.initial_gamma = initial_gamma
+        self.final_gamma = final_gamma
+        self.warmup_epochs = warmup_epochs
+        self.decay_type = decay_type
+
+    def get_gamma(self, epoch: int) -> float:
+        if epoch >= self.warmup_epochs:
+            return self.final_gamma
+
+        progress = epoch / max(1, self.warmup_epochs)
+        if self.decay_type == "linear":
+            return self.initial_gamma + (self.final_gamma - self.initial_gamma) * progress
+        elif self.decay_type == "cosine":
+            return self.initial_gamma + (self.final_gamma - self.initial_gamma) * (
+                1 - 0.5 * (1 + math.cos(math.pi * progress))
+            )
+        return self.initial_gamma
 
 
 class ReconstructionLoss:
@@ -74,11 +133,37 @@ class SupervisedContrastiveLoss(nn.Module):
         temperature: float,
         device: str,
         projection_head_config: Optional[Dict[str, Any]] = None,
+        temperature_schedule: Optional[Dict[str, Any]] = None,
+        variance_weight: float = 0.0,
+        covariance_weight: float = 0.0,
     ):
         super().__init__()
+        self.base_temperature = temperature
         self.temperature = temperature
         self.device = device
         self._log_counter = 0
+
+        # VICReg-style regularization to prevent representation collapse
+        self.variance_weight = variance_weight
+        self.covariance_weight = covariance_weight
+        if variance_weight > 0:
+            logger.info(f"Variance regularization enabled: weight={variance_weight}")
+        if covariance_weight > 0:
+            logger.info(f"Covariance regularization enabled: weight={covariance_weight}")
+
+        # temperature scheduling
+        self.temp_scheduler = None
+        if temperature_schedule is not None and temperature_schedule.get("enabled", False):
+            self.temp_scheduler = TemperatureScheduler(
+                initial_temp=temperature_schedule.get("initial", 0.3),
+                final_temp=temperature_schedule.get("final", temperature),
+                warmup_epochs=temperature_schedule.get("warmup_epochs", 20),
+                decay_type=temperature_schedule.get("decay_type", "linear"),
+            )
+            logger.info(
+                f"Temperature scheduling enabled: {self.temp_scheduler.initial_temp} -> "
+                f"{self.temp_scheduler.final_temp} over {self.temp_scheduler.warmup_epochs} epochs"
+            )
 
         if projection_head_config is not None:
             self.projection_head = ProjectionHead(
@@ -88,6 +173,27 @@ class SupervisedContrastiveLoss(nn.Module):
             ).to(device)
         else:
             self.projection_head = None
+
+    def update_temperature(self, epoch: int) -> float:
+        """Update temperature based on scheduler. Call at start of each epoch."""
+        if self.temp_scheduler is not None:
+            self.temperature = self.temp_scheduler.get_temperature(epoch)
+        return self.temperature
+
+    def _variance_loss(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """VICReg variance term: penalize low std to prevent collapse."""
+        std = embeddings.std(dim=0)
+        # Hinge loss: penalize if std < 1
+        return F.relu(1 - std).mean()
+
+    def _covariance_loss(self, embeddings: torch.Tensor) -> torch.Tensor:
+        """VICReg covariance term: decorrelate embedding dimensions."""
+        batch_size, dim = embeddings.shape
+        embeddings = embeddings - embeddings.mean(dim=0)
+        cov = (embeddings.T @ embeddings) / (batch_size - 1)
+        # Zero out diagonal (we only want off-diagonal)
+        off_diag = cov - torch.diag(torch.diag(cov))
+        return (off_diag ** 2).sum() / dim
 
     def _create_behavior_positive_mask(self, behavior_labels, device):
         batch_size = len(behavior_labels)
@@ -126,6 +232,14 @@ class SupervisedContrastiveLoss(nn.Module):
         device = latents.device
         batch_size = latents.size(0)
 
+        # VICReg regularization (computed BEFORE normalization to prevent collapse)
+        var_loss = torch.tensor(0.0, device=device)
+        cov_loss = torch.tensor(0.0, device=device)
+        if self.variance_weight > 0:
+            var_loss = self._variance_loss(latents)
+        if self.covariance_weight > 0:
+            cov_loss = self._covariance_loss(latents)
+
         # L2 normalize features (standard for contrastive learning)
         features = F.normalize(latents, p=2, dim=1)
 
@@ -157,7 +271,8 @@ class SupervisedContrastiveLoss(nn.Module):
 
         if not has_positives.any():
             logger.warning("No positive pairs found in batch!")
-            return torch.tensor(0.0, device=device, requires_grad=True)
+            # Still apply regularization even if no positives
+            return self.variance_weight * var_loss + self.covariance_weight * cov_loss
 
         # sum of log_prob for positive pairs, divided by num positives
         masked_log_prob = log_prob * positive_mask
@@ -166,8 +281,9 @@ class SupervisedContrastiveLoss(nn.Module):
         # only average over anchors that have positives
         mean_log_prob_pos = sum_log_prob_pos[has_positives] / num_positives_per_anchor[has_positives]
 
-        # loss is negative mean log probability
-        loss = -mean_log_prob_pos.mean()
+        # loss is negative mean log probability + regularization
+        contrastive_loss = -mean_log_prob_pos.mean()
+        loss = contrastive_loss + self.variance_weight * var_loss + self.covariance_weight * cov_loss
 
         return loss
 
@@ -178,11 +294,32 @@ class GammaContrastReconLoss(nn.Module):
     def __init__(self, config: Dict[str, Any], device: str):
         super().__init__()
         loss_cfg = config["loss"]
-        self.gamma = loss_cfg.get("gamma", 0.5)
+        self.base_gamma = loss_cfg.get("gamma", 0.5)
+        self.gamma = self.base_gamma
         assert 0 <= self.gamma <= 1, f"gamma must be in [0, 1], got {self.gamma}"
         self.device = device
 
+        # gamma scheduling
+        self.gamma_scheduler = None
+        gamma_schedule = loss_cfg.get("gamma_schedule")
+        if gamma_schedule is not None and gamma_schedule.get("enabled", False):
+            self.gamma_scheduler = GammaScheduler(
+                initial_gamma=gamma_schedule.get("initial", 0.1),
+                final_gamma=gamma_schedule.get("final", self.base_gamma),
+                warmup_epochs=gamma_schedule.get("warmup_epochs", 30),
+                decay_type=gamma_schedule.get("decay_type", "linear"),
+            )
+            logger.info(
+                f"Gamma scheduling enabled: {self.gamma_scheduler.initial_gamma} -> "
+                f"{self.gamma_scheduler.final_gamma} over {self.gamma_scheduler.warmup_epochs} epochs"
+            )
+
         temperature = loss_cfg.get("temperature", 0.1)
+        temperature_schedule = loss_cfg.get("temperature_schedule")
+
+        # VICReg-style regularization to prevent representation collapse
+        variance_weight = loss_cfg.get("variance_weight", 1.0)  # Default ON
+        covariance_weight = loss_cfg.get("covariance_weight", 0.04)  # Default ON
 
         projection_head_config = None
         if loss_cfg.get("projection_head") is not None:
@@ -198,6 +335,9 @@ class GammaContrastReconLoss(nn.Module):
             temperature=temperature,
             device=device,
             projection_head_config=projection_head_config,
+            temperature_schedule=temperature_schedule,
+            variance_weight=variance_weight,
+            covariance_weight=covariance_weight,
         )
 
         recon_type = loss_cfg.get("reconstruction_type", "mse")
@@ -207,6 +347,13 @@ class GammaContrastReconLoss(nn.Module):
             raise ValueError(f"Unknown reconstruction type: {recon_type}")
 
         logger.info(f"GammaContrastReconLoss: gamma={self.gamma}, recon={recon_type}")
+
+    def update_schedule(self, epoch: int):
+        """Update gamma and temperature schedules. Call at start of each epoch."""
+        if self.gamma_scheduler is not None:
+            self.gamma = self.gamma_scheduler.get_gamma(epoch)
+        self.loss_contrast.update_temperature(epoch)
+        return self.gamma, self.loss_contrast.temperature
 
     def forward(
         self,
