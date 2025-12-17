@@ -358,6 +358,11 @@ class WeightTokenizer:
         weight_values = real_tokens[:, :data_size]
         all_weights = weight_values.flatten()
 
+        # truncate to remove padding using original shapes (might not be training it to produce padding tokens, could cause problems in inference)
+        total_expected_weights = sum(int(np.prod(shape)) for _, shape in original_shapes)
+        if len(all_weights) > total_expected_weights:
+            all_weights = all_weights[:total_expected_weights]
+
         state_dict = {}
         weight_idx = 0
 
@@ -384,6 +389,68 @@ class WeightTokenizer:
             except Exception as e:
                 logger.error(f"Failed to reshape {layer_name} to {shape}: {e}")
                 state_dict[layer_name] = torch.zeros(shape, dtype=torch.float32)
+
+        return state_dict
+
+    def detokenize_differentiable(
+        self,
+        tokens: torch.Tensor,
+        attention_mask: torch.Tensor,
+        original_shapes: List[Tuple[str, Tuple[int, ...]]],
+    ) -> Dict[str, torch.Tensor]:
+        if tokens.dim() == 3:
+            tokens = tokens[0]
+            attention_mask = attention_mask[0]
+
+        # real tokens from mask
+        num_real_tokens = int(attention_mask.sum().item())
+        real_tokens = tokens[:num_real_tokens]
+
+        # extract weights
+        data_size = (
+            self.max_neuron_data_size
+            if self.granularity == "neuron" and self.max_neuron_data_size
+            else self.chunk_size
+        )
+        weight_values = real_tokens[:, :data_size]
+        all_weights = weight_values.flatten()
+
+        # truncate to remove padding using original shapes (might not be training it to produce padding tokens, could cause problems in inference)
+        total_expected_weights = sum(
+            int(torch.prod(torch.tensor(shape)).item())
+            for _, shape in original_shapes
+        )
+        if all_weights.shape[0] > total_expected_weights:
+            all_weights = all_weights[:total_expected_weights]
+
+        state_dict = {}
+        weight_idx = 0
+
+        for layer_name, shape in original_shapes:
+            num_params = 1
+            for dim in shape:
+                num_params *= dim
+
+            if weight_idx + num_params > all_weights.shape[0]:
+                logger.warning(
+                    f"Not enough weight values to reconstruct {layer_name}. "
+                    f"Expected {num_params}, but only {all_weights.shape[0] - weight_idx} remaining."
+                )
+                # pad with zeros
+                available = all_weights.shape[0] - weight_idx
+                if available > 0:
+                    layer_weights = torch.cat([
+                        all_weights[weight_idx:],
+                        torch.zeros(num_params - available, device=all_weights.device, dtype=all_weights.dtype)
+                    ])
+                else:
+                    layer_weights = torch.zeros(num_params, device=all_weights.device, dtype=all_weights.dtype)
+                weight_idx = all_weights.shape[0]
+            else:
+                layer_weights = all_weights[weight_idx : weight_idx + num_params]
+                weight_idx += num_params
+
+            state_dict[layer_name] = layer_weights.view(*shape)
 
         return state_dict
 

@@ -12,11 +12,11 @@ dataset:
   random_seed: 42
   input_mode: "weights"    # weights, signature, both
 
-  max_dimensions: # Only needed if input_mode "signature"
+  max_dimensions: # Only needed if input_mode "signature" or "both"
     max_hidden_layers: 9
     max_neurons_per_layer: 40
     max_sequence_length: 7
-  
+
   neuron_profile: # Only needed if input_mode "signature" or "both"
     # list of methods to use from signatures, make sure your signature contains the ones you choose.
     # they will be concatenated in the order given before being used as input
@@ -28,7 +28,7 @@ dataset:
 tokenization:
   granularity: "neuron"              # "neuron" for per-neuron tokenization, "chunk" for legacy chunking
   chunk_size: 64                     # Only used when granularity="chunk": weight values per token
-  max_tokens: 512                    # Maximum sequence length ( (max_total_linear_layers × max_neurons_per_layer) / chunk_size if using chunks )
+  max_tokens: 512                    # Maximum sequence length
   include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, token_idx)
 
 # ============================================================================
@@ -42,13 +42,13 @@ architecture:
   mlp:
     token_pooling: "mean"            # mean, max, flatten
     encoder:
-      hidden_dims: [512, 384, 256]   # Hidden layer dimensions                    # List of integers, each = one layer
-      dropout: 0.2                   # Dropout probability                        # 0.0-1.0
+      hidden_dims: [512, 384, 256]   # Hidden layer dimensions
+      dropout: 0.2                   # Dropout probability (0.0-1.0)
       activation: "relu"             # relu, gelu, tanh, leaky_relu, sigmoid
       batch_norm: true               # true, false
     decoder:
-      hidden_dims: [256, 384, 512]   # Hidden layer dimensions                    # List of integers, each = one layer
-      dropout: 0.2                   # Dropout probability                        # 0.0-1.0
+      hidden_dims: [256, 384, 512]   # Hidden layer dimensions
+      dropout: 0.2                   # Dropout probability (0.0-1.0)
       activation: "relu"             # relu, gelu, tanh, leaky_relu, sigmoid
       batch_norm: true               # true, false
 
@@ -73,30 +73,37 @@ architecture:
 
 # ============================================================================
 # LOSS CONFIGURATION
+# Enable/disable each loss type and set its weight independently
+# Weights are normalized to sum to 1.0 (e.g., 1.0:0.3:0.5 -> 55%:17%:28%)
 # ============================================================================
 loss:
-  type: "mse"                        # mse, mae, cosine, combined, contrastive
+  # Reconstruction loss - token-level comparison between original and reconstructed
+  reconstruction:
+    enabled: true
+    type: "mse"                      # mse, mae, cosine, combined
+    weight: 1.0
 
-  # ===== Combined Loss (multiple reconstruction losses) =====
-  # components:
-  #   - type: "mse"                  # Component loss type
-  #     weight: 1.0                  # Component weight
-  #   - type: "cosine"
-  #     weight: 0.5
-
-  # ===== Contrastive Loss (Supervised) =====
+  # Contrastive loss - pulls same-behavior models together in latent space
   # Uses behavior labels from dataset metadata (selected_patterns) to define positive pairs.
   # Networks sharing ANY behavior pattern are treated as positive pairs.
-  #
-  # gamma: 0.5                       # Balance contrastive/reconstruction, 0.0-1.0 (0=recon only, 1=contrast only)
-  # temperature: 0.1                 # Temperature for contrastive loss, typically 0.1-0.5 (smaller=harder clustering)
-  # reconstruction_type: "mse"       # mse, mae, cosine
-  #
-  # # Optional projection head for contrastive learning (2-layer MLP)
-  # projection_head:
-  #   input_dim: 256                 # Should match architecture.latent_dim
-  #   hidden_dim: 256                # Hidden layer size, typically same as input_dim
-  #   output_dim: 128                # Projection output dimension
+  contrastive:
+    enabled: false
+    weight: 0.3                      # Weight relative to other losses
+    temperature: 0.1                 # Temperature for softmax (smaller = harder clustering)
+    # Optional projection head for contrastive learning (2-layer MLP)
+    projection_head:
+      input_dim: 256                 # Should match architecture.latent_dim
+      hidden_dim: 128                # Hidden layer size
+      output_dim: 64                 # Projection output dimension
+
+  # Functional loss - evaluates whether reconstructed weights produce correct model outputs
+  # This loss detokenizes weights, loads them into models, and compares outputs on test inputs.
+  # Ensures decoder learns to produce functionally correct weights, not just token-similar ones.
+  functional:
+    enabled: false
+    weight: 0.5                      # Weight relative to other losses
+    test_samples: null               # null = use all, 0.0-1.0 = percentage of benchmark
+    benchmark_path: "model_zoo/configs/rep_eng/benchmark_dataset.json"
 
 # ============================================================================
 # TRAINING CONFIGURATION
@@ -105,23 +112,22 @@ training:
   optimizer: "adamw"                 # AdamW with decoupled weight decay
   learning_rate: 0.0001              # Learning rate
   weight_decay: 0.0001               # Weight decay (L2 regularization)
-  max_grad_norm: 1.0                 # Maximum gradient norm for clipping (prevents exploding gradients)
+  max_grad_norm: 1.0                 # Maximum gradient norm for clipping
   epochs: 200                        # Number of training epochs
   batch_size: 16                     # Training batch size
+  gradient_accumulation_steps: 1     # Effective batch size = batch_size * this
 
   early_stopping:
     enabled: true
-    patience: 5
+    patience: 10
     monitor: "val_loss"              # val_loss, val_mse, val_r2_score, etc.
-    mode: "min"                      # Optimization direction, min (lower is better), max (higher is better)
+    mode: "min"                      # min (lower is better), max (higher is better)
 
   lr_scheduler:
-    enabled: true                    # Enable LR scheduling
-    type: "reduce_on_plateau"        # Scheduler type
-    patience: 3                      # Epochs without improvement before reducing
+    enabled: true                    # Enable LR scheduling (ReduceLROnPlateau)
+    patience: 5                      # Epochs without improvement before reducing
     factor: 0.5                      # LR reduction factor
     min_lr: 0.000001
-    warmup_epochs: 3                 # Number of epochs for linear LR warmup (0 to disable)
 
 # ============================================================================
 # EVALUATION CONFIGURATION
@@ -149,8 +155,8 @@ logging:
   checkpoint:
     enabled: true
     save_best_only: true
-    monitor: "val_loss"              # Metric to monitor for "best", val_loss, val_mse, val_r2_score, etc.
-    mode: "min"                      # Optimization direction, min (lower is better), max (higher is better)
+    monitor: "val_loss"              # Metric to monitor for "best"
+    mode: "min"                      # min (lower is better), max (higher is better)
   verbose: true
 
 # ============================================================================
@@ -164,13 +170,12 @@ hub:
   push_model: true
   push_logs: true
   push_metrics: true
-  # Both encoder.pt and decoder.pt will be uploaded to the same repository
 
 # ============================================================================
 # DEVICE & DATA LOADING
 # ============================================================================
 device:
-  type: "auto" # "auto", "cuda", "mps", or "cpu"
+  type: "auto"                       # "auto", "cuda", "mps", or "cpu"
 
 dataloader:
   num_workers: 0
@@ -179,5 +184,4 @@ dataloader:
 # ============================================================================
 # RUN DIRECTORY MANAGEMENT
 # ============================================================================
-# delete run directory after training
-run_log_cleanup: false
+run_log_cleanup: false               # Delete run directory after training

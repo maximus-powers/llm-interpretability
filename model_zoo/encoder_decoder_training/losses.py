@@ -2,70 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import logging
-import math
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 
 from .encoder_decoder_model import ProjectionHead
 
 logger = logging.getLogger(__name__)
-
-
-class TemperatureScheduler:
-    """Schedules temperature from high (soft clustering) to low (hard clustering)."""
-
-    def __init__(
-        self,
-        initial_temp: float = 0.3,
-        final_temp: float = 0.08,
-        warmup_epochs: int = 20,
-        decay_type: str = "linear",
-    ):
-        self.initial_temp = initial_temp
-        self.final_temp = final_temp
-        self.warmup_epochs = warmup_epochs
-        self.decay_type = decay_type
-
-    def get_temperature(self, epoch: int) -> float:
-        if epoch >= self.warmup_epochs:
-            return self.final_temp
-
-        progress = epoch / max(1, self.warmup_epochs)
-        if self.decay_type == "linear":
-            return self.initial_temp - (self.initial_temp - self.final_temp) * progress
-        elif self.decay_type == "cosine":
-            return self.final_temp + 0.5 * (self.initial_temp - self.final_temp) * (
-                1 + math.cos(math.pi * progress)
-            )
-        return self.initial_temp
-
-
-class GammaScheduler:
-    """Schedules gamma from reconstruction-focused to contrastive-focused."""
-
-    def __init__(
-        self,
-        initial_gamma: float = 0.1,
-        final_gamma: float = 0.5,
-        warmup_epochs: int = 30,
-        decay_type: str = "linear",
-    ):
-        self.initial_gamma = initial_gamma
-        self.final_gamma = final_gamma
-        self.warmup_epochs = warmup_epochs
-        self.decay_type = decay_type
-
-    def get_gamma(self, epoch: int) -> float:
-        if epoch >= self.warmup_epochs:
-            return self.final_gamma
-
-        progress = epoch / max(1, self.warmup_epochs)
-        if self.decay_type == "linear":
-            return self.initial_gamma + (self.final_gamma - self.initial_gamma) * progress
-        elif self.decay_type == "cosine":
-            return self.initial_gamma + (self.final_gamma - self.initial_gamma) * (
-                1 - 0.5 * (1 + math.cos(math.pi * progress))
-            )
-        return self.initial_gamma
 
 
 class ReconstructionLoss:
@@ -133,37 +74,10 @@ class SupervisedContrastiveLoss(nn.Module):
         temperature: float,
         device: str,
         projection_head_config: Optional[Dict[str, Any]] = None,
-        temperature_schedule: Optional[Dict[str, Any]] = None,
-        variance_weight: float = 0.0,
-        covariance_weight: float = 0.0,
     ):
         super().__init__()
-        self.base_temperature = temperature
         self.temperature = temperature
         self.device = device
-        self._log_counter = 0
-
-        # VICReg-style regularization to prevent representation collapse
-        self.variance_weight = variance_weight
-        self.covariance_weight = covariance_weight
-        if variance_weight > 0:
-            logger.info(f"Variance regularization enabled: weight={variance_weight}")
-        if covariance_weight > 0:
-            logger.info(f"Covariance regularization enabled: weight={covariance_weight}")
-
-        # temperature scheduling
-        self.temp_scheduler = None
-        if temperature_schedule is not None and temperature_schedule.get("enabled", False):
-            self.temp_scheduler = TemperatureScheduler(
-                initial_temp=temperature_schedule.get("initial", 0.3),
-                final_temp=temperature_schedule.get("final", temperature),
-                warmup_epochs=temperature_schedule.get("warmup_epochs", 20),
-                decay_type=temperature_schedule.get("decay_type", "linear"),
-            )
-            logger.info(
-                f"Temperature scheduling enabled: {self.temp_scheduler.initial_temp} -> "
-                f"{self.temp_scheduler.final_temp} over {self.temp_scheduler.warmup_epochs} epochs"
-            )
 
         if projection_head_config is not None:
             self.projection_head = ProjectionHead(
@@ -173,27 +87,6 @@ class SupervisedContrastiveLoss(nn.Module):
             ).to(device)
         else:
             self.projection_head = None
-
-    def update_temperature(self, epoch: int) -> float:
-        """Update temperature based on scheduler. Call at start of each epoch."""
-        if self.temp_scheduler is not None:
-            self.temperature = self.temp_scheduler.get_temperature(epoch)
-        return self.temperature
-
-    def _variance_loss(self, embeddings: torch.Tensor) -> torch.Tensor:
-        """VICReg variance term: penalize low std to prevent collapse."""
-        std = embeddings.std(dim=0)
-        # Hinge loss: penalize if std < 1
-        return F.relu(1 - std).mean()
-
-    def _covariance_loss(self, embeddings: torch.Tensor) -> torch.Tensor:
-        """VICReg covariance term: decorrelate embedding dimensions."""
-        batch_size, dim = embeddings.shape
-        embeddings = embeddings - embeddings.mean(dim=0)
-        cov = (embeddings.T @ embeddings) / (batch_size - 1)
-        # Zero out diagonal (we only want off-diagonal)
-        off_diag = cov - torch.diag(torch.diag(cov))
-        return (off_diag ** 2).sum() / dim
 
     def _create_behavior_positive_mask(self, behavior_labels, device):
         batch_size = len(behavior_labels)
@@ -232,14 +125,6 @@ class SupervisedContrastiveLoss(nn.Module):
         device = latents.device
         batch_size = latents.size(0)
 
-        # VICReg regularization (computed BEFORE normalization to prevent collapse)
-        var_loss = torch.tensor(0.0, device=device)
-        cov_loss = torch.tensor(0.0, device=device)
-        if self.variance_weight > 0:
-            var_loss = self._variance_loss(latents)
-        if self.covariance_weight > 0:
-            cov_loss = self._covariance_loss(latents)
-
         # L2 normalize features (standard for contrastive learning)
         features = F.normalize(latents, p=2, dim=1)
 
@@ -262,17 +147,12 @@ class SupervisedContrastiveLoss(nn.Module):
         log_prob = sim_matrix - log_sum_exp
 
         # mean log prob over positive pairs for each anchor
-        # mask: only consider positive pairs
         num_positives_per_anchor = positive_mask.sum(dim=1)  # [batch]
-
-        # compute mean log prob for positives (avoiding division by zero)
-        # for anchors with no positives, we'll handle separately
         has_positives = num_positives_per_anchor > 0
 
         if not has_positives.any():
             logger.warning("No positive pairs found in batch!")
-            # Still apply regularization even if no positives
-            return self.variance_weight * var_loss + self.covariance_weight * cov_loss
+            return torch.tensor(0.0, device=device)
 
         # sum of log_prob for positive pairs, divided by num positives
         masked_log_prob = log_prob * positive_mask
@@ -281,98 +161,293 @@ class SupervisedContrastiveLoss(nn.Module):
         # only average over anchors that have positives
         mean_log_prob_pos = sum_log_prob_pos[has_positives] / num_positives_per_anchor[has_positives]
 
-        # loss is negative mean log probability + regularization
-        contrastive_loss = -mean_log_prob_pos.mean()
-        loss = contrastive_loss + self.variance_weight * var_loss + self.covariance_weight * cov_loss
+        # loss is negative mean log probability
+        loss = -mean_log_prob_pos.mean()
 
         return loss
 
 
-class GammaContrastReconLoss(nn.Module):
-    """Combined contrastive + reconstruction loss: L = gamma * L_contrastive + (1 - gamma) * L_reconstruction"""
+class ContrastiveLoss(nn.Module):
+    """Contrastive loss for behavioral clustering in latent space.
+
+    Pulls together latent representations of models that share behavioral patterns.
+    Uses supervised contrastive learning with behavior labels from dataset metadata.
+    """
 
     def __init__(self, config: Dict[str, Any], device: str):
         super().__init__()
-        loss_cfg = config["loss"]
-        self.base_gamma = loss_cfg.get("gamma", 0.5)
-        self.gamma = self.base_gamma
-        assert 0 <= self.gamma <= 1, f"gamma must be in [0, 1], got {self.gamma}"
+        contrast_cfg = config["loss"]["contrastive"]
         self.device = device
 
-        # gamma scheduling
-        self.gamma_scheduler = None
-        gamma_schedule = loss_cfg.get("gamma_schedule")
-        if gamma_schedule is not None and gamma_schedule.get("enabled", False):
-            self.gamma_scheduler = GammaScheduler(
-                initial_gamma=gamma_schedule.get("initial", 0.1),
-                final_gamma=gamma_schedule.get("final", self.base_gamma),
-                warmup_epochs=gamma_schedule.get("warmup_epochs", 30),
-                decay_type=gamma_schedule.get("decay_type", "linear"),
-            )
-            logger.info(
-                f"Gamma scheduling enabled: {self.gamma_scheduler.initial_gamma} -> "
-                f"{self.gamma_scheduler.final_gamma} over {self.gamma_scheduler.warmup_epochs} epochs"
-            )
-
-        temperature = loss_cfg.get("temperature", 0.1)
-        temperature_schedule = loss_cfg.get("temperature_schedule")
-
-        # VICReg-style regularization to prevent representation collapse
-        variance_weight = loss_cfg.get("variance_weight", 1.0)  # Default ON
-        covariance_weight = loss_cfg.get("covariance_weight", 0.04)  # Default ON
+        temperature = contrast_cfg.get("temperature", 0.1)
 
         projection_head_config = None
-        if loss_cfg.get("projection_head") is not None:
-            proj_cfg = loss_cfg["projection_head"]
+        proj_cfg = contrast_cfg.get("projection_head")
+        if proj_cfg is not None:
             projection_head_config = {
                 "input_dim": proj_cfg["input_dim"],
                 "hidden_dim": proj_cfg["hidden_dim"],
                 "output_dim": proj_cfg["output_dim"],
             }
 
-        logger.info("Using supervised contrastive loss")
-        self.loss_contrast = SupervisedContrastiveLoss(
+        self.loss_fn = SupervisedContrastiveLoss(
             temperature=temperature,
             device=device,
             projection_head_config=projection_head_config,
-            temperature_schedule=temperature_schedule,
-            variance_weight=variance_weight,
-            covariance_weight=covariance_weight,
         )
 
-        recon_type = loss_cfg.get("reconstruction_type", "mse")
-        if recon_type in ["mse", "mae", "cosine"]:
-            self.loss_recon = ReconstructionLoss(config, loss_type=recon_type)
-        else:
-            raise ValueError(f"Unknown reconstruction type: {recon_type}")
+        logger.info(f"ContrastiveLoss initialized: temperature={temperature}")
 
-        logger.info(f"GammaContrastReconLoss: gamma={self.gamma}, recon={recon_type}")
+    def forward(self, latents: torch.Tensor, behavior_labels) -> torch.Tensor:
+        """Compute contrastive loss on latent representations.
 
-    def update_schedule(self, epoch: int):
-        """Update gamma and temperature schedules. Call at start of each epoch."""
-        if self.gamma_scheduler is not None:
-            self.gamma = self.gamma_scheduler.get_gamma(epoch)
-        self.loss_contrast.update_temperature(epoch)
-        return self.gamma, self.loss_contrast.temperature
+        Args:
+            latents: Latent representations [batch_size, latent_dim]
+            behavior_labels: List of behavior label sets for each sample
+
+        Returns:
+            Scalar contrastive loss tensor
+        """
+        return self.loss_fn(latents, behavior_labels)
+
+
+# Keep old name as alias for backward compatibility
+GammaContrastReconLoss = ContrastiveLoss
+
+
+class FunctionalReconstructionLoss(nn.Module):
+    """Loss that evaluates whether reconstructed weights produce functionally similar model outputs.
+
+    Instead of just comparing token-level MSE, this loss:
+    1. Detokenizes reconstructed weights into a state_dict
+    2. Loads weights into SubjectModel instances
+    3. Runs both original and reconstructed models on test inputs
+    4. Computes MSE between their outputs
+
+    This ensures the decoder learns to produce weights that actually work,
+    not just weights that look similar at the token level.
+
+    Uses a fixed benchmark dataset for consistent evaluation across training.
+    """
+
+    def __init__(self, config: Dict[str, Any], device: str):
+        super().__init__()
+        self.device = device
+        func_cfg = config["loss"]["functional"]
+
+        # test_samples: null = use all, 0.0-1.0 = percentage of benchmark
+        self.test_samples_ratio = func_cfg.get("test_samples", None)
+
+        # Load benchmark dataset for consistent test sequences
+        benchmark_path = func_cfg.get("benchmark_path")
+        self.benchmark_sequences = None
+        self.benchmark_vocab_size = None
+
+        if benchmark_path:
+            import json
+            try:
+                with open(benchmark_path, "r") as f:
+                    benchmark_data = json.load(f)
+
+                # Extract sequences from benchmark
+                sequences = []
+                for example in benchmark_data["examples"]:
+                    sequences.append(example["sequence"])
+
+                # Store metadata
+                metadata = benchmark_data["metadata"]
+                self.benchmark_vocab_size = len(metadata["vocab"])
+                self.benchmark_sequence_length = metadata["sequence_length"]
+
+                # Convert sequences to tensor (one-hot or index based on vocab)
+                # Sequences are lists of characters, convert to indices
+                vocab = metadata["vocab"]
+                char_to_idx = {c: i for i, c in enumerate(vocab)}
+
+                indexed_sequences = []
+                for seq in sequences:
+                    indices = [char_to_idx.get(c, 0) for c in seq]
+                    indexed_sequences.append(indices)
+
+                self.benchmark_sequences = torch.tensor(indexed_sequences, dtype=torch.float32)
+
+                # Calculate actual number of samples to use
+                total_sequences = len(sequences)
+                if self.test_samples_ratio is None:
+                    self.n_test_samples = total_sequences
+                else:
+                    self.n_test_samples = max(1, int(total_sequences * self.test_samples_ratio))
+
+                logger.info(
+                    f"FunctionalReconstructionLoss: loaded {total_sequences} benchmark sequences, "
+                    f"using {self.n_test_samples} ({self.test_samples_ratio or 1.0:.0%}) per forward pass"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load benchmark dataset from {benchmark_path}: {e}")
+                logger.warning("Falling back to random test inputs")
+                self.n_test_samples = 32  # fallback default
+
+        if self.benchmark_sequences is None:
+            self.n_test_samples = 32  # default for random inputs
+            logger.info(
+                f"FunctionalReconstructionLoss initialized with random inputs: n_test_samples={self.n_test_samples}"
+            )
 
     def forward(
         self,
-        latents: torch.Tensor,
-        reconstructed: torch.Tensor,
-        target: torch.Tensor,
-        mask: torch.Tensor,
-        behavior_labels,
-    ):
-        if self.gamma < 1e-10:
-            loss_recon = self.loss_recon.compute(reconstructed, target, mask)
-            return loss_recon, torch.tensor(0.0, device=self.device), loss_recon
+        original_weights: Dict[str, torch.Tensor],
+        reconstructed_weights: Dict[str, torch.Tensor],
+        model_config: Dict[str, Any],
+        test_inputs: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
+        """Compute functional reconstruction loss.
 
-        elif abs(1.0 - self.gamma) < 1e-10:
-            loss_contrast = self.loss_contrast(latents, behavior_labels)
-            return loss_contrast, loss_contrast, torch.tensor(0.0, device=self.device)
+        Args:
+            original_weights: Dict of original weight tensors (detached, no gradients needed)
+            reconstructed_weights: Dict of reconstructed weight tensors (gradients preserved)
+            model_config: Config dict for SubjectModel instantiation
+            test_inputs: Optional test sequences. If None, uses benchmark or generates random.
 
-        else:
-            loss_contrast = self.loss_contrast(latents, behavior_labels)
-            loss_recon = self.loss_recon.compute(reconstructed, target, mask)
-            total_loss = self.gamma * loss_contrast + (1 - self.gamma) * loss_recon
-            return total_loss, loss_contrast, loss_recon
+        Returns:
+            Scalar loss tensor (with gradients flowing back to reconstructed_weights)
+        """
+        # Import here to avoid circular imports
+        from model_zoo.dataset_generation.models import SubjectModel
+
+        vocab_size = model_config.get("vocab_size", 10)
+        sequence_length = model_config.get("sequence_length", 5)
+
+        # Determine test inputs to use (priority: benchmark > passed-in > random)
+        if self.benchmark_sequences is not None:
+            # Use benchmark sequences, sampling if we have more than n_test_samples
+            if len(self.benchmark_sequences) > self.n_test_samples:
+                indices = torch.randperm(len(self.benchmark_sequences))[: self.n_test_samples]
+                test_inputs = self.benchmark_sequences[indices]
+            else:
+                test_inputs = self.benchmark_sequences
+        elif test_inputs is None:
+            # Generate random test inputs as fallback
+            test_inputs = torch.randint(
+                0, vocab_size, (self.n_test_samples, sequence_length)
+            ).float()
+
+        # Create model instances
+        original_model = SubjectModel(
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            num_layers=model_config.get("num_layers", 6),
+            neurons_per_layer=model_config.get("neurons_per_layer", 7),
+            activation_type=model_config.get("activation_type", "relu"),
+            dropout_rate=0.0,  # No dropout during evaluation
+            precision="float32",
+        ).to(self.device)
+
+        recon_model = SubjectModel(
+            vocab_size=vocab_size,
+            sequence_length=sequence_length,
+            num_layers=model_config.get("num_layers", 6),
+            neurons_per_layer=model_config.get("neurons_per_layer", 7),
+            activation_type=model_config.get("activation_type", "relu"),
+            dropout_rate=0.0,
+            precision="float32",
+        ).to(self.device)
+
+        # Load original weights (no gradients needed)
+        original_state = {k: v.detach().to(self.device) for k, v in original_weights.items()}
+        original_model.load_state_dict(original_state)
+        original_model.eval()
+
+        # Load reconstructed weights - need to preserve gradients
+        # We manually copy weights to the model's parameters
+        recon_state = {}
+        for name, param in recon_model.named_parameters():
+            if name in reconstructed_weights:
+                recon_state[name] = reconstructed_weights[name].to(self.device)
+            else:
+                # Keep initialized weights for missing keys
+                recon_state[name] = param.data
+
+        # Load state dict (this detaches by default, so we need a different approach)
+        # Instead, directly assign to parameters to preserve gradients
+        with torch.no_grad():
+            for name, param in recon_model.named_parameters():
+                if name in reconstructed_weights:
+                    param.copy_(reconstructed_weights[name].to(self.device))
+
+        # Now we need gradients to flow through. The issue is load_state_dict detaches.
+        # Alternative approach: use functional_call to run the model with external weights
+        # But for simplicity, we'll compute loss on the weights directly and use a proxy
+
+        # Actually, the key insight is: we want the decoder to output weights that,
+        # when loaded into a model, produce similar outputs to the original.
+        # The gradient should flow: loss -> recon_output -> recon_weights -> decoder
+
+        # To make this work, we need to manually construct the forward pass
+        # using the reconstructed weights tensors directly (not via state_dict loading)
+
+        test_inputs = test_inputs.to(self.device).float()
+
+        # Get original model outputs (no gradients)
+        with torch.no_grad():
+            original_out = original_model(test_inputs)
+
+        # For reconstructed model, we need to do a manual forward pass
+        # to keep gradients flowing through the weights
+        recon_out = self._forward_with_weights(recon_model, reconstructed_weights, test_inputs)
+
+        # Numerical stability: clamp outputs to prevent inf
+        recon_out = torch.clamp(recon_out, min=-1e6, max=1e6)
+
+        # Check for inf/nan and return a large but finite loss if detected
+        if torch.isnan(recon_out).any() or torch.isinf(recon_out).any():
+            # Return a large loss to discourage this, but still allow gradients
+            return torch.tensor(1e6, device=self.device, requires_grad=True)
+
+        # Use smooth L1 loss for robustness to outliers
+        loss = F.smooth_l1_loss(recon_out, original_out.detach())
+
+        # Note: weight is now applied in trainer, not here
+        return loss
+
+    def _forward_with_weights(
+        self,
+        model: nn.Module,
+        weights: Dict[str, torch.Tensor],
+        inputs: torch.Tensor,
+    ) -> torch.Tensor:
+        """Forward pass using external weights to preserve gradients.
+
+        This performs the same computation as model.forward() but uses the
+        weights from the dict directly, allowing gradients to flow back.
+        """
+        x = inputs
+
+        # SubjectModel structure: network is Sequential with Linear, Activation, Dropout layers
+        # Layer pattern: [Linear, Activation, (Dropout)] repeated, ending with Linear
+
+        for i, module in enumerate(model.network):
+            if isinstance(module, nn.Linear):
+                # Get weight and bias for this layer
+                weight_key = f"network.{i}.weight"
+                bias_key = f"network.{i}.bias"
+
+                if weight_key in weights and bias_key in weights:
+                    w = weights[weight_key].to(inputs.device)
+                    b = weights[bias_key].to(inputs.device)
+                    x = F.linear(x, w, b)
+                else:
+                    # Fallback to module's own weights (log warning - this shouldn't happen)
+                    logger.warning(
+                        f"Missing weights in _forward_with_weights: {weight_key} or {bias_key}. "
+                        f"Available keys: {list(weights.keys())[:5]}..."
+                    )
+                    x = module(x)
+
+            elif isinstance(module, (nn.ReLU, nn.GELU, nn.Tanh, nn.Sigmoid, nn.LeakyReLU)):
+                x = module(x)
+
+            elif isinstance(module, nn.Dropout):
+                # Skip dropout during functional evaluation
+                pass
+
+        return x

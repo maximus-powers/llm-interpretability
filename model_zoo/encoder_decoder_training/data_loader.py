@@ -453,6 +453,24 @@ class WeightSpaceDataset(Dataset):
         else:
             raise ValueError(f"Unknown input_mode: {self.input_mode}")
 
+        # extract model_config for SubjectModel instantiation (used by functional loss)
+        model_config_from_metadata = metadata_json.get("model_config", {})
+        model_config = {
+            "vocab_size": model_config_from_metadata.get("vocab_size", 10),
+            "sequence_length": model_config_from_metadata.get("sequence_length", 5),
+            "num_layers": model_config_from_metadata.get("num_layers", 6),
+            "neurons_per_layer": model_config_from_metadata.get("neurons_per_layer", 7),
+            "activation_type": model_config_from_metadata.get("activation_type", "relu"),
+            "dropout_rate": 0.0,
+            "precision": "float32",
+        }
+
+        # generate test inputs for functional evaluation
+        test_inputs = torch.randint(
+            0, model_config["vocab_size"],
+            (32, model_config["sequence_length"])
+        ).float()
+
         # output with separate encoder/decoder data
         output = {
             "encoder_input": encoder_tokenized["tokens"],
@@ -461,6 +479,8 @@ class WeightSpaceDataset(Dataset):
             "decoder_mask": weights_tokenized["attention_mask"],
             "num_real_tokens": weights_tokenized["num_real_tokens"],
             "behavior_labels": behavior_labels,
+            "model_config": model_config,
+            "test_inputs": test_inputs,
         }
 
         # original_shapes if available (for detokenization)
@@ -519,6 +539,11 @@ def custom_collate_fn(batch):
     # extract behavior_labels before collation (can't tensorize string lists)
     behavior_labels_list = [item.pop("behavior_labels") for item in batch]
 
+    # extract model_config before collation (can't tensorize dicts)
+    model_config_list = None
+    if "model_config" in batch[0]:
+        model_config_list = [item.pop("model_config") for item in batch]
+
     # max token_dim for encoder_input within batch
     max_encoder_dim = max(item["encoder_input"].shape[1] for item in batch)
 
@@ -548,6 +573,9 @@ def custom_collate_fn(batch):
 
     if original_shapes_list is not None:
         collated_batch["original_shapes"] = original_shapes_list
+
+    if model_config_list is not None:
+        collated_batch["model_config"] = model_config_list
 
     return collated_batch
 

@@ -7,7 +7,6 @@ import json
 import yaml
 import subprocess
 import atexit
-import math
 from pathlib import Path
 from typing import Dict, Any, Optional
 from torch.utils.tensorboard import SummaryWriter
@@ -24,109 +23,10 @@ from .losses import (
     ReconstructionLoss,
     CombinedReconstructionLoss,
     GammaContrastReconLoss,
+    FunctionalReconstructionLoss,
 )
 
 logger = logging.getLogger(__name__)
-
-
-class CosineAnnealingWarmupScheduler:
-    """Learning rate scheduler with linear warmup followed by cosine annealing."""
-
-    def __init__(
-        self,
-        optimizer,
-        warmup_epochs: int,
-        total_epochs: int,
-        min_lr: float,
-        base_lr: float,
-    ):
-        self.optimizer = optimizer
-        self.warmup_epochs = warmup_epochs
-        self.total_epochs = total_epochs
-        self.min_lr = min_lr
-        self.base_lr = base_lr
-        self.current_epoch = 0
-
-    def step(self, epoch: int = None):
-        if epoch is not None:
-            self.current_epoch = epoch
-        else:
-            self.current_epoch += 1
-
-        lr = self.get_lr()
-        for param_group in self.optimizer.param_groups:
-            # scale by the ratio if param group has custom lr
-            if "initial_lr" in param_group:
-                ratio = param_group["initial_lr"] / self.base_lr
-                param_group["lr"] = lr * ratio
-            else:
-                param_group["lr"] = lr
-        return lr
-
-    def get_lr(self) -> float:
-        if self.current_epoch < self.warmup_epochs:
-            # linear warmup
-            return self.min_lr + (self.base_lr - self.min_lr) * (
-                self.current_epoch / self.warmup_epochs
-            )
-        else:
-            # cosine annealing
-            progress = (self.current_epoch - self.warmup_epochs) / max(
-                1, (self.total_epochs - self.warmup_epochs)
-            )
-            return self.min_lr + 0.5 * (self.base_lr - self.min_lr) * (
-                1 + math.cos(math.pi * progress)
-            )
-
-    def state_dict(self):
-        return {"current_epoch": self.current_epoch}
-
-    def load_state_dict(self, state_dict):
-        self.current_epoch = state_dict["current_epoch"]
-
-
-class EMA:
-    """Exponential Moving Average of model parameters for smoother training."""
-
-    def __init__(self, model: nn.Module, decay: float = 0.999):
-        self.model = model
-        self.decay = decay
-        self.shadow = {}
-        self.backup = {}
-
-        for name, param in model.named_parameters():
-            if param.requires_grad:
-                self.shadow[name] = param.data.clone()
-
-    def update(self):
-        """Update shadow weights with current model weights."""
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                new_average = (
-                    1.0 - self.decay
-                ) * param.data + self.decay * self.shadow[name]
-                self.shadow[name] = new_average.clone()
-
-    def apply_shadow(self):
-        """Apply shadow weights to model for evaluation."""
-        for name, param in self.model.named_parameters():
-            if param.requires_grad:
-                self.backup[name] = param.data.clone()
-                param.data = self.shadow[name]
-
-    def restore(self):
-        """Restore original weights after evaluation."""
-        for name, param in self.model.named_parameters():
-            if param.requires_grad and name in self.backup:
-                param.data = self.backup[name]
-        self.backup = {}
-
-    def state_dict(self):
-        return {"shadow": self.shadow, "decay": self.decay}
-
-    def load_state_dict(self, state_dict):
-        self.shadow = state_dict["shadow"]
-        self.decay = state_dict["decay"]
 
 
 class EncoderDecoderTrainer:
@@ -150,19 +50,43 @@ class EncoderDecoderTrainer:
         self.input_mode = config["dataset"]["input_mode"]
 
         # loss
-        loss_type = config["loss"]["type"]
-        self.is_contrastive_loss = False
-        self.is_combined_loss = False
-        if loss_type in ["mse", "mae", "cosine"]:
-            self.criterion = ReconstructionLoss(config, loss_type=loss_type)
-        elif loss_type == "combined":
-            self.criterion = CombinedReconstructionLoss(config)
-            self.is_combined_loss = True
-        elif loss_type == "contrastive":
-            self.criterion = GammaContrastReconLoss(config, device)
-            self.is_contrastive_loss = True
-        else:
-            raise ValueError(f"Unknown loss type: {loss_type}")
+        loss_config = config["loss"]
+        self.loss_weights = {}
+        # reconstruction loss
+        self.reconstruction_loss = None
+        recon_config = loss_config.get("reconstruction", {})
+        if recon_config.get("enabled", False):
+            recon_type = recon_config.get("type", "mse")
+            recon_weight = recon_config.get("weight", 1.0)
+            if recon_type in ["mse", "mae", "cosine"]:
+                self.reconstruction_loss = ReconstructionLoss(config, loss_type=recon_type)
+            elif recon_type == "combined":
+                self.reconstruction_loss = CombinedReconstructionLoss(config)
+            self.loss_weights["reconstruction"] = recon_weight
+        # contrastive loss
+        self.contrastive_loss = None
+        contrast_config = loss_config.get("contrastive", {})
+        if contrast_config.get("enabled", False):
+            contrast_weight = contrast_config.get("weight", 0.3)
+            self.contrastive_loss = GammaContrastReconLoss(config, device)
+            self.loss_weights["contrastive"] = contrast_weight
+        # functional loss
+        self.functional_loss = None
+        func_config = loss_config.get("functional", {})
+        if func_config.get("enabled", False):
+            func_weight = func_config.get("weight", 0.5)
+            self.functional_loss = FunctionalReconstructionLoss(config, device)
+            self.loss_weights["functional"] = func_weight
+
+        self.is_contrastive_loss = self.contrastive_loss is not None
+        self.is_combined_loss = isinstance(self.reconstruction_loss, CombinedReconstructionLoss)
+        # normalize weights
+        total_weight = sum(self.loss_weights.values())
+        if total_weight > 0:
+            self.loss_weights = {k: v / total_weight for k, v in self.loss_weights.items()}
+        for loss_name, weight in self.loss_weights.items():
+            logger.info(f"{loss_name.capitalize()} loss enabled: weight={weight:.1%}")
+        logger.info(f"Normalized loss weights: {self.loss_weights}")
 
         # optimizer and scheduler
         base_lr = config["training"]["learning_rate"]
@@ -171,12 +95,12 @@ class EncoderDecoderTrainer:
         # add projection head parameters with separate learning rate if using contrastive loss
         if self.is_contrastive_loss:
             if (
-                hasattr(self.criterion, "loss_contrast")
-                and hasattr(self.criterion.loss_contrast, "projection_head")
-                and self.criterion.loss_contrast.projection_head is not None
+                hasattr(self.contrastive_loss, "loss_fn")
+                and hasattr(self.contrastive_loss.loss_fn, "projection_head")
+                and self.contrastive_loss.loss_fn.projection_head is not None
             ):
-                proj_head = self.criterion.loss_contrast.projection_head
-                proj_head_lr = config["loss"].get("projection_head_lr", base_lr)
+                proj_head = self.contrastive_loss.loss_fn.projection_head
+                proj_head_lr = config["loss"]["contrastive"].get("projection_head_lr", base_lr)
 
                 # use parameter groups for different learning rates
                 param_groups = [
@@ -204,49 +128,22 @@ class EncoderDecoderTrainer:
                 weight_decay=weight_decay,
             )
         self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
-        self.base_lr = config["training"]["learning_rate"]
-        self.warmup_epochs = config["training"]["lr_scheduler"].get("warmup_epochs", 0)
         self.gradient_accumulation_steps = config["training"].get(
             "gradient_accumulation_steps", 1
         )
 
-        # scheduler setup - support both cosine_warmup and reduce_on_plateau
+        # scheduler setup
         self.scheduler = None
-        self.scheduler_type = config["training"]["lr_scheduler"].get(
-            "type", "reduce_on_plateau"
-        )
-        if config["training"]["lr_scheduler"]["enabled"]:
-            if self.scheduler_type == "cosine_warmup":
-                # store initial lr for each param group for scaling
-                for param_group in self.optimizer.param_groups:
-                    param_group["initial_lr"] = param_group["lr"]
-                self.scheduler = CosineAnnealingWarmupScheduler(
-                    optimizer=self.optimizer,
-                    warmup_epochs=self.warmup_epochs,
-                    total_epochs=config["training"]["epochs"],
-                    min_lr=config["training"]["lr_scheduler"]["min_lr"],
-                    base_lr=self.base_lr,
-                )
-                logger.info(
-                    f"Using CosineAnnealingWarmup scheduler: warmup={self.warmup_epochs}, "
-                    f"min_lr={config['training']['lr_scheduler']['min_lr']}"
-                )
-            else:
-                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.optimizer,
-                    mode=config["training"]["early_stopping"]["mode"],
-                    patience=config["training"]["lr_scheduler"]["patience"],
-                    factor=config["training"]["lr_scheduler"]["factor"],
-                    min_lr=config["training"]["lr_scheduler"]["min_lr"],
-                )
-                logger.info("Using ReduceLROnPlateau scheduler")
-
-        # EMA setup
-        self.ema = None
-        if config["training"].get("use_ema", False):
-            ema_decay = config["training"].get("ema_decay", 0.999)
-            self.ema = EMA(model, decay=ema_decay)
-            logger.info(f"Using EMA with decay={ema_decay}")
+        lr_scheduler_config = config["training"].get("lr_scheduler", {})
+        if lr_scheduler_config.get("enabled", False):
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer,
+                mode=config["training"]["early_stopping"]["mode"],
+                patience=lr_scheduler_config.get("patience", 5),
+                factor=lr_scheduler_config.get("factor", 0.5),
+                min_lr=lr_scheduler_config.get("min_lr", 1e-6),
+            )
+            logger.info("Using ReduceLROnPlateau scheduler")
 
         # logs
         run_dir = Path(config.get("run_dir", "."))
@@ -347,48 +244,84 @@ class EncoderDecoderTrainer:
         decoder_target,
         decoder_mask,
         behavior_labels=None,
+        original_shapes=None,
+        model_configs=None,
+        test_inputs=None,
     ):
         target_token_dim = decoder_target.size(2)
+        batch_size = encoder_input.size(0)
 
-        if self.is_contrastive_loss:
-            # supervised contrastive: single encoding, use behavior labels
-            latent = self.model.encode(encoder_input, encoder_mask)
-            reconstructed = self.model.decode(latent, decoder_target.size(1))
-            reconstructed = reconstructed[:, :, :target_token_dim]
+        # forward pass
+        latent = self.model.encode(encoder_input, encoder_mask)
+        reconstructed = self.model.decode(latent, decoder_target.size(1))
+        reconstructed = reconstructed[:, :, :target_token_dim]
 
-            loss, loss_contrast, loss_recon = self.criterion(
-                latent, reconstructed, decoder_target, decoder_mask, behavior_labels
+        # accumulate losses
+        total_loss = 0.0
+        loss_components = {}
+
+        # reconstruction loss
+        if self.reconstruction_loss is not None:
+            recon_weight = self.loss_weights.get("reconstruction", 1.0)
+            if self.is_combined_loss:
+                recon_loss, recon_components = self.reconstruction_loss.compute(
+                    reconstructed, decoder_target, decoder_mask
+                )
+                for k, v in recon_components.items():
+                    loss_components[f"recon_{k}"] = v
+            else:
+                recon_loss = self.reconstruction_loss.compute(
+                    reconstructed, decoder_target, decoder_mask
+                )
+            weighted_recon = recon_weight * recon_loss
+            total_loss = total_loss + weighted_recon
+            loss_components["reconstruction"] = (
+                recon_loss.item() if hasattr(recon_loss, "item") else recon_loss
             )
 
-            loss_components = {
-                "loss_contrast": loss_contrast.item()
-                if hasattr(loss_contrast, "item")
-                else loss_contrast,
-                "loss_recon": loss_recon.item()
-                if hasattr(loss_recon, "item")
-                else loss_recon,
-            }
-
-        elif self.is_combined_loss:
-            # standard reconstruction with combined loss
-            latent = self.model.encode(encoder_input, encoder_mask)
-            reconstructed = self.model.decode(latent, decoder_target.size(1))
-            reconstructed = reconstructed[:, :, :target_token_dim]
-
-            loss, loss_components = self.criterion.compute(
-                reconstructed, decoder_target, decoder_mask
+        # contrastive loss
+        if self.contrastive_loss is not None and behavior_labels is not None:
+            contrast_weight = self.loss_weights.get("contrastive", 0.3)
+            contrast_loss = self.contrastive_loss(latent, behavior_labels)
+            weighted_contrast = contrast_weight * contrast_loss
+            total_loss = total_loss + weighted_contrast
+            loss_components["contrastive"] = (
+                contrast_loss.item() if hasattr(contrast_loss, "item") else contrast_loss
             )
 
-        else:
-            # standard reconstruction with simple loss
-            latent = self.model.encode(encoder_input, encoder_mask)
-            reconstructed = self.model.decode(latent, decoder_target.size(1))
-            reconstructed = reconstructed[:, :, :target_token_dim]
+        # functional loss
+        if (
+            self.functional_loss is not None
+            and original_shapes is not None
+            and model_configs is not None
+            and test_inputs is not None
+        ):
+            func_weight = self.loss_weights.get("functional", 0.5)
+            batch_func_loss = 0.0
 
-            loss = self.criterion.compute(reconstructed, decoder_target, decoder_mask)
-            loss_components = {}
+            for i in range(batch_size):
+                # detokenize original weights (from decoder_target)
+                orig_weights = self.tokenizer.detokenize_differentiable(
+                    decoder_target[i], decoder_mask[i], original_shapes[i]
+                )
+                # detokenize reconstructed weights (preserves gradients)
+                recon_weights = self.tokenizer.detokenize_differentiable(
+                    reconstructed[i], decoder_mask[i], original_shapes[i]
+                )
+                # compute functional loss for this sample (weight is applied inside)
+                func_loss = self.functional_loss(
+                    orig_weights, recon_weights, model_configs[i], test_inputs[i]
+                )
+                batch_func_loss = batch_func_loss + func_loss
 
-        return loss, reconstructed, loss_components
+            batch_func_loss = batch_func_loss / batch_size
+            weighted_func = func_weight * batch_func_loss
+            total_loss = total_loss + weighted_func
+            loss_components["functional"] = (
+                batch_func_loss.item() if hasattr(batch_func_loss, "item") else batch_func_loss
+            )
+
+        return total_loss, reconstructed, loss_components
 
     def train(self):
         logger.info("Starting training")
@@ -396,47 +329,24 @@ class EncoderDecoderTrainer:
         for epoch in range(self.config["training"]["epochs"]):
             logger.info(f"Epoch {epoch + 1}/{self.config['training']['epochs']}")
 
-            # update loss schedules (gamma, temperature) if using contrastive loss
-            if self.is_contrastive_loss and hasattr(self.criterion, "update_schedule"):
-                gamma, temp = self.criterion.update_schedule(epoch)
-                logger.info(f"Loss schedule: gamma={gamma:.4f}, temperature={temp:.4f}")
-                if self.writer:
-                    self.writer.add_scalar("train/gamma", gamma, epoch)
-                    self.writer.add_scalar("train/temperature", temp, epoch)
-
-            # update learning rate based on scheduler type
-            if self.scheduler and self.scheduler_type == "cosine_warmup":
-                # cosine scheduler handles warmup internally
-                self.scheduler.step(epoch)
-                current_lr = self.optimizer.param_groups[0]["lr"]
-                logger.info(f"LR: {current_lr:.6f}")
-            elif self.warmup_epochs > 0 and epoch < self.warmup_epochs:
-                # manual warmup for reduce_on_plateau
-                warmup_factor = (epoch + 1) / self.warmup_epochs
-                warmup_lr = self.base_lr * warmup_factor
-                for param_group in self.optimizer.param_groups:
-                    param_group["lr"] = warmup_lr
-                logger.info(f"Warmup: lr={warmup_lr:.6f} ({epoch + 1}/{self.warmup_epochs})")
-
             train_metrics = self._train_epoch(epoch)
             val_metrics = self._validate_epoch(epoch)
             self._log_epoch(epoch, train_metrics, val_metrics)
             current_lr = self.optimizer.param_groups[0]["lr"]
 
-            # update scheduler (only reduce_on_plateau needs val_loss)
-            if self.scheduler and self.scheduler_type == "reduce_on_plateau":
-                if epoch >= self.warmup_epochs:
-                    monitor_value = val_metrics.get(
-                        self.monitor_metric, val_metrics.get("loss")
-                    )
-                    if monitor_value is not None:
-                        self.scheduler.step(monitor_value)
-                        new_lr = self.optimizer.param_groups[0]["lr"]
-                        if new_lr != current_lr:
-                            logger.info(
-                                f"Learning rate reduced: {current_lr:.6f} -> {new_lr:.6f}"
-                            )
-                        current_lr = new_lr
+            # update scheduler
+            if self.scheduler:
+                monitor_value = val_metrics.get(
+                    self.monitor_metric, val_metrics.get("loss")
+                )
+                if monitor_value is not None:
+                    self.scheduler.step(monitor_value)
+                    new_lr = self.optimizer.param_groups[0]["lr"]
+                    if new_lr != current_lr:
+                        logger.info(
+                            f"Learning rate reduced: {current_lr:.6f} -> {new_lr:.6f}"
+                        )
+                    current_lr = new_lr
 
             if self.writer:
                 self.writer.add_scalar("train/learning_rate", current_lr, epoch)
@@ -485,12 +395,22 @@ class EncoderDecoderTrainer:
             behavior_labels = batch.get("behavior_labels", None)
             batch_size = encoder_input.size(0)
 
+            # extract functional loss data if available
+            original_shapes = batch.get("original_shapes", None)
+            model_configs = batch.get("model_config", None)
+            test_inputs = batch.get("test_inputs", None)
+            if test_inputs is not None:
+                test_inputs = test_inputs.to(self.device)
+
             loss, _, loss_components = self._calculate_loss(
                 encoder_input,
                 encoder_mask,
                 decoder_target,
                 decoder_mask,
                 behavior_labels=behavior_labels,
+                original_shapes=original_shapes,
+                model_configs=model_configs,
+                test_inputs=test_inputs,
             )
 
             # scale loss for gradient accumulation
@@ -535,7 +455,7 @@ class EncoderDecoderTrainer:
                     # projection head gradient norm (for contrastive learning)
                     if self.is_contrastive_loss:
                         proj_head = getattr(
-                            getattr(self.criterion, "loss_contrast", None),
+                            getattr(self.contrastive_loss, "loss_fn", None),
                             "projection_head",
                             None,
                         )
@@ -552,10 +472,6 @@ class EncoderDecoderTrainer:
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
                 self.optimizer.step()
                 self.optimizer.zero_grad()
-
-                # update EMA after optimizer step
-                if self.ema is not None:
-                    self.ema.update()
 
             progress_bar.set_postfix({"loss": loss.item()})
 
@@ -580,8 +496,6 @@ class EncoderDecoderTrainer:
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
             self.optimizer.zero_grad()
-            if self.ema is not None:
-                self.ema.update()
 
         metrics = {"loss": total_loss / total_samples}
         for key, value in all_loss_components.items():
@@ -597,10 +511,6 @@ class EncoderDecoderTrainer:
         all_targets = []
         all_masks = []
 
-        # use EMA weights for validation if available
-        if self.ema is not None:
-            self.ema.apply_shadow()
-
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc=f"Val Epoch {epoch + 1}"):
                 encoder_input = batch["encoder_input"].to(self.device)
@@ -610,6 +520,13 @@ class EncoderDecoderTrainer:
                 behavior_labels = batch.get("behavior_labels", None)
                 batch_size = encoder_input.size(0)
 
+                # extract functional loss data if available
+                original_shapes = batch.get("original_shapes", None)
+                model_configs = batch.get("model_config", None)
+                test_inputs = batch.get("test_inputs", None)
+                if test_inputs is not None:
+                    test_inputs = test_inputs.to(self.device)
+
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
                     encoder_input,
@@ -617,6 +534,9 @@ class EncoderDecoderTrainer:
                     decoder_target,
                     decoder_mask,
                     behavior_labels=behavior_labels,
+                    original_shapes=original_shapes,
+                    model_configs=model_configs,
+                    test_inputs=test_inputs,
                 )
 
                 # store batch-wise (will aggregate later)
@@ -649,10 +569,6 @@ class EncoderDecoderTrainer:
             all_reconstructed, all_targets, all_masks, self.config
         )
         metrics["loss"] = total_loss / total_samples
-
-        # restore original weights after validation
-        if self.ema is not None:
-            self.ema.restore()
 
         return metrics
 
@@ -664,10 +580,6 @@ class EncoderDecoderTrainer:
         all_targets = []
         all_masks = []
 
-        # use EMA weights for test evaluation if available
-        if self.ema is not None:
-            self.ema.apply_shadow()
-
         with torch.no_grad():
             for batch in tqdm(self.test_loader, desc="Test Set Evaluation"):
                 encoder_input = batch["encoder_input"].to(self.device)
@@ -677,6 +589,13 @@ class EncoderDecoderTrainer:
                 behavior_labels = batch.get("behavior_labels", None)
                 batch_size = encoder_input.size(0)
 
+                # extract functional loss data if available
+                original_shapes = batch.get("original_shapes", None)
+                model_configs = batch.get("model_config", None)
+                test_inputs = batch.get("test_inputs", None)
+                if test_inputs is not None:
+                    test_inputs = test_inputs.to(self.device)
+
                 # calculate loss using helper method
                 loss, reconstructed, _ = self._calculate_loss(
                     encoder_input,
@@ -684,6 +603,9 @@ class EncoderDecoderTrainer:
                     decoder_target,
                     decoder_mask,
                     behavior_labels=behavior_labels,
+                    original_shapes=original_shapes,
+                    model_configs=model_configs,
+                    test_inputs=test_inputs,
                 )
 
                 # store batch-wise (will aggregate later)
@@ -716,10 +638,6 @@ class EncoderDecoderTrainer:
             all_reconstructed, all_targets, all_masks, self.config
         )
         metrics["loss"] = total_loss / total_samples
-
-        # restore original weights after test evaluation
-        if self.ema is not None:
-            self.ema.restore()
 
         return metrics
 
@@ -938,7 +856,7 @@ It includes both an encoder (compresses weights into latent representations) and
 
 ## Training Config
 
-- **Loss Function**: {self.config["loss"]["type"]}
+- **Loss Functions**: {', '.join(self.loss_weights.keys())}
 - **Optimizer**: {self.config["training"]["optimizer"]}
 - **Learning Rate**: {self.config["training"]["learning_rate"]}
 - **Batch Size**: {self.config["training"]["batch_size"]}
