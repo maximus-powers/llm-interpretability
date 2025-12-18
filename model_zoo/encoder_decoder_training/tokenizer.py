@@ -337,6 +337,77 @@ class WeightTokenizer:
             return padded_neurons
         raise ValueError(f"Unsupported input_data type: {type(input_data)}")
 
+    def _detokenize_neuron_granularity(
+        self,
+        all_weights: np.ndarray,
+        original_shapes: List[Tuple[str, Tuple[int, ...]]],
+    ) -> Dict[str, torch.Tensor]:
+        # Group shapes by layer name
+        layer_groups = {}
+        for key, shape in original_shapes:
+            parts = key.rsplit(".", 1)
+            layer_name = parts[0] if len(parts) > 1 else key
+            param_type = parts[1] if len(parts) > 1 else "weight"
+            if layer_name not in layer_groups:
+                layer_groups[layer_name] = {}
+            layer_groups[layer_name][param_type] = (key, shape)
+
+        state_dict = {}
+        weight_idx = 0
+
+        for layer_name in sorted(layer_groups.keys()):
+            layer = layer_groups[layer_name]
+            weight_info = layer.get("weight")
+            bias_info = layer.get("bias")
+
+            if weight_info is None:
+                continue
+
+            weight_key, weight_shape = weight_info
+            num_neurons = weight_shape[0]
+            input_size = weight_shape[1] if len(weight_shape) > 1 else 1
+            has_bias = bias_info is not None
+            neuron_data_size = input_size + (1 if has_bias else 0)
+
+            # Extract neuron data for this layer
+            layer_data_size = num_neurons * neuron_data_size
+            if weight_idx + layer_data_size > len(all_weights):
+                logger.warning(
+                    f"Not enough weight values for layer {layer_name}. "
+                    f"Expected {layer_data_size}, but only {len(all_weights) - weight_idx} remaining."
+                )
+                # Pad with zeros
+                layer_data = np.zeros(layer_data_size, dtype=np.float32)
+                available = len(all_weights) - weight_idx
+                if available > 0:
+                    layer_data[:available] = all_weights[weight_idx:]
+                weight_idx = len(all_weights)
+            else:
+                layer_data = all_weights[weight_idx : weight_idx + layer_data_size]
+                weight_idx += layer_data_size
+
+            # De-interleave: extract weights and biases from neuron data
+            weights = []
+            biases = []
+            for n in range(num_neurons):
+                start = n * neuron_data_size
+                neuron_weights = layer_data[start : start + input_size]
+                weights.append(neuron_weights)
+                if has_bias:
+                    biases.append(layer_data[start + input_size])
+
+            # Reconstruct tensors
+            state_dict[weight_key] = torch.from_numpy(
+                np.array(weights, dtype=np.float32).reshape(weight_shape)
+            )
+            if has_bias:
+                bias_key, bias_shape = bias_info
+                state_dict[bias_key] = torch.from_numpy(
+                    np.array(biases, dtype=np.float32).reshape(bias_shape)
+                )
+
+        return state_dict
+
     def detokenize(
         self,
         tokens: torch.Tensor,
@@ -358,7 +429,12 @@ class WeightTokenizer:
         weight_values = real_tokens[:, :data_size]
         all_weights = weight_values.flatten()
 
-        # truncate to remove padding using original shapes (might not be training it to produce padding tokens, could cause problems in inference)
+        # Use neuron-specific detokenization if applicable
+        if self.granularity == "neuron":
+            return self._detokenize_neuron_granularity(all_weights, original_shapes)
+
+        # Chunk-based detokenization (original logic)
+        # truncate to remove padding using original shapes
         total_expected_weights = sum(int(np.prod(shape)) for _, shape in original_shapes)
         if len(all_weights) > total_expected_weights:
             all_weights = all_weights[:total_expected_weights]
@@ -392,6 +468,74 @@ class WeightTokenizer:
 
         return state_dict
 
+    def _detokenize_neuron_granularity_differentiable(
+        self,
+        all_weights: torch.Tensor,
+        original_shapes: List[Tuple[str, Tuple[int, ...]]],
+    ) -> Dict[str, torch.Tensor]:
+        # Group shapes by layer name
+        layer_groups = {}
+        for key, shape in original_shapes:
+            parts = key.rsplit(".", 1)
+            layer_name = parts[0] if len(parts) > 1 else key
+            param_type = parts[1] if len(parts) > 1 else "weight"
+            if layer_name not in layer_groups:
+                layer_groups[layer_name] = {}
+            layer_groups[layer_name][param_type] = (key, shape)
+
+        state_dict = {}
+        weight_idx = 0
+
+        for layer_name in sorted(layer_groups.keys()):
+            layer = layer_groups[layer_name]
+            weight_info = layer.get("weight")
+            bias_info = layer.get("bias")
+
+            if weight_info is None:
+                continue
+
+            weight_key, weight_shape = weight_info
+            num_neurons = weight_shape[0]
+            input_size = weight_shape[1] if len(weight_shape) > 1 else 1
+            has_bias = bias_info is not None
+            neuron_data_size = input_size + (1 if has_bias else 0)
+
+            # Extract neuron data for this layer
+            layer_data_size = num_neurons * neuron_data_size
+            if weight_idx + layer_data_size > all_weights.shape[0]:
+                logger.warning(
+                    f"Not enough weight values for layer {layer_name}. "
+                    f"Expected {layer_data_size}, but only {all_weights.shape[0] - weight_idx} remaining."
+                )
+                # Pad with zeros
+                available = all_weights.shape[0] - weight_idx
+                if available > 0:
+                    layer_data = torch.cat([
+                        all_weights[weight_idx:],
+                        torch.zeros(layer_data_size - available, device=all_weights.device, dtype=all_weights.dtype)
+                    ])
+                else:
+                    layer_data = torch.zeros(layer_data_size, device=all_weights.device, dtype=all_weights.dtype)
+                weight_idx = all_weights.shape[0]
+            else:
+                layer_data = all_weights[weight_idx : weight_idx + layer_data_size]
+                weight_idx += layer_data_size
+
+            # De-interleave: extract weights and biases from neuron data
+            # Reshape to (num_neurons, neuron_data_size) for easier indexing
+            layer_data_2d = layer_data.view(num_neurons, neuron_data_size)
+
+            # Extract weight columns (all except last if has_bias)
+            weight_data = layer_data_2d[:, :input_size]
+            state_dict[weight_key] = weight_data.view(*weight_shape)
+
+            if has_bias:
+                bias_key, bias_shape = bias_info
+                bias_data = layer_data_2d[:, input_size]
+                state_dict[bias_key] = bias_data.view(*bias_shape)
+
+        return state_dict
+
     def detokenize_differentiable(
         self,
         tokens: torch.Tensor,
@@ -415,7 +559,12 @@ class WeightTokenizer:
         weight_values = real_tokens[:, :data_size]
         all_weights = weight_values.flatten()
 
-        # truncate to remove padding using original shapes (might not be training it to produce padding tokens, could cause problems in inference)
+        # Use neuron-specific detokenization if applicable
+        if self.granularity == "neuron":
+            return self._detokenize_neuron_granularity_differentiable(all_weights, original_shapes)
+
+        # Chunk-based detokenization (original logic)
+        # truncate to remove padding using original shapes
         total_expected_weights = sum(
             int(torch.prod(torch.tensor(shape)).item())
             for _, shape in original_shapes

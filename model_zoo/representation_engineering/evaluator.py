@@ -166,6 +166,13 @@ class RepresentationEvaluator:
         modified_model.load_state_dict(modified_weights_tensors)
         modified_model.to(self.device)
 
+        # Debug: compare weight statistics
+        logger.info("=== WEIGHT DIAGNOSTICS ===")
+        for key in sorted(original_weights_tensors.keys()):
+            orig = original_weights_tensors[key]
+            mod = modified_weights_tensors[key]
+            logger.info(f"{key}: orig_mean={orig.mean():.4f} orig_std={orig.std():.4f} | mod_mean={mod.mean():.4f} mod_std={mod.std():.4f}")
+
         vocab = [chr(ord("A") + i) for i in range(subject_architecture["vocab_size"])]
 
         # Evaluate original model on ALL patterns
