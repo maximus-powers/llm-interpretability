@@ -154,6 +154,23 @@ class EncoderDecoderTrainer:
             self.log_dir = run_dir / "logs"
             self.log_dir.mkdir(parents=True, exist_ok=True)
             self.writer = SummaryWriter(log_dir=str(self.log_dir))
+
+            # custom scalars layout for organized multi-line plots
+            layout = {
+                "Loss Components": {
+                    "all_losses": ["Multiline", ["train/reconstruction", "train/contrastive", "train/functional"]],
+                },
+                "Train vs Val": {
+                    "loss": ["Multiline", ["train_epoch/loss", "val_epoch/loss"]],
+                    "mse": ["Multiline", ["train_epoch/mse", "val_epoch/mse"]],
+                    "cosine_similarity": ["Multiline", ["train_epoch/cosine_similarity", "val_epoch/cosine_similarity"]],
+                },
+                "Reconstruction Quality": {
+                    "metrics": ["Multiline", ["val_epoch/mse", "val_epoch/mae", "val_epoch/rmse"]],
+                },
+            }
+            self.writer.add_custom_scalars(layout)
+
             if config["logging"]["tensorboard"].get("auto_launch", False):
                 self.tensorboard_process = self._start_tensorboard_server()
 
@@ -209,6 +226,25 @@ class EncoderDecoderTrainer:
                         self.hub_enabled = False
 
         logger.info("EncoderDecoderTrainer initialized")
+
+    def _log_embeddings_to_projector(self, embeddings: torch.Tensor, labels: list, epoch: int):
+        if self.log_dir is None or self.writer is None:
+            return
+
+        metadata = labels if labels and len(labels) == embeddings.shape[0] else None
+
+        # add_embedding creates projector/ dir with tensors.tsv and metadata.tsv
+        self.writer.add_embedding(
+            mat=embeddings,
+            metadata=metadata,
+            global_step=epoch,
+            tag="latent_space"
+        )
+
+        # flush to ensure files are written before TensorBoard reads them
+        self.writer.flush()
+
+        logger.info(f"Logged {embeddings.shape[0]} embeddings to projector (epoch {epoch})")
 
     def _start_tensorboard_server(self):
         try:
@@ -510,6 +546,8 @@ class EncoderDecoderTrainer:
         all_reconstructed = []
         all_targets = []
         all_masks = []
+        all_latents = []
+        all_behavior_labels = []
 
         with torch.no_grad():
             for batch in tqdm(self.val_loader, desc=f"Val Epoch {epoch + 1}"):
@@ -538,6 +576,17 @@ class EncoderDecoderTrainer:
                     model_configs=model_configs,
                     test_inputs=test_inputs,
                 )
+
+                # collect latents for tensorboard visualizations
+                latent = self.model.encode(encoder_input, encoder_mask)
+                all_latents.append(latent.cpu())
+                if behavior_labels is not None:
+                    # behavior_labels is list of lists - join each to single string for projector
+                    for labels in behavior_labels:
+                        if isinstance(labels, list):
+                            all_behavior_labels.append(", ".join(labels) if labels else "none")
+                        else:
+                            all_behavior_labels.append(str(labels) if labels else "none")
 
                 # store batch-wise (will aggregate later)
                 for i in range(reconstructed.size(0)):
@@ -569,6 +618,55 @@ class EncoderDecoderTrainer:
             all_reconstructed, all_targets, all_masks, self.config
         )
         metrics["loss"] = total_loss / total_samples
+
+        # tensorboard advanced visualizations
+        if self.writer:
+            tb_config = self.config["logging"]["tensorboard"]
+            viz_config = tb_config.get("visualizations", {})
+
+            if viz_config.get("enabled", True):
+                log_interval = viz_config.get("log_interval", 5)
+
+                if epoch % log_interval == 0:
+                    # concatenate all latents
+                    all_latents_tensor = torch.cat(all_latents, dim=0)
+
+                    # histograms
+                    self.writer.add_histogram("latent/values", all_latents_tensor, epoch)
+                    token_errors = ((all_reconstructed - all_targets) ** 2).mean(dim=-1)
+                    masked_errors = token_errors * all_masks
+                    self.writer.add_histogram("reconstruction/token_errors", masked_errors[all_masks > 0], epoch)
+                    self.writer.add_histogram("weights/original", all_targets[all_masks.unsqueeze(-1).expand_as(all_targets) > 0], epoch)
+                    self.writer.add_histogram("weights/reconstructed", all_reconstructed[all_masks.unsqueeze(-1).expand_as(all_reconstructed) > 0], epoch)
+
+                    # embedding projector
+                    self._log_embeddings_to_projector(all_latents_tensor, all_behavior_labels, epoch)
+
+                    # weight heatmap images
+                    num_samples = viz_config.get("num_image_samples", 4)
+                    for i in range(min(num_samples, all_reconstructed.size(0))):
+                        orig = all_targets[i]
+                        recon = all_reconstructed[i]
+                        mask = all_masks[i]
+
+                        valid_len = int(mask.sum().item())
+                        orig = orig[:valid_len]
+                        recon = recon[:valid_len]
+
+                        def normalize_for_viz(x):
+                            x_min, x_max = x.min(), x.max()
+                            if x_max - x_min > 0:
+                                return (x - x_min) / (x_max - x_min)
+                            return x * 0
+
+                        orig_norm = normalize_for_viz(orig)
+                        recon_norm = normalize_for_viz(recon)
+                        diff = torch.abs(orig - recon)
+                        diff_norm = normalize_for_viz(diff)
+
+                        self.writer.add_image(f"weights/sample_{i}/original", orig_norm.T.unsqueeze(0), epoch)
+                        self.writer.add_image(f"weights/sample_{i}/reconstructed", recon_norm.T.unsqueeze(0), epoch)
+                        self.writer.add_image(f"weights/sample_{i}/error", diff_norm.T.unsqueeze(0), epoch)
 
         return metrics
 

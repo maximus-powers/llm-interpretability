@@ -149,9 +149,14 @@ evaluation:
 logging:
   tensorboard:
     enabled: true
-    log_interval: 10                 # Log every N batches
+    log_interval: 10                 # Log scalars every N batches
     auto_launch: true
     port: 6006                       # server port
+    # Advanced visualizations (histograms, embeddings, weight heatmaps)
+    visualizations:
+      enabled: true
+      log_interval: 5                # Log visualizations every N epochs
+      num_image_samples: 4           # Number of weight heatmap samples
   checkpoint:
     enabled: true
     save_best_only: true

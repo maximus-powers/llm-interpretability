@@ -297,6 +297,7 @@ class TransformerEncoder(nn.Module):
             enable_nested_tensor=False,  # MPS compatibility
         )
         self.latent_projection = nn.Linear(self.d_model, latent_dim)
+        self.latent_norm = nn.LayerNorm(latent_dim)
 
     def forward(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         batch_size = tokens.size(0)
@@ -332,7 +333,7 @@ class TransformerEncoder(nn.Module):
         else:
             raise ValueError(f"Unknown pooling method: {self.pooling_method}")
 
-        latent = self.latent_projection(pooled)
+        latent = self.latent_norm(self.latent_projection(pooled))
         return latent
 
 
