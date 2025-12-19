@@ -284,13 +284,30 @@ class EncoderDecoderTrainer:
         model_configs=None,
         test_inputs=None,
     ):
-        target_token_dim = decoder_target.size(2)
         batch_size = encoder_input.size(0)
 
         # forward pass
         latent = self.model.encode(encoder_input, encoder_mask)
         reconstructed = self.model.decode(latent, decoder_target.size(1))
-        reconstructed = reconstructed[:, :, :target_token_dim]
+
+        # Handle weights-only decoder output
+        # If decoder outputs weights only, we need to compare against only
+        # the weight portion of decoder_target (not metadata)
+        decoder_output_weights_only = getattr(
+            self.model, "decoder_output_weights_only", False
+        )
+        if decoder_output_weights_only:
+            # Get the weights-only dimension
+            weights_only_dim = getattr(self.model, "weights_only_dim", None)
+            if weights_only_dim is not None:
+                # Extract only weight portion from target for comparison
+                decoder_target_for_loss = decoder_target[:, :, :weights_only_dim]
+            else:
+                decoder_target_for_loss = decoder_target
+        else:
+            target_token_dim = decoder_target.size(2)
+            reconstructed = reconstructed[:, :, :target_token_dim]
+            decoder_target_for_loss = decoder_target
 
         # accumulate losses
         total_loss = 0.0
@@ -301,13 +318,13 @@ class EncoderDecoderTrainer:
             recon_weight = self.loss_weights.get("reconstruction", 1.0)
             if self.is_combined_loss:
                 recon_loss, recon_components = self.reconstruction_loss.compute(
-                    reconstructed, decoder_target, decoder_mask
+                    reconstructed, decoder_target_for_loss, decoder_mask
                 )
                 for k, v in recon_components.items():
                     loss_components[f"recon_{k}"] = v
             else:
                 recon_loss = self.reconstruction_loss.compute(
-                    reconstructed, decoder_target, decoder_mask
+                    reconstructed, decoder_target_for_loss, decoder_mask
                 )
             weighted_recon = recon_weight * recon_loss
             total_loss = total_loss + weighted_recon
@@ -589,9 +606,23 @@ class EncoderDecoderTrainer:
                             all_behavior_labels.append(str(labels) if labels else "none")
 
                 # store batch-wise (will aggregate later)
+                # Handle weights-only decoder output
+                decoder_output_weights_only = getattr(
+                    self.model, "decoder_output_weights_only", False
+                )
+                if decoder_output_weights_only:
+                    weights_only_dim = getattr(self.model, "weights_only_dim", None)
+                    if weights_only_dim is not None:
+                        # Slice target to match decoder output (weights only)
+                        decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
+                    else:
+                        decoder_target_for_metrics = decoder_target
+                else:
+                    decoder_target_for_metrics = decoder_target
+
                 for i in range(reconstructed.size(0)):
                     all_reconstructed.append(reconstructed[i : i + 1].cpu())
-                    all_targets.append(decoder_target[i : i + 1].cpu())
+                    all_targets.append(decoder_target_for_metrics[i : i + 1].cpu())
                     all_masks.append(decoder_mask[i : i + 1].cpu())
 
                 total_loss += loss.item() * batch_size
@@ -707,9 +738,22 @@ class EncoderDecoderTrainer:
                 )
 
                 # store batch-wise (will aggregate later)
+                # Handle weights-only decoder output
+                decoder_output_weights_only = getattr(
+                    self.model, "decoder_output_weights_only", False
+                )
+                if decoder_output_weights_only:
+                    weights_only_dim = getattr(self.model, "weights_only_dim", None)
+                    if weights_only_dim is not None:
+                        decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
+                    else:
+                        decoder_target_for_metrics = decoder_target
+                else:
+                    decoder_target_for_metrics = decoder_target
+
                 for i in range(reconstructed.size(0)):
                     all_reconstructed.append(reconstructed[i : i + 1].cpu())
-                    all_targets.append(decoder_target[i : i + 1].cpu())
+                    all_targets.append(decoder_target_for_metrics[i : i + 1].cpu())
                     all_masks.append(decoder_mask[i : i + 1].cpu())
 
                 total_loss += loss.item() * batch_size

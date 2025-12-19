@@ -19,6 +19,14 @@ class WeightSpaceEncoderDecoder(nn.Module):
         tokenization_config = config["tokenization"]
         granularity = tokenization_config.get("granularity", "chunk")
 
+        # Option to have decoder output only weights (no metadata)
+        # This prevents the model from "cheating" by reconstructing easy metadata
+        self.decoder_output_weights_only = config["architecture"].get(
+            "decoder_output_weights_only", False
+        )
+        if self.decoder_output_weights_only:
+            logger.info("Decoder will output weights only (no metadata)")
+
         # determine token_dim
         if granularity == "neuron":
             if self.input_mode == "signature":
@@ -37,13 +45,22 @@ class WeightSpaceEncoderDecoder(nn.Module):
                 # decoder outputs weights, not signatures
                 max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
-                self.decoder_token_dim = max_weights_per_neuron + 5  # weights + metadata
+                # Store weights-only dim for loss calculation
+                self.weights_only_dim = max_weights_per_neuron
+                if self.decoder_output_weights_only:
+                    self.decoder_token_dim = max_weights_per_neuron  # weights only
+                else:
+                    self.decoder_token_dim = max_weights_per_neuron + 5  # weights + metadata
 
             elif self.input_mode == "weights":
                 max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1  # incoming connections + bias
                 self.token_dim = max_weights_per_neuron + 5  # 5 for metadata
-                self.decoder_token_dim = self.token_dim
+                self.weights_only_dim = max_weights_per_neuron
+                if self.decoder_output_weights_only:
+                    self.decoder_token_dim = max_weights_per_neuron
+                else:
+                    self.decoder_token_dim = self.token_dim
 
             elif self.input_mode == "both":
                 neuron_profile = config["dataset"].get("neuron_profile", {})
@@ -55,7 +72,11 @@ class WeightSpaceEncoderDecoder(nn.Module):
                 max_neurons = config["dataset"]["max_dimensions"]["max_neurons_per_layer"]
                 max_weights_per_neuron = max_neurons + 1
                 self.token_dim = max_weights_per_neuron + features_per_neuron + 5
-                self.decoder_token_dim = max_weights_per_neuron + 5
+                self.weights_only_dim = max_weights_per_neuron
+                if self.decoder_output_weights_only:
+                    self.decoder_token_dim = max_weights_per_neuron
+                else:
+                    self.decoder_token_dim = max_weights_per_neuron + 5
 
             else:
                 raise ValueError(f"Unknown input_mode: {self.input_mode}")
@@ -64,18 +85,26 @@ class WeightSpaceEncoderDecoder(nn.Module):
 
         else:
             # chunk-level tokenization
+            chunk_size = tokenization_config["chunk_size"]
+            self.weights_only_dim = chunk_size  # For chunk mode, weights are the chunk
             if self.input_mode == "signature" or self.input_mode == "both":
                 # placeholders, gets updated by trainer
                 self.token_dim = 1
                 self.max_tokens = 1
-                self.decoder_token_dim = 1
+                if self.decoder_output_weights_only:
+                    self.decoder_token_dim = chunk_size
+                else:
+                    self.decoder_token_dim = 1
             elif self.input_mode == "weights":
                 # tokenization dimensions
-                self.token_dim = tokenization_config["chunk_size"]
+                self.token_dim = chunk_size
                 if tokenization_config.get("include_metadata", True):
                     self.token_dim += 5
                 self.max_tokens = tokenization_config["max_tokens"]
-                self.decoder_token_dim = self.token_dim
+                if self.decoder_output_weights_only:
+                    self.decoder_token_dim = chunk_size
+                else:
+                    self.decoder_token_dim = self.token_dim
             else:
                 raise ValueError(f"Unknown input_mode: {self.input_mode}")
 

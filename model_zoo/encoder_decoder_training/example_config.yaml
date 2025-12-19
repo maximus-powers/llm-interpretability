@@ -37,6 +37,9 @@ tokenization:
 architecture:
   type: "transformer"                # mlp, transformer
   latent_dim: 256                    # Latent dimension (bottleneck size)
+  decoder_output_weights_only: false # If true, decoder outputs only weights (no metadata)
+                                     # This prevents the model from "cheating" by learning
+                                     # to reconstruct easy metadata instead of actual weights
 
   # ===== MLP Architecture (used if type="mlp") =====
   mlp:

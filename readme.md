@@ -54,3 +54,9 @@ For each subject model, I pass a fixed dataset of probe examples through. This d
 #### Encoder/Decoder Training (Interpreter Model)
 
 We can train an encoder-decoder which takes in activation signatures and predicts weights (using contrastive loss on our gold weights). The latent space between the encoder and decoder will have embeddings which are organized by behavior and contain implemention details. Using just the encoder, we can add classification heads to classify behavior presences or model attributes (accuracy, etc.). Using the decoder, we can decode the embeddings into weights. If we train additional layers for editing behavior in between, we can augment the embeddings to edit/add/remove/repair behaviors.
+
+---
+
+# TODO
+
+I think reconstructing the decoded weights from the original shape could cause issues. Need some way to do this information internally
