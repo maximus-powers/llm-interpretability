@@ -24,6 +24,7 @@ from .neuron_utils import (
     extract_signature_features,
     flatten_signature_features,
     interleave_weights_signatures,
+    extract_architecture_spec,
 )
 
 __all__ = [
@@ -49,4 +50,5 @@ __all__ = [
     "extract_signature_features",
     "flatten_signature_features",
     "interleave_weights_signatures",
+    "extract_architecture_spec",
 ]

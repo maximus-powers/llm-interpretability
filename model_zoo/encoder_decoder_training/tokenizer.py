@@ -11,27 +11,24 @@ class WeightTokenizer:
         self,
         chunk_size: int = 64,
         max_tokens: int = 512,
-        include_metadata: bool = True,
         granularity: str = "chunk",
         max_neuron_data_size: int = None,
     ):
         self.chunk_size = chunk_size
         self.max_tokens = max_tokens
-        self.include_metadata = include_metadata
         self.granularity = granularity
-        self.metadata_features = 5 if include_metadata else 0
         self.max_neuron_data_size = max_neuron_data_size
 
         # chunk mode token_dim determined here, neuron mode it's set during tokenization
         if granularity == "chunk":
-            self.token_dim = chunk_size + self.metadata_features
+            self.token_dim = chunk_size  # No metadata
         elif granularity == "neuron" and max_neuron_data_size is not None:
-            self.token_dim = max_neuron_data_size + self.metadata_features
+            self.token_dim = max_neuron_data_size  # No metadata
         else:
             self.token_dim = None
 
         logger.info(
-            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, include_metadata={include_metadata}, granularity={granularity}, token_dim={self.token_dim}, max_neuron_data_size={max_neuron_data_size}"
+            f"WeightTokenizer initialized: chunk_size={chunk_size}, max_tokens={max_tokens}, granularity={granularity}, token_dim={self.token_dim}, max_neuron_data_size={max_neuron_data_size}"
         )
 
     def tokenize(self, input_data, metadata_dict=None) -> Dict[str, Any]:
@@ -111,18 +108,6 @@ class WeightTokenizer:
                 )
 
             tokens[chunk_idx, : self.chunk_size] = chunk_values
-
-            if self.include_metadata:
-                mid_idx = start_idx + chunk_size_actual // 2
-                if mid_idx < len(weight_metadata):
-                    meta = weight_metadata[mid_idx]
-                    tokens[chunk_idx, self.chunk_size] = meta["layer_idx"]
-                    tokens[chunk_idx, self.chunk_size + 1] = meta["param_type"]
-                    tokens[chunk_idx, self.chunk_size + 2] = meta["position"]
-                    tokens[chunk_idx, self.chunk_size + 3] = meta["shape_log"]
-                    tokens[chunk_idx, self.chunk_size + 4] = chunk_idx / max(
-                        num_chunks - 1, 1
-                    )
             attention_mask[chunk_idx] = 1.0
 
         return {
@@ -157,9 +142,9 @@ class WeightTokenizer:
 
         neurons = self._extract_neurons(input_data, metadata_dict)
 
-        # find token_dim for this batch, token_dim = neuron data size + metadata
+        # find token_dim for this batch (no metadata - architecture bypasses latent space)
         neuron_data_size = len(neurons[0])
-        batch_token_dim = neuron_data_size + self.metadata_features
+        batch_token_dim = neuron_data_size
         if self.token_dim is None:
             self.token_dim = batch_token_dim
 
@@ -172,45 +157,9 @@ class WeightTokenizer:
         tokens = np.zeros((self.max_tokens, batch_token_dim), dtype=np.float32)
         attention_mask = np.zeros(self.max_tokens, dtype=np.float32)
 
-        # tokens for each neuron
+        # tokens for each neuron (no metadata - architecture bypasses latent space)
         for neuron_idx, neuron_data in enumerate(neurons):
             tokens[neuron_idx, :neuron_data_size] = neuron_data
-
-            # add metadata
-            if self.include_metadata:
-                # find layer idx
-                neurons_per_layer = metadata_dict.get("neurons_per_layer", [])
-                layer_idx = max(0, len(neurons_per_layer) - 1)
-                cumulative = 0
-                for layer_idx, num_neurons in enumerate(neurons_per_layer):
-                    if neuron_idx < cumulative + num_neurons:
-                        layer_idx = layer_idx
-                    cumulative += num_neurons
-
-                norm_layer_idx = layer_idx / max(
-                    len(metadata_dict.get("neurons_per_layer", [1])) - 1, 1
-                )
-
-                # find position in layer
-                neurons_per_layer = metadata_dict.get("neurons_per_layer", [])
-                neuron_in_layer = 0
-                cumulative = 0
-                for num_neurons in neurons_per_layer:
-                    if neuron_idx < cumulative + num_neurons:
-                        neuron_in_layer = neuron_idx - cumulative
-                    cumulative += num_neurons
-
-                neurons_in_layer = metadata_dict["neurons_per_layer"][layer_idx]
-                norm_position = neuron_in_layer / max(neurons_in_layer - 1, 1)
-                shape_log = np.log1p(neuron_data_size)
-                param_type = 0
-                norm_token_idx = neuron_idx / max(len(neurons) - 1, 1)
-                tokens[neuron_idx, neuron_data_size] = norm_layer_idx
-                tokens[neuron_idx, neuron_data_size + 1] = param_type
-                tokens[neuron_idx, neuron_data_size + 2] = norm_position
-                tokens[neuron_idx, neuron_data_size + 3] = shape_log
-                tokens[neuron_idx, neuron_data_size + 4] = norm_token_idx
-
             attention_mask[neuron_idx] = 1.0
 
         result = {
@@ -610,8 +559,6 @@ class WeightTokenizer:
         return {
             "chunk_size": self.chunk_size,
             "max_tokens": self.max_tokens,
-            "include_metadata": self.include_metadata,
-            "metadata_features": self.metadata_features,
             "token_dim": self.token_dim,
             "granularity": self.granularity,
             "max_neuron_data_size": self.max_neuron_data_size,
@@ -622,7 +569,6 @@ class WeightTokenizer:
         return cls(
             chunk_size=config["chunk_size"],
             max_tokens=config["max_tokens"],
-            include_metadata=config.get("include_metadata", True),
             granularity=config.get("granularity", "chunk"),
             max_neuron_data_size=config.get("max_neuron_data_size"),
         )

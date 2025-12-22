@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, DataLoader, random_split, Sampler
 from torch.utils.data.dataloader import default_collate
 
 from .tokenizer import WeightTokenizer
-from .neuron_utils import interleave_weights_signatures
+from .neuron_utils import interleave_weights_signatures, extract_architecture_spec
 
 logger = logging.getLogger(__name__)
 
@@ -331,6 +331,9 @@ class WeightSpaceDataset(Dataset):
         )
         weights_tokenized = self.tokenizer.tokenize(weights_dict, metadata_dict)
 
+        # extract architecture spec (num_layers, neurons_per_layer, input_dim, output_dim, layer_shapes)
+        arch_spec = extract_architecture_spec(weights_dict)
+
         # tokenize input (signature, weights, or both)
         if self.input_mode == "signature":
             if self.tokenizer.granularity == "neuron":
@@ -424,22 +427,6 @@ class WeightSpaceDataset(Dataset):
                             mode="constant",
                         )
                     tokens[chunk_idx, :chunk_size] = chunk_data
-                    # metadata
-                    if self.tokenizer.include_metadata:
-                        tokens[chunk_idx, chunk_size] = (
-                            0.0  # layer_idx (not meaningful here)
-                        )
-                        tokens[chunk_idx, chunk_size + 1] = 0.0  # param_type
-                        tokens[chunk_idx, chunk_size + 2] = chunk_idx / max(
-                            num_chunks - 1, 1
-                        )  # position
-                        tokens[chunk_idx, chunk_size + 3] = np.log1p(
-                            len(combined_array)
-                        )  # shape_log
-                        tokens[chunk_idx, chunk_size + 4] = chunk_idx / max(
-                            num_chunks - 1, 1
-                        )  # chunk_idx
-
                     attention_mask[chunk_idx] = 1.0
 
                 encoder_tokenized = {
@@ -481,6 +468,7 @@ class WeightSpaceDataset(Dataset):
             "behavior_labels": behavior_labels,
             "model_config": model_config,
             "test_inputs": test_inputs,
+            "arch_spec": arch_spec,
         }
 
         # original_shapes if available (for detokenization)
@@ -509,7 +497,6 @@ def load_dataset(config: Dict[str, Any]):
     tokenizer = WeightTokenizer(
         chunk_size=tokenization_config["chunk_size"],
         max_tokens=tokenization_config["max_tokens"],
-        include_metadata=tokenization_config.get("include_metadata", True),
         granularity=granularity,
         max_neuron_data_size=max_neuron_data_size,
     )
@@ -544,6 +531,11 @@ def custom_collate_fn(batch):
     if "model_config" in batch[0]:
         model_config_list = [item.pop("model_config") for item in batch]
 
+    # extract arch_spec before collation (can't tensorize dicts)
+    arch_spec_list = None
+    if "arch_spec" in batch[0]:
+        arch_spec_list = [item.pop("arch_spec") for item in batch]
+
     # max token_dim for encoder_input within batch
     max_encoder_dim = max(item["encoder_input"].shape[1] for item in batch)
 
@@ -576,6 +568,9 @@ def custom_collate_fn(batch):
 
     if model_config_list is not None:
         collated_batch["model_config"] = model_config_list
+
+    if arch_spec_list is not None:
+        collated_batch["arch_spec"] = arch_spec_list
 
     return collated_batch
 

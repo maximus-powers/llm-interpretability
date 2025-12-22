@@ -24,6 +24,7 @@ from .losses import (
     CombinedReconstructionLoss,
     GammaContrastReconLoss,
     FunctionalReconstructionLoss,
+    VarianceRegularizationLoss,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,15 @@ class EncoderDecoderTrainer:
             func_weight = func_config.get("weight", 0.5)
             self.functional_loss = FunctionalReconstructionLoss(config, device)
             self.loss_weights["functional"] = func_weight
+
+        # variance regularization loss (prevents decoder collapse)
+        self.variance_loss = None
+        variance_config = loss_config.get("variance", {})
+        if variance_config.get("enabled", False):
+            variance_weight = variance_config.get("weight", 0.1)
+            target_variance = variance_config.get("target_variance", 0.01)
+            self.variance_loss = VarianceRegularizationLoss(target_variance=target_variance)
+            self.loss_weights["variance"] = variance_weight
 
         self.is_contrastive_loss = self.contrastive_loss is not None
         self.is_combined_loss = isinstance(self.reconstruction_loss, CombinedReconstructionLoss)
@@ -279,6 +289,7 @@ class EncoderDecoderTrainer:
         encoder_mask,
         decoder_target,
         decoder_mask,
+        arch_specs=None,
         behavior_labels=None,
         original_shapes=None,
         model_configs=None,
@@ -286,27 +297,41 @@ class EncoderDecoderTrainer:
     ):
         batch_size = encoder_input.size(0)
 
-        # forward pass
-        latent = self.model.encode(encoder_input, encoder_mask)
-        reconstructed = self.model.decode(latent, decoder_target.size(1))
+        # Use first arch_spec for batch (all samples in batch should have same architecture)
+        # This is a simplification - for variable architectures, batch-per-architecture is needed
+        arch_spec = arch_specs[0] if arch_specs else None
 
-        # Handle weights-only decoder output
-        # If decoder outputs weights only, we need to compare against only
-        # the weight portion of decoder_target (not metadata)
-        decoder_output_weights_only = getattr(
-            self.model, "decoder_output_weights_only", False
-        )
-        if decoder_output_weights_only:
-            # Get the weights-only dimension
-            weights_only_dim = getattr(self.model, "weights_only_dim", None)
-            if weights_only_dim is not None:
-                # Extract only weight portion from target for comparison
-                decoder_target_for_loss = decoder_target[:, :, :weights_only_dim]
-            else:
-                decoder_target_for_loss = decoder_target
+        # forward pass with architecture bypass
+        latent = self.model.encode(encoder_input, encoder_mask)
+        reconstructed = self.model.decode(latent, arch_spec, decoder_target.size(1))
+
+        # === Decoder Health Diagnostics ===
+        # These metrics detect decoder collapse (all positions outputting identical values)
+        decoder_health = {}
+        with torch.no_grad():
+            # Variance across token positions (should be > 0, collapse = 0)
+            decoder_health["decoder_token_variance"] = reconstructed.var(dim=1).mean().item()
+            # Variance across features (less critical but useful)
+            decoder_health["decoder_feature_variance"] = reconstructed.var(dim=2).mean().item()
+
+            # FiLM layer statistics (gamma should start ~1, learn to vary)
+            if hasattr(self.model, "decoder") and hasattr(self.model.decoder, "film_layers"):
+                gamma_values = []
+                for film_layer in self.model.decoder.film_layers:
+                    # Get gamma from bias (first half of film_generator bias)
+                    bias = film_layer.film_generator.bias
+                    half = bias.size(0) // 2
+                    gamma_values.append(bias[:half].detach())
+                if gamma_values:
+                    all_gamma = torch.cat(gamma_values)
+                    decoder_health["film_gamma_mean"] = all_gamma.mean().item()
+                    decoder_health["film_gamma_std"] = all_gamma.std().item()
+
+        # Decoder always outputs weights only (no metadata - architecture bypasses latent)
+        weights_only_dim = getattr(self.model, "weights_only_dim", None)
+        if weights_only_dim is not None:
+            decoder_target_for_loss = decoder_target[:, :, :weights_only_dim]
         else:
-            target_token_dim = decoder_target.size(2)
-            reconstructed = reconstructed[:, :, :target_token_dim]
             decoder_target_for_loss = decoder_target
 
         # accumulate losses
@@ -373,6 +398,19 @@ class EncoderDecoderTrainer:
             loss_components["functional"] = (
                 batch_func_loss.item() if hasattr(batch_func_loss, "item") else batch_func_loss
             )
+
+        # variance regularization loss (prevents decoder collapse)
+        if self.variance_loss is not None:
+            variance_weight = self.loss_weights.get("variance", 0.1)
+            var_loss = self.variance_loss.compute(reconstructed, decoder_mask)
+            weighted_var = variance_weight * var_loss
+            total_loss = total_loss + weighted_var
+            loss_components["variance"] = (
+                var_loss.item() if hasattr(var_loss, "item") else var_loss
+            )
+
+        # Add decoder health metrics (for TensorBoard monitoring)
+        loss_components.update(decoder_health)
 
         return total_loss, reconstructed, loss_components
 
@@ -452,6 +490,7 @@ class EncoderDecoderTrainer:
             original_shapes = batch.get("original_shapes", None)
             model_configs = batch.get("model_config", None)
             test_inputs = batch.get("test_inputs", None)
+            arch_specs = batch.get("arch_spec", None)
             if test_inputs is not None:
                 test_inputs = test_inputs.to(self.device)
 
@@ -460,6 +499,7 @@ class EncoderDecoderTrainer:
                 encoder_mask,
                 decoder_target,
                 decoder_mask,
+                arch_specs=arch_specs,
                 behavior_labels=behavior_labels,
                 original_shapes=original_shapes,
                 model_configs=model_configs,
@@ -579,6 +619,7 @@ class EncoderDecoderTrainer:
                 original_shapes = batch.get("original_shapes", None)
                 model_configs = batch.get("model_config", None)
                 test_inputs = batch.get("test_inputs", None)
+                arch_specs = batch.get("arch_spec", None)
                 if test_inputs is not None:
                     test_inputs = test_inputs.to(self.device)
 
@@ -588,6 +629,7 @@ class EncoderDecoderTrainer:
                     encoder_mask,
                     decoder_target,
                     decoder_mask,
+                    arch_specs=arch_specs,
                     behavior_labels=behavior_labels,
                     original_shapes=original_shapes,
                     model_configs=model_configs,
@@ -605,18 +647,10 @@ class EncoderDecoderTrainer:
                         else:
                             all_behavior_labels.append(str(labels) if labels else "none")
 
-                # store batch-wise (will aggregate later)
-                # Handle weights-only decoder output
-                decoder_output_weights_only = getattr(
-                    self.model, "decoder_output_weights_only", False
-                )
-                if decoder_output_weights_only:
-                    weights_only_dim = getattr(self.model, "weights_only_dim", None)
-                    if weights_only_dim is not None:
-                        # Slice target to match decoder output (weights only)
-                        decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
-                    else:
-                        decoder_target_for_metrics = decoder_target
+                # Decoder always outputs weights only (architecture bypasses latent)
+                weights_only_dim = getattr(self.model, "weights_only_dim", None)
+                if weights_only_dim is not None:
+                    decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
                 else:
                     decoder_target_for_metrics = decoder_target
 
@@ -722,6 +756,7 @@ class EncoderDecoderTrainer:
                 original_shapes = batch.get("original_shapes", None)
                 model_configs = batch.get("model_config", None)
                 test_inputs = batch.get("test_inputs", None)
+                arch_specs = batch.get("arch_spec", None)
                 if test_inputs is not None:
                     test_inputs = test_inputs.to(self.device)
 
@@ -731,23 +766,17 @@ class EncoderDecoderTrainer:
                     encoder_mask,
                     decoder_target,
                     decoder_mask,
+                    arch_specs=arch_specs,
                     behavior_labels=behavior_labels,
                     original_shapes=original_shapes,
                     model_configs=model_configs,
                     test_inputs=test_inputs,
                 )
 
-                # store batch-wise (will aggregate later)
-                # Handle weights-only decoder output
-                decoder_output_weights_only = getattr(
-                    self.model, "decoder_output_weights_only", False
-                )
-                if decoder_output_weights_only:
-                    weights_only_dim = getattr(self.model, "weights_only_dim", None)
-                    if weights_only_dim is not None:
-                        decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
-                    else:
-                        decoder_target_for_metrics = decoder_target
+                # Decoder always outputs weights only (architecture bypasses latent)
+                weights_only_dim = getattr(self.model, "weights_only_dim", None)
+                if weights_only_dim is not None:
+                    decoder_target_for_metrics = decoder_target[:, :, :weights_only_dim]
                 else:
                     decoder_target_for_metrics = decoder_target
 
@@ -992,9 +1021,8 @@ It includes both an encoder (compresses weights into latent representations) and
 
 ## Tokenization
 
-- **Chunk Size**: {self.tokenizer.chunk_size} weight values per token
+- **Granularity**: {self.tokenizer.granularity}
 - **Max Tokens**: {self.tokenizer.max_tokens}
-- **Metadata**: {self.tokenizer.include_metadata}
 
 ## Training Config
 

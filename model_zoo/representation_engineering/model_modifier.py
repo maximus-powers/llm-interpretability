@@ -8,6 +8,7 @@ from model_zoo.encoder_decoder_training import (
     infer_neurons_from_weights,
     flatten_signature_features,
     interleave_weights_signatures,
+    extract_architecture_spec,
 )
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,9 @@ class ModelModifier:
         logger.info(
             f"Modifying model: patterns={[p for p, _ in steering_vectors]}, strength={strength}"
         )
+
+        # Extract architecture spec (bypasses latent space for FiLM conditioning)
+        arch_spec = extract_architecture_spec(subject_weights)
 
         # encode to latent based on input_mode
         encoder_input = None
@@ -168,9 +172,9 @@ class ModelModifier:
             f"Modified latent norm: {modified_latent_norm:.4f} (delta: {modified_latent_norm - original_latent_norm:+.4f})"
         )
 
-        # decode back to weights (decoder always outputs weight tokens)
+        # decode back to weights with architecture conditioning (bypasses latent space)
         with torch.no_grad():
-            reconstructed_tokens = self.decoder(latent, num_tokens)
+            reconstructed_tokens = self.decoder(latent, arch_spec, num_tokens)
 
         # create appropriate mask for detokenization
         if self.input_mode == "weights":

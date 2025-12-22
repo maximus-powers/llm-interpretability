@@ -29,7 +29,6 @@ tokenization:
   granularity: "neuron"              # "neuron" for per-neuron tokenization, "chunk" for legacy chunking
   chunk_size: 64                     # Only used when granularity="chunk": weight values per token
   max_tokens: 512                    # Maximum sequence length
-  include_metadata: true             # true, false (metadata is layer_idx, param_type, position, shape_encoding, token_idx)
 
 # ============================================================================
 # MODEL ARCHITECTURE
@@ -37,9 +36,10 @@ tokenization:
 architecture:
   type: "transformer"                # mlp, transformer
   latent_dim: 256                    # Latent dimension (bottleneck size)
-  decoder_output_weights_only: false # If true, decoder outputs only weights (no metadata)
-                                     # This prevents the model from "cheating" by learning
-                                     # to reconstruct easy metadata instead of actual weights
+
+  # Architecture encoder for FiLM conditioning (bypasses latent space)
+  arch_encoder:
+    embed_dim: 64                    # Architecture embedding dimension
 
   # ===== MLP Architecture (used if type="mlp") =====
   mlp:
@@ -64,7 +64,8 @@ architecture:
       dim_feedforward: 2048          # Feed-forward dimension, typically 4x d_model
       dropout: 0.1                   # Dropout probability (0.0-1.0)
       activation: "relu"             # relu, gelu, tanh, leaky_relu, sigmoid
-      positional_encoding: "learned" # learned, sinusoidal
+      positional_encoding: "learned" # Type: learned, sinusoidal (only used if use_positional_encoding=true)
+      use_positional_encoding: false # Disable encoder positional encoding (architecture bypasses latent)
       pooling: "mean"                # mean, max, cls_token
     decoder:
       d_model: 512                   # Model dimension, should match encoder d_model
@@ -73,6 +74,7 @@ architecture:
       dim_feedforward: 2048          # Feed-forward dimension, typically 4x d_model
       dropout: 0.1                   # Dropout probability (0.0-1.0)
       activation: "relu"             # relu, gelu, tanh, leaky_relu, sigmoid
+      num_memory_tokens: 8           # Number of memory tokens to expand latent into (prevents collapse)
 
 # ============================================================================
 # LOSS CONFIGURATION
@@ -107,6 +109,14 @@ loss:
     weight: 0.5                      # Weight relative to other losses
     test_samples: null               # null = use all, 0.0-1.0 = percentage of benchmark
     benchmark_path: "model_zoo/configs/rep_eng/benchmark_dataset.json"
+
+  # Variance regularization loss - prevents decoder collapse to uniform outputs
+  # Penalizes when output variance across token positions falls below target.
+  # Essential for preventing the decoder from outputting the same values everywhere.
+  variance:
+    enabled: true                    # Strongly recommended to prevent collapse
+    weight: 0.1                      # Weight relative to other losses
+    target_variance: 0.01            # Minimum desired variance across positions
 
 # ============================================================================
 # TRAINING CONFIGURATION

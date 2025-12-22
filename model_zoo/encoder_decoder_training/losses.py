@@ -451,3 +451,28 @@ class FunctionalReconstructionLoss(nn.Module):
                 pass
 
         return x
+
+
+class VarianceRegularizationLoss:
+
+    def __init__(self, target_variance: float = 0.01):
+        self.target_variance = target_variance
+        logger.info(
+            f"VarianceRegularizationLoss initialized: target_variance={target_variance}"
+        )
+
+    def compute(
+        self, predicted: torch.Tensor, mask: torch.Tensor
+    ) -> torch.Tensor:
+        # Compute variance across token positions (dim=1)
+        # Shape: [batch, token_dim]
+        token_variance = predicted.var(dim=1)
+
+        # Average across batch and features
+        mean_variance = token_variance.mean()
+
+        # Penalize when variance is below target
+        # Loss = max(0, target - actual)
+        loss = torch.relu(self.target_variance - mean_variance)
+
+        return loss

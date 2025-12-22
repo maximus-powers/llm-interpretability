@@ -137,3 +137,60 @@ def interleave_weights_signatures(
         combined_neurons.append(combined)
 
     return combined_neurons
+
+
+def extract_architecture_spec(weights_dict: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract architecture specification from a weights dictionary.
+
+    This spec is used by the decoder for architecture-conditioned generation,
+    bypassing the latent space to prevent steering vector corruption.
+
+    Args:
+        weights_dict: Dictionary mapping parameter names to weight tensors
+
+    Returns:
+        arch_spec: Dictionary containing:
+            - num_layers: Number of weight layers (excluding biases)
+            - neurons_per_layer: List of neuron counts per layer
+            - input_dim: Input dimension of first layer
+            - output_dim: Output dimension of last layer
+            - layer_shapes: List of (name, shape) tuples for all parameters
+    """
+    # Handle nested weights dict
+    if "weights" in weights_dict:
+        weights_dict = weights_dict["weights"]
+
+    sorted_keys = sorted(weights_dict.keys())
+    layer_shapes = []
+    weight_layers = []
+
+    for name in sorted_keys:
+        tensor = weights_dict[name]
+        if isinstance(tensor, (list, np.ndarray)):
+            tensor = np.array(tensor)
+            shape = tuple(tensor.shape)
+        elif isinstance(tensor, torch.Tensor):
+            shape = tuple(tensor.shape)
+        else:
+            shape = ()
+
+        layer_shapes.append((name, shape))
+
+        # Collect weight matrices (not biases) for architecture info
+        if "weight" in name.lower() and "bias" not in name.lower() and len(shape) >= 2:
+            weight_layers.append({
+                "name": name,
+                "neurons_out": shape[0],
+                "neurons_in": shape[1] if len(shape) > 1 else 1
+            })
+
+    neurons_per_layer = [layer["neurons_out"] for layer in weight_layers]
+
+    return {
+        "num_layers": len(weight_layers),
+        "neurons_per_layer": neurons_per_layer,
+        "input_dim": weight_layers[0]["neurons_in"] if weight_layers else 0,
+        "output_dim": weight_layers[-1]["neurons_out"] if weight_layers else 0,
+        "layer_shapes": layer_shapes,
+    }
