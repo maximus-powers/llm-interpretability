@@ -10,9 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class ReconstructionLoss:
-    def __init__(self, config: Dict[str, Any], loss_type: str = "mse"):
+    def __init__(self, config: Dict[str, Any], loss_type: str = "mse", mask_padding: bool = True):
         self.config = config
         self.loss_type = loss_type
+        self.mask_padding = mask_padding
         if loss_type not in ["mse", "mae", "cosine"]:
             raise ValueError(
                 f"Unknown loss type: {loss_type}. Must be 'mse', 'mae', or 'cosine'"
@@ -30,29 +31,34 @@ class ReconstructionLoss:
             target_norm = F.normalize(target, p=2, dim=-1)
             cos_sim = (pred_norm * target_norm).sum(dim=-1)
             token_error = 1 - cos_sim
-        masked_error = token_error * mask
-        loss = masked_error.sum() / mask.sum().clamp(min=1)
+
+        if self.mask_padding:
+            masked_error = token_error * mask
+            loss = masked_error.sum() / mask.sum().clamp(min=1)
+        else:
+            loss = token_error.mean()
         return loss
 
 
 class CombinedReconstructionLoss:
     """Combines multiple reconstruction losses with weighted sum"""
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], mask_padding: bool = True):
         self.config = config
+        self.mask_padding = mask_padding
         self.losses = {}
         self.weights = {}
         for loss_spec in config["loss"]["components"]:
             loss_type = loss_spec["type"]
             weight = loss_spec["weight"]
             if loss_type in ["mse", "mae", "cosine"]:
-                self.losses[loss_type] = ReconstructionLoss(config, loss_type=loss_type)
+                self.losses[loss_type] = ReconstructionLoss(config, loss_type=loss_type, mask_padding=mask_padding)
             else:
                 raise ValueError(f"Unknown loss type in combined loss: {loss_type}")
             self.weights[loss_type] = weight
 
         logger.info(
-            f"Combined loss initialized with components: {list(self.losses.keys())}"
+            f"Combined loss initialized with components: {list(self.losses.keys())}, mask_padding={mask_padding}"
         )
 
     def compute(

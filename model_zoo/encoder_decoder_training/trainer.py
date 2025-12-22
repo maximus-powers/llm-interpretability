@@ -59,11 +59,13 @@ class EncoderDecoderTrainer:
         if recon_config.get("enabled", False):
             recon_type = recon_config.get("type", "mse")
             recon_weight = recon_config.get("weight", 1.0)
+            mask_padding = recon_config.get("mask_padding", True)
             if recon_type in ["mse", "mae", "cosine"]:
-                self.reconstruction_loss = ReconstructionLoss(config, loss_type=recon_type)
+                self.reconstruction_loss = ReconstructionLoss(config, loss_type=recon_type, mask_padding=mask_padding)
             elif recon_type == "combined":
-                self.reconstruction_loss = CombinedReconstructionLoss(config)
+                self.reconstruction_loss = CombinedReconstructionLoss(config, mask_padding=mask_padding)
             self.loss_weights["reconstruction"] = recon_weight
+            logger.info(f"ReconstructionLoss initialized: type={recon_type}, mask_padding={mask_padding}")
         # contrastive loss
         self.contrastive_loss = None
         contrast_config = loss_config.get("contrastive", {})

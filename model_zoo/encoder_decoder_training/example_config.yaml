@@ -87,6 +87,7 @@ loss:
     enabled: true
     type: "mse"                      # mse, mae, cosine, combined
     weight: 1.0
+    mask_padding: true               # Mask padding tokens in loss calculation (recommended: true)
 
   # Contrastive loss - pulls same-behavior models together in latent space
   # Uses behavior labels from dataset metadata (selected_patterns) to define positive pairs.
