@@ -7,8 +7,13 @@ import json
 import yaml
 import subprocess
 import atexit
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for server environments
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from huggingface_hub import HfApi, create_repo, CommitOperationAdd
@@ -257,6 +262,179 @@ class EncoderDecoderTrainer:
         self.writer.flush()
 
         logger.info(f"Logged {embeddings.shape[0]} embeddings to projector (epoch {epoch})")
+
+    def _get_filter_normalized_direction(self, model: nn.Module) -> List[torch.Tensor]:
+        """
+        Generate a random direction in weight space with filter-wise normalization.
+
+        Filter normalization scales each filter/layer to have the same norm as the
+        corresponding filter in the model weights. This makes the direction more
+        meaningful for visualization (see Li et al. 2018).
+        """
+        direction = []
+        for param in model.parameters():
+            # Random direction
+            d = torch.randn_like(param)
+            # Filter-wise normalization: scale to match parameter norm
+            param_norm = param.norm()
+            if param_norm > 0:
+                d = d / d.norm() * param_norm
+            direction.append(d)
+        return direction
+
+    def _set_weights_along_direction(
+        self,
+        model: nn.Module,
+        origin_weights: List[torch.Tensor],
+        direction1: List[torch.Tensor],
+        direction2: List[torch.Tensor],
+        alpha: float,
+        beta: float,
+    ):
+        """
+        Set model weights to: origin + alpha * direction1 + beta * direction2
+        """
+        with torch.no_grad():
+            for param, origin, d1, d2 in zip(model.parameters(), origin_weights, direction1, direction2):
+                param.copy_(origin + alpha * d1 + beta * d2)
+
+    def _compute_loss_at_point(self, model: nn.Module, data_batch: Dict[str, torch.Tensor]) -> float:
+        """
+        Compute loss at current model weights using a single batch.
+        """
+        model.eval()
+        with torch.no_grad():
+            encoder_input = data_batch["encoder_input"].to(self.device)
+            encoder_mask = data_batch["encoder_mask"].to(self.device)
+            decoder_target = data_batch["decoder_target"].to(self.device)
+            decoder_mask = data_batch["decoder_mask"].to(self.device)
+            arch_specs = data_batch.get("arch_spec", None)
+
+            reconstructed, _ = model(encoder_input, encoder_mask, arch_specs, decoder_target.size(1))
+
+            # Use simple MSE for landscape visualization
+            token_error = ((reconstructed - decoder_target) ** 2).mean(dim=-1)
+            masked_error = token_error * decoder_mask
+            loss = masked_error.sum() / decoder_mask.sum().clamp(min=1)
+
+        return loss.item()
+
+    def _compute_loss_landscape(
+        self,
+        steps: int = 21,
+        distance: float = 1.0,
+        data_batch: Dict[str, torch.Tensor] = None,
+    ) -> np.ndarray:
+        """
+        Compute a 2D loss landscape around current weights.
+
+        Args:
+            steps: Number of points along each direction (creates steps x steps grid)
+            distance: How far to perturb in each direction (scaled by filter norm)
+            data_batch: Batch of data to evaluate loss on
+
+        Returns:
+            2D numpy array of loss values
+        """
+        if data_batch is None:
+            return None
+
+        # Store original weights
+        origin_weights = [param.clone() for param in self.model.parameters()]
+
+        # Generate two random orthogonal directions
+        direction1 = self._get_filter_normalized_direction(self.model)
+        direction2 = self._get_filter_normalized_direction(self.model)
+
+        # Create coordinate grid
+        coords = np.linspace(-distance, distance, steps)
+        landscape = np.zeros((steps, steps))
+
+        # Evaluate loss at each point
+        for i, alpha in enumerate(coords):
+            for j, beta in enumerate(coords):
+                self._set_weights_along_direction(
+                    self.model, origin_weights, direction1, direction2, alpha, beta
+                )
+                landscape[i, j] = self._compute_loss_at_point(self.model, data_batch)
+
+        # Restore original weights
+        with torch.no_grad():
+            for param, origin in zip(self.model.parameters(), origin_weights):
+                param.copy_(origin)
+
+        return landscape, coords
+
+    def _log_loss_landscape(self, epoch: int, data_batch: Dict[str, torch.Tensor] = None):
+        """
+        Compute and log loss landscape visualization to TensorBoard.
+        """
+        if self.writer is None or data_batch is None:
+            return
+
+        viz_config = self.config["logging"]["tensorboard"].get("visualizations", {})
+        landscape_config = viz_config.get("loss_landscape", {})
+
+        steps = landscape_config.get("resolution", 15)
+        distance = landscape_config.get("distance", 0.5)
+
+        logger.info(f"Computing loss landscape ({steps}x{steps} grid)...")
+
+        try:
+            landscape, coords = self._compute_loss_landscape(
+                steps=steps,
+                distance=distance,
+                data_batch=data_batch,
+            )
+
+            if landscape is None:
+                return
+
+            # Create 3D surface plot
+            fig = plt.figure(figsize=(10, 8))
+            ax = fig.add_subplot(111, projection='3d')
+
+            X, Y = np.meshgrid(coords, coords)
+            surf = ax.plot_surface(X, Y, landscape, cmap='viridis', alpha=0.8)
+
+            # Mark the center (original weights)
+            center_idx = len(coords) // 2
+            center_loss = landscape[center_idx, center_idx]
+            ax.scatter([0], [0], [center_loss], color='red', s=100, label='Current weights')
+
+            ax.set_xlabel('Direction 1')
+            ax.set_ylabel('Direction 2')
+            ax.set_zlabel('Loss')
+            ax.set_title(f'Loss Landscape (Epoch {epoch})')
+            fig.colorbar(surf, shrink=0.5, aspect=5)
+            ax.legend()
+
+            # Log to tensorboard
+            self.writer.add_figure('loss_landscape/3d_surface', fig, epoch)
+
+            # Also create 2D contour plot
+            fig2, ax2 = plt.subplots(figsize=(8, 6))
+            contour = ax2.contourf(X, Y, landscape, levels=20, cmap='viridis')
+            ax2.scatter([0], [0], color='red', s=100, marker='x', label='Current weights')
+            ax2.set_xlabel('Direction 1')
+            ax2.set_ylabel('Direction 2')
+            ax2.set_title(f'Loss Landscape Contour (Epoch {epoch})')
+            fig2.colorbar(contour)
+            ax2.legend()
+
+            self.writer.add_figure('loss_landscape/contour', fig2, epoch)
+
+            # Log scalar metrics about the landscape
+            self.writer.add_scalar('loss_landscape/center_loss', center_loss, epoch)
+            self.writer.add_scalar('loss_landscape/min_loss', landscape.min(), epoch)
+            self.writer.add_scalar('loss_landscape/max_loss', landscape.max(), epoch)
+            self.writer.add_scalar('loss_landscape/sharpness', landscape.max() - landscape.min(), epoch)
+
+            plt.close('all')
+            logger.info(f"Loss landscape logged (center={center_loss:.4f}, range={landscape.min():.4f}-{landscape.max():.4f})")
+
+        except Exception as e:
+            logger.warning(f"Failed to compute loss landscape: {e}")
 
     def _start_tensorboard_server(self):
         try:
@@ -734,6 +912,15 @@ class EncoderDecoderTrainer:
                         self.writer.add_image(f"weights/sample_{i}/original", orig_norm.T.unsqueeze(0), epoch)
                         self.writer.add_image(f"weights/sample_{i}/reconstructed", recon_norm.T.unsqueeze(0), epoch)
                         self.writer.add_image(f"weights/sample_{i}/error", diff_norm.T.unsqueeze(0), epoch)
+
+                    # Loss landscape visualization
+                    landscape_config = viz_config.get("loss_landscape", {})
+                    if landscape_config.get("enabled", False):
+                        landscape_interval = landscape_config.get("log_interval", 10)
+                        if epoch % landscape_interval == 0:
+                            # Get a batch for landscape computation
+                            landscape_batch = next(iter(self.val_loader))
+                            self._log_loss_landscape(epoch, landscape_batch)
 
         return metrics
 

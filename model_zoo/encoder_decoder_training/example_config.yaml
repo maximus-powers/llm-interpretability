@@ -171,6 +171,12 @@ logging:
       enabled: true
       log_interval: 5                # Log visualizations every N epochs
       num_image_samples: 4           # Number of weight heatmap samples
+      # Loss landscape visualization (3D surface and contour plots)
+      loss_landscape:
+        enabled: false               # Enable loss landscape visualization (expensive)
+        log_interval: 10             # Compute every N epochs
+        resolution: 15               # Grid resolution (15x15 = 225 loss evaluations)
+        distance: 0.5                # How far to perturb weights (scaled by filter norm)
   checkpoint:
     enabled: true
     save_best_only: true
