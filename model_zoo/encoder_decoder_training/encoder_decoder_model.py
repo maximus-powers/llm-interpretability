@@ -646,6 +646,15 @@ class TransformerDecoder(nn.Module):
 
         self.output_projection = nn.Linear(self.d_model, token_dim)
 
+        # Latent-to-query projection: injects latent info into queries
+        # This prevents position-locked outputs when all samples share the same architecture
+        self.latent_to_query = nn.Sequential(
+            nn.Linear(latent_dim, self.d_model),
+            nn.LayerNorm(self.d_model),
+            nn.GELU(),
+            nn.Linear(self.d_model, self.d_model),
+        )
+
     def generate_arch_positions(
         self,
         arch_spec: Dict[str, Any],
@@ -754,8 +763,14 @@ class TransformerDecoder(nn.Module):
         # arch_positions: structural info (layer, neuron index, fan-in/out)
         # query_embeddings: unique per-position identity (prevents similar positions from collapsing)
         arch_positions = self.generate_arch_positions(arch_spec, num_tokens, device)
-        tgt = arch_positions + self.query_embeddings[:num_tokens]  # (num_tokens, d_model)
-        tgt = tgt.unsqueeze(0).expand(batch_size, -1, -1)  # (batch, num_tokens, d_model)
+        base_queries = arch_positions + self.query_embeddings[:num_tokens]  # (num_tokens, d_model)
+        base_queries = base_queries.unsqueeze(0).expand(batch_size, -1, -1)  # (batch, num_tokens, d_model)
+
+        # Add latent modulation to queries - makes each sample's queries unique
+        # This prevents position-locked outputs when all samples share the same architecture
+        latent_mod = self.latent_to_query(latent)  # (batch, d_model)
+        latent_mod = latent_mod.unsqueeze(1)  # (batch, 1, d_model)
+        tgt = base_queries + latent_mod  # (batch, num_tokens, d_model) - broadcasts across tokens
 
         # Decode with FiLM conditioning after each layer
         for decoder_layer, film_layer in zip(self.decoder_layers, self.film_layers):
