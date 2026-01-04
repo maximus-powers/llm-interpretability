@@ -793,7 +793,7 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         # Use dataset max_dimensions for architecture limits if not specified
         max_dims = config["dataset"].get("max_dimensions", {})
         if "max_layers" not in arch_encoder_cfg:
-            arch_encoder_cfg["max_layers"] = max_dims.get("max_hidden_layers", 10)
+            arch_encoder_cfg["max_layers"] = max_dims.get("max_hidden_layers", 10) + 2
         if "max_neurons" not in arch_encoder_cfg:
             arch_encoder_cfg["max_neurons"] = max_dims.get("max_neurons_per_layer", 256)
 

@@ -47,3 +47,4 @@ lambdalabs.pem
 /model_zoo/runs/*
 
 .claude/*
+./temp-diagram/*
