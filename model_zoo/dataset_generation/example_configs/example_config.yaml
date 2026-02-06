@@ -127,8 +127,8 @@ pipeline:
   random_seed: 42                      # Global random seed for reproducibility
   device: "auto"                       # auto, cpu, cuda, mps
   checkpoint_interval: 1000            # Save checkpoint every N examples
-  max_threads: 4                       # Maximum number of threads for parallel example generation
-  num_workers: 4                       # DataLoader workers for training
+  max_threads: 1                       # Single thread recommended when using extended signature methods (input_correlations)
+  num_workers: 0                       # 0 workers avoids multiprocessing overhead
   pin_memory: true                     # Pin memory for faster GPU transfers
 
 # ============================================================================

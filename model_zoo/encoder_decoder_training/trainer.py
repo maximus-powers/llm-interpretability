@@ -26,6 +26,7 @@ from .losses import (
     FunctionalReconstructionLoss,
     VarianceRegularizationLoss,
 )
+from .neuron_utils import compute_layer_weights
 
 logger = logging.getLogger(__name__)
 
@@ -303,9 +304,16 @@ class EncoderDecoderTrainer:
         # This is a simplification - for variable architectures, batch-per-architecture is needed
         arch_spec = arch_specs[0] if arch_specs else None
 
-        # forward pass with architecture bypass
-        latent = self.model.encode(encoder_input, encoder_mask)
-        reconstructed = self.model.decode(latent, arch_spec, decoder_target.size(1))
+        # Forward pass with hybrid seq2seq architecture
+        # encode_all returns (encoded_tokens, latent) for both reconstruction and contrastive loss
+        if hasattr(self.model, 'encode_all'):
+            # New seq2seq architecture
+            encoded_tokens, latent = self.model.encode_all(encoder_input, encoder_mask)
+            reconstructed = self.model.decode(encoded_tokens, latent, arch_spec, decoder_target.size(1))
+        else:
+            # Fallback for MLP or older architectures
+            latent = self.model.encode(encoder_input, encoder_mask)
+            reconstructed = self.model.decode(latent, arch_spec, decoder_target.size(1))
 
         # === Decoder Health Diagnostics ===
         # These metrics detect decoder collapse (all positions outputting identical values)
@@ -316,20 +324,7 @@ class EncoderDecoderTrainer:
             # Variance across features (less critical but useful)
             decoder_health["decoder_feature_variance"] = reconstructed.var(dim=2).mean().item()
 
-            # FiLM layer statistics (gamma should start ~1, learn to vary)
-            if hasattr(self.model, "decoder") and hasattr(self.model.decoder, "film_layers"):
-                gamma_values = []
-                for film_layer in self.model.decoder.film_layers:
-                    # Get gamma from bias (first half of film_generator bias)
-                    bias = film_layer.film_generator.bias
-                    half = bias.size(0) // 2
-                    gamma_values.append(bias[:half].detach())
-                if gamma_values:
-                    all_gamma = torch.cat(gamma_values)
-                    decoder_health["film_gamma_mean"] = all_gamma.mean().item()
-                    decoder_health["film_gamma_std"] = all_gamma.std().item()
-
-        # Decoder always outputs weights only (no metadata - architecture bypasses latent)
+        # Decoder always outputs weights only (no metadata)
         weights_only_dim = getattr(self.model, "weights_only_dim", None)
         if weights_only_dim is not None:
             decoder_target_for_loss = decoder_target[:, :, :weights_only_dim]
@@ -340,18 +335,30 @@ class EncoderDecoderTrainer:
         total_loss = 0.0
         loss_components = {}
 
+        # Compute per-layer weights if enabled
+        layer_weights = None
+        per_layer_cfg = self.config["loss"]["reconstruction"].get("per_layer_weighting", {})
+        if per_layer_cfg.get("enabled", False) and arch_spec is not None:
+            weight_decay = per_layer_cfg.get("weight_decay", 0.3)
+            layer_weights = compute_layer_weights(
+                neurons_per_layer=arch_spec["neurons_per_layer"],
+                num_tokens=decoder_target.size(1),
+                weight_decay=weight_decay,
+                device=self.device,
+            )
+
         # reconstruction loss
         if self.reconstruction_loss is not None:
             recon_weight = self.loss_weights.get("reconstruction", 1.0)
             if self.is_combined_loss:
                 recon_loss, recon_components = self.reconstruction_loss.compute(
-                    reconstructed, decoder_target_for_loss, decoder_mask
+                    reconstructed, decoder_target_for_loss, decoder_mask, layer_weights
                 )
                 for k, v in recon_components.items():
                     loss_components[f"recon_{k}"] = v
             else:
                 recon_loss = self.reconstruction_loss.compute(
-                    reconstructed, decoder_target_for_loss, decoder_mask
+                    reconstructed, decoder_target_for_loss, decoder_mask, layer_weights
                 )
             weighted_recon = recon_weight * recon_loss
             total_loss = total_loss + weighted_recon

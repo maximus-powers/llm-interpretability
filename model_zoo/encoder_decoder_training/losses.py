@@ -20,8 +20,26 @@ class ReconstructionLoss:
             )
 
     def compute(
-        self, predicted: torch.Tensor, target: torch.Tensor, mask: torch.Tensor
+        self,
+        predicted: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        layer_weights: torch.Tensor = None,
     ) -> torch.Tensor:
+        """
+        Compute reconstruction loss with optional per-token layer weighting.
+
+        Args:
+            predicted: Predicted tokens (batch, num_tokens, token_dim)
+            target: Target tokens (batch, num_tokens, token_dim)
+            mask: Attention mask (batch, num_tokens)
+            layer_weights: Optional per-token weights (num_tokens,) to weight loss by layer.
+                          Later layers can be weighted more heavily to compensate for
+                          input_correlations making early layers easier to predict.
+
+        Returns:
+            Scalar loss tensor
+        """
         if self.loss_type == "mse":
             token_error = ((predicted - target) ** 2).mean(dim=-1)
         elif self.loss_type == "mae":
@@ -32,9 +50,20 @@ class ReconstructionLoss:
             cos_sim = (pred_norm * target_norm).sum(dim=-1)
             token_error = 1 - cos_sim
 
+        # Apply per-layer weighting if provided
+        if layer_weights is not None:
+            # layer_weights is (num_tokens,), expand to match batch dimension
+            layer_weights = layer_weights.unsqueeze(0)  # (1, num_tokens)
+            token_error = token_error * layer_weights
+
         if self.mask_padding:
             masked_error = token_error * mask
-            loss = masked_error.sum() / mask.sum().clamp(min=1)
+            if layer_weights is not None:
+                # When using layer weights, normalize by sum of weights*mask, not just mask
+                effective_weights = layer_weights * mask
+                loss = masked_error.sum() / effective_weights.sum().clamp(min=1)
+            else:
+                loss = masked_error.sum() / mask.sum().clamp(min=1)
         else:
             loss = token_error.mean()
         return loss
@@ -62,12 +91,16 @@ class CombinedReconstructionLoss:
         )
 
     def compute(
-        self, predicted: torch.Tensor, target: torch.Tensor, mask: torch.Tensor
+        self,
+        predicted: torch.Tensor,
+        target: torch.Tensor,
+        mask: torch.Tensor,
+        layer_weights: torch.Tensor = None,
     ):
         total_loss = 0
         loss_components = {}
         for loss_name, loss_fn in self.losses.items():
-            component_loss = loss_fn.compute(predicted, target, mask)
+            component_loss = loss_fn.compute(predicted, target, mask, layer_weights)
             loss_components[f"loss_{loss_name}"] = component_loss.item()
             total_loss += self.weights[loss_name] * component_loss
 

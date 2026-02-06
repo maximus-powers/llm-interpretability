@@ -19,10 +19,10 @@ class WeightSpaceEncoderDecoder(nn.Module):
         tokenization_config = config["tokenization"]
         granularity = tokenization_config.get("granularity", "chunk")
 
-        # Architecture bypass: metadata no longer in tokens, decoder always outputs weights only
-        # Architecture info is passed directly to decoder via FiLM conditioning
+        # Tokens contain only weights/signatures (no metadata)
+        # Architecture info is passed directly to decoder via arch_spec for position embeddings
 
-        # determine token_dim (no metadata - architecture bypasses latent space)
+        # determine token_dim (no metadata)
         if granularity == "neuron":
             if self.input_mode == "signature":
                 neuron_profile = config["dataset"].get("neuron_profile", {})
@@ -104,29 +104,24 @@ class WeightSpaceEncoderDecoder(nn.Module):
         return features_per_neuron
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        """Encode tokens to latent representation."""
         raise NotImplementedError
 
-    def decode(
-        self, latent: torch.Tensor, arch_spec: Dict[str, Any], num_tokens: int
-    ) -> torch.Tensor:
+    def decode(self, *args, **kwargs) -> torch.Tensor:
         """
-        Decode latent representation to weight tokens.
+        Decode to weight tokens.
 
-        Args:
-            latent: Behavior latent representation (batch, latent_dim)
-            arch_spec: Architecture specification (bypasses latent space)
-            num_tokens: Number of tokens to generate
-
-        Returns:
-            Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
+        Signature varies by architecture:
+        - MLP: decode(latent, arch_spec, num_tokens)
+        - Transformer seq2seq: decode(memory, latent, arch_spec, num_tokens)
         """
         raise NotImplementedError
 
     def forward(
         self, tokens: torch.Tensor, mask: torch.Tensor, arch_spec: Dict[str, Any]
     ) -> torch.Tensor:
-        latent = self.encode(tokens, mask)
-        return self.decode(latent, arch_spec, tokens.size(1))
+        """Full forward pass: encode then decode."""
+        raise NotImplementedError
 
 
 class ProjectionHead(nn.Module):
@@ -235,131 +230,6 @@ class ArchitectureEncoder(nn.Module):
         # Combine all features
         combined = torch.cat([layer_emb, neuron_emb, io_dims], dim=-1)
         return self.proj(combined)  # (1, embed_dim)
-
-
-class CrossAttentionDecoderLayer(nn.Module):
-    """
-    Decoder layer with cross-attention only (no self-attention).
-
-    Standard TransformerDecoderLayer has self-attention which destroys positional
-    information by averaging all positions together. This layer skips self-attention
-    and only uses cross-attention to memory, preserving position-specific information.
-    """
-
-    def __init__(
-        self,
-        d_model: int,
-        nhead: int,
-        dim_feedforward: int = 2048,
-        dropout: float = 0.1,
-        activation: str = "relu",
-        norm_first: bool = True,
-    ):
-        super().__init__()
-        self.d_model = d_model
-        self.norm_first = norm_first
-
-        # Cross-attention (tgt attends to memory)
-        self.cross_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout, batch_first=True)
-        self.norm1 = nn.LayerNorm(d_model)
-
-        # Feedforward
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-        self.norm2 = nn.LayerNorm(d_model)
-        self.dropout1 = nn.Dropout(dropout)
-        self.dropout2 = nn.Dropout(dropout)
-
-        # Activation
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "gelu":
-            self.activation = nn.GELU()
-        else:
-            self.activation = nn.ReLU()
-
-    def forward(self, tgt: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
-        """
-        Args:
-            tgt: Target sequence [batch, seq_len, d_model]
-            memory: Memory from encoder [batch, mem_len, d_model]
-
-        Returns:
-            Output sequence [batch, seq_len, d_model]
-        """
-        if self.norm_first:
-            # Cross-attention with pre-norm
-            tgt2 = self.norm1(tgt)
-            tgt2, _ = self.cross_attn(tgt2, memory, memory)
-            tgt = tgt + self.dropout1(tgt2)
-
-            # Feedforward with pre-norm
-            tgt2 = self.norm2(tgt)
-            tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
-            tgt = tgt + self.dropout2(tgt2)
-        else:
-            # Cross-attention with post-norm
-            tgt2, _ = self.cross_attn(tgt, memory, memory)
-            tgt = self.norm1(tgt + self.dropout1(tgt2))
-
-            # Feedforward with post-norm
-            tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
-            tgt = self.norm2(tgt + self.dropout2(tgt2))
-
-        return tgt
-
-
-class FiLMLayer(nn.Module):
-    """
-    Feature-wise Linear Modulation (FiLM) layer.
-
-    Conditions decoder hidden states on architecture embedding:
-        h' = gamma(arch) * h + beta(arch)
-
-    This allows the decoder to generate architecture-appropriate outputs
-    without the architecture information passing through the latent space.
-    """
-
-    def __init__(self, hidden_dim: int, arch_embed_dim: int):
-        super().__init__()
-        # Generate both scale (gamma) and shift (beta) from architecture embedding
-        self.film_generator = nn.Linear(arch_embed_dim, hidden_dim * 2)
-        self._init_identity()
-
-    def _init_identity(self):
-        """
-        Initialize FiLM to be identity transform: gamma=1, beta=0.
-
-        This ensures positional information flows through unchanged initially,
-        preventing decoder collapse where all positions output identical values.
-        """
-        nn.init.zeros_(self.film_generator.weight)
-        # Bias: first half = 1 (gamma), second half = 0 (beta)
-        with torch.no_grad():
-            half = self.film_generator.out_features // 2
-            self.film_generator.bias[:half] = 1.0
-            self.film_generator.bias[half:] = 0.0
-
-    def forward(self, h: torch.Tensor, arch_embed: torch.Tensor) -> torch.Tensor:
-        """
-        Apply FiLM conditioning.
-
-        Args:
-            h: Hidden states from decoder layer (batch, seq_len, hidden_dim)
-            arch_embed: Architecture embedding (batch, arch_embed_dim)
-
-        Returns:
-            Modulated hidden states (batch, seq_len, hidden_dim)
-        """
-        film_params = self.film_generator(arch_embed)  # (batch, hidden_dim * 2)
-        gamma, beta = film_params.chunk(2, dim=-1)  # Each: (batch, hidden_dim)
-
-        # Expand for sequence dimension
-        gamma = gamma.unsqueeze(1)  # (batch, 1, hidden_dim)
-        beta = beta.unsqueeze(1)  # (batch, 1, hidden_dim)
-
-        return gamma * h + beta
 
 
 class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
@@ -477,14 +347,20 @@ class MLPEncoderDecoder(WeightSpaceEncoderDecoder):
     def decode(
         self, latent: torch.Tensor, arch_spec: Dict[str, Any], num_tokens: int
     ) -> torch.Tensor:
-        # Note: MLP decoder doesn't use FiLM conditioning (arch_spec ignored)
-        # This is for API consistency with TransformerEncoderDecoder
+        # Note: MLP decoder doesn't use seq2seq (arch_spec ignored, no memory)
+        # This is for API compatibility - MLP uses simple latent→weights mapping
         batch_size = latent.size(0)
         flat_output = self.decoder(latent)
         reconstructed = flat_output.view(
             batch_size, self.max_tokens, self.decoder_token_dim
         )
         return reconstructed
+
+    def forward(
+        self, tokens: torch.Tensor, mask: torch.Tensor, arch_spec: Dict[str, Any]
+    ) -> torch.Tensor:
+        latent = self.encode(tokens, mask)
+        return self.decode(latent, arch_spec, tokens.size(1))
 
 
 class TransformerEncoder(nn.Module):
@@ -524,9 +400,28 @@ class TransformerEncoder(nn.Module):
             enable_nested_tensor=False,  # MPS compatibility
         )
         self.latent_projection = nn.Linear(self.d_model, latent_dim)
-        self.latent_norm = nn.LayerNorm(latent_dim)
 
-    def forward(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        tokens: torch.Tensor,
+        mask: torch.Tensor,
+        return_all: bool = False,
+        return_both: bool = False,
+    ):
+        """
+        Encode signature tokens.
+
+        Args:
+            tokens: Input tokens (batch, num_tokens, token_dim)
+            mask: Attention mask (batch, num_tokens)
+            return_all: If True, return all encoded tokens (for seq2seq reconstruction)
+            return_both: If True, return (encoded_tokens, latent) tuple
+
+        Returns:
+            If return_all: encoded tokens (batch, num_tokens, d_model)
+            If return_both: (encoded_tokens, latent) tuple
+            Otherwise: pooled latent (batch, latent_dim)
+        """
         batch_size = tokens.size(0)
         x = self.token_projection(tokens)
 
@@ -547,7 +442,14 @@ class TransformerEncoder(nn.Module):
         src_key_padding_mask = mask == 0
         encoded = self.transformer_encoder(x, src_key_padding_mask=src_key_padding_mask)
 
-        # pooling
+        # For seq2seq: return all encoded tokens as decoder memory
+        if return_all:
+            # Remove CLS token if it was added
+            if self.pooling_method == "cls_token":
+                return encoded[:, 1:, :]  # Skip CLS token
+            return encoded
+
+        # pooling for latent
         if self.pooling_method == "mean":
             masked_encoded = encoded * mask.unsqueeze(-1)
             pooled = masked_encoded.sum(dim=1) / mask.sum(dim=1, keepdim=True).clamp(
@@ -563,17 +465,29 @@ class TransformerEncoder(nn.Module):
         else:
             raise ValueError(f"Unknown pooling method: {self.pooling_method}")
 
-        latent = self.latent_norm(self.latent_projection(pooled))
+        latent = self.latent_projection(pooled)
+
+        # For hybrid: return both encoded tokens and latent
+        if return_both:
+            if self.pooling_method == "cls_token":
+                return encoded[:, 1:, :], latent  # Skip CLS token
+            return encoded, latent
+
         return latent
 
 
 class TransformerDecoder(nn.Module):
     """
-    Transformer decoder with FiLM conditioning for architecture bypass.
+    Transformer decoder with seq2seq architecture for weight reconstruction.
 
-    Architecture information bypasses the latent space and is injected via
-    FiLM layers after each transformer decoder layer, ensuring steering
-    vectors cannot corrupt architectural information.
+    The decoder receives:
+    - Memory: Encoded signature tokens (per-position info from encoder)
+    - Latent: Pooled behavioral representation (for steering/conditioning)
+    - Architecture specification (for position embeddings)
+
+    This hybrid approach allows:
+    1. Per-position reconstruction via cross-attention to encoded tokens
+    2. Behavioral steering via latent conditioning on queries
     """
 
     def __init__(
@@ -583,6 +497,7 @@ class TransformerDecoder(nn.Module):
         max_tokens: int,
         decoder_cfg: Dict[str, Any],
         arch_encoder_cfg: Dict[str, Any] = None,
+        encoder_d_model: int = None,
     ):
         super().__init__()
         self.d_model = decoder_cfg["d_model"]
@@ -591,26 +506,23 @@ class TransformerDecoder(nn.Module):
         self.max_tokens = max_tokens
         self.num_layers = decoder_cfg["num_layers"]
 
-        # Memory expansion: project latent to multiple memory tokens
-        # This allows different output positions to attend to different information
-        self.num_memory_tokens = decoder_cfg.get("num_memory_tokens", 8)
-        self.latent_expansion = nn.Linear(latent_dim, self.d_model * self.num_memory_tokens)
+        # Encoder d_model may differ from decoder d_model
+        # If so, we need to project memory to decoder d_model
+        self.encoder_d_model = encoder_d_model or self.d_model
+        if self.encoder_d_model != self.d_model:
+            self.memory_projection = nn.Linear(self.encoder_d_model, self.d_model)
+        else:
+            self.memory_projection = None
 
         self.decoder_pos_encoding = None
         self.register_buffer("decoder_pos_encoding_buffer", torch.empty(0))
 
-        # Architecture encoder for FiLM conditioning
+        # Store max_neurons for position normalization
         arch_cfg = arch_encoder_cfg or {}
-        arch_embed_dim = arch_cfg.get("embed_dim", 64)
         self.max_neurons = arch_cfg.get("max_neurons", 256)
-        self.arch_encoder = ArchitectureEncoder(
-            max_layers=arch_cfg.get("max_layers", 10),
-            max_neurons=self.max_neurons,
-            embed_dim=arch_embed_dim,
-        )
 
         # Architecture-aware position projection
-        # Replaces generic learned positional embeddings with structure-aware positions
+        # Computes position embeddings from structural features (layer, neuron, fan-in/out)
         num_position_features = 8  # layer_idx, neuron_idx, layer_width, fan_in, fan_out, global_pos, is_first, is_last
         self.position_projection = nn.Sequential(
             nn.Linear(num_position_features, self.d_model // 2),
@@ -620,40 +532,33 @@ class TransformerDecoder(nn.Module):
 
         # Learnable query embeddings - gives each position a unique identity
         # This prevents positions with similar architecture features from collapsing
-        # to similar outputs. These are SEPARATE from the latent (behavior) path,
-        # so steering the latent won't affect position identities.
+        # to similar outputs.
         self.query_embeddings = nn.Parameter(
             torch.randn(max_tokens, self.d_model) * 0.1
         )
 
-        # Individual decoder layers with FiLM conditioning
-        # Using CrossAttentionDecoderLayer instead of nn.TransformerDecoderLayer
-        # because self-attention destroys positional information by averaging all positions
-        self.decoder_layers = nn.ModuleList()
-        self.film_layers = nn.ModuleList()
-        for _ in range(self.num_layers):
-            self.decoder_layers.append(
-                CrossAttentionDecoderLayer(
-                    d_model=self.d_model,
-                    nhead=decoder_cfg["num_heads"],
-                    dim_feedforward=decoder_cfg["dim_feedforward"],
-                    dropout=decoder_cfg["dropout"],
-                    activation=decoder_cfg.get("activation", "relu"),
-                    norm_first=decoder_cfg.get("norm_first", True),
-                )
-            )
-            self.film_layers.append(FiLMLayer(self.d_model, arch_embed_dim))
-
-        self.output_projection = nn.Linear(self.d_model, token_dim)
-
-        # Latent-to-query projection: injects latent info into queries
-        # This prevents position-locked outputs when all samples share the same architecture
+        # Project latent to d_model for query conditioning (behavioral bias)
         self.latent_to_query = nn.Sequential(
             nn.Linear(latent_dim, self.d_model),
             nn.LayerNorm(self.d_model),
-            nn.GELU(),
-            nn.Linear(self.d_model, self.d_model),
         )
+
+        # Standard transformer decoder (with self-attention)
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=self.d_model,
+            nhead=decoder_cfg["num_heads"],
+            dim_feedforward=decoder_cfg["dim_feedforward"],
+            dropout=decoder_cfg["dropout"],
+            activation=decoder_cfg.get("activation", "relu"),
+            batch_first=True,
+            norm_first=decoder_cfg.get("norm_first", True),
+        )
+        self.transformer_decoder = nn.TransformerDecoder(
+            decoder_layer,
+            num_layers=self.num_layers,
+        )
+
+        self.output_projection = nn.Linear(self.d_model, token_dim)
 
     def generate_arch_positions(
         self,
@@ -729,66 +634,74 @@ class TransformerDecoder(nn.Module):
 
     def forward(
         self,
+        memory: torch.Tensor,
         latent: torch.Tensor,
         arch_spec: Dict[str, Any],
         num_tokens: int = None,
     ) -> torch.Tensor:
         """
-        Decode latent representation with architecture conditioning.
+        Decode with seq2seq architecture: cross-attend to encoded tokens + latent conditioning.
 
         Args:
-            latent: Behavior latent representation (batch, latent_dim)
-            arch_spec: Architecture specification (bypasses latent space)
+            memory: Encoded signature tokens from encoder (batch, num_tokens, encoder_d_model)
+                   Contains per-position information (input_correlations, etc.)
+            latent: Pooled behavioral latent (batch, latent_dim)
+                   Used for query conditioning (can be steered for representation engineering)
+            arch_spec: Architecture specification (for position embeddings)
             num_tokens: Number of tokens to generate
 
         Returns:
             Reconstructed weight tokens (batch, num_tokens, token_dim)
         """
-        batch_size = latent.size(0)
-        device = latent.device
+        batch_size = memory.size(0)
+        device = memory.device
         if num_tokens is None:
             num_tokens = self.max_tokens
 
-        # Encode architecture (separate pathway, unaffected by steering)
-        arch_embed = self.arch_encoder(arch_spec, device)  # (1, arch_embed_dim)
-        if arch_embed.size(0) == 1 and batch_size > 1:
-            arch_embed = arch_embed.expand(batch_size, -1)  # (batch, arch_embed_dim)
+        # Project memory to decoder d_model if needed
+        if self.memory_projection is not None:
+            memory = self.memory_projection(memory)
 
-        # Expand latent to multiple memory tokens for cross-attention
-        # This allows different output positions to attend to different information
-        memory = self.latent_expansion(latent)  # (batch, d_model * num_memory_tokens)
-        memory = memory.view(batch_size, self.num_memory_tokens, self.d_model)  # (batch, num_memory_tokens, d_model)
-
-        # Initialize target from architecture-aware position embeddings + learned query embeddings
-        # arch_positions: structural info (layer, neuron index, fan-in/out)
-        # query_embeddings: unique per-position identity (prevents similar positions from collapsing)
+        # Generate architecture-aware position embeddings
         arch_positions = self.generate_arch_positions(arch_spec, num_tokens, device)
-        base_queries = arch_positions + self.query_embeddings[:num_tokens]  # (num_tokens, d_model)
-        base_queries = base_queries.unsqueeze(0).expand(batch_size, -1, -1)  # (batch, num_tokens, d_model)
 
-        # Add latent modulation to queries - makes each sample's queries unique
-        # This prevents position-locked outputs when all samples share the same architecture
-        latent_mod = self.latent_to_query(latent)  # (batch, d_model)
-        latent_mod = latent_mod.unsqueeze(1)  # (batch, 1, d_model)
-        tgt = base_queries + latent_mod  # (batch, num_tokens, d_model) - broadcasts across tokens
+        # Combine with learnable query embeddings for unique position identities
+        tgt = arch_positions + self.query_embeddings[:num_tokens]  # (num_tokens, d_model)
+        tgt = tgt.unsqueeze(0).expand(batch_size, -1, -1)  # (batch, num_tokens, d_model)
 
-        # Decode with FiLM conditioning after each layer
-        for decoder_layer, film_layer in zip(self.decoder_layers, self.film_layers):
-            tgt = decoder_layer(tgt, memory)
-            tgt = film_layer(tgt, arch_embed)  # Architecture conditioning
+        # Add latent modulation (uniform across positions - behavioral conditioning)
+        # This allows steering: modify latent → changes all query biases → different weights
+        latent_mod = self.latent_to_query(latent).unsqueeze(1)  # (batch, 1, d_model)
+        tgt = tgt + latent_mod  # Broadcasts to all positions
 
-        reconstructed = self.output_projection(tgt)
+        # Cross-attend to encoded signature tokens (per-position structural info)
+        # Each decoder position can attend to corresponding encoder position's features
+        decoded = self.transformer_decoder(tgt, memory)
+
+        reconstructed = self.output_projection(decoded)
         return reconstructed
 
 
 class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
+    """
+    Hybrid seq2seq encoder-decoder for weight reconstruction.
+
+    Architecture:
+    - Encoder: Transforms signature tokens → encoded tokens + pooled latent
+    - Decoder: Cross-attends to encoded tokens with latent conditioning
+
+    This allows:
+    1. Per-position reconstruction: decoder sees each neuron's signature features
+    2. Behavioral steering: latent can be modified for representation engineering
+    """
+
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         transformer_config = config["architecture"]["transformer"]
         encoder_cfg = transformer_config["encoder"]
         decoder_cfg = transformer_config["decoder"]
 
-        # Architecture encoder config (for FiLM conditioning in decoder)
+        # Architecture encoder config (for position embeddings in decoder)
         arch_encoder_cfg = config["architecture"].get("arch_encoder", {})
         # Use dataset max_dimensions for architecture limits if not specified
         max_dims = config["dataset"].get("max_dimensions", {})
@@ -797,8 +710,9 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         if "max_neurons" not in arch_encoder_cfg:
             arch_encoder_cfg["max_neurons"] = max_dims.get("max_neurons_per_layer", 256)
 
-        # Encoder positional encoding: configurable, default off (architecture bypasses latent)
-        use_positional_encoding = encoder_cfg.get("use_positional_encoding", False)
+        # Encoder positional encoding: now enabled by default for seq2seq
+        # Position info helps encoder produce position-aware representations
+        use_positional_encoding = encoder_cfg.get("use_positional_encoding", True)
 
         self.encoder = TransformerEncoder(
             token_dim=self.token_dim,
@@ -813,6 +727,7 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
             max_tokens=self.max_tokens,
             decoder_cfg=decoder_cfg,
             arch_encoder_cfg=arch_encoder_cfg,
+            encoder_d_model=encoder_cfg["d_model"],  # For memory projection if needed
         )
 
         # Setup positional encodings
@@ -859,7 +774,7 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         )
         logger.info(
             f"Decoder: d_model={decoder_cfg['d_model']}, heads={decoder_cfg['num_heads']}, "
-            f"layers={decoder_cfg['num_layers']}, arch_embed_dim={arch_encoder_cfg.get('embed_dim', 64)}"
+            f"layers={decoder_cfg['num_layers']} (seq2seq: memory from encoder tokens)"
         )
 
         self._init_weights()
@@ -888,12 +803,73 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
                 nn.init.constant_(module.weight, 1.0)
 
     def encode(self, tokens: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        return self.encoder(tokens, mask)
+        """
+        Encode tokens to pooled behavioral latent (for contrastive loss / steering).
+
+        Args:
+            tokens: Input signature tokens (batch, num_tokens, token_dim)
+            mask: Attention mask (batch, num_tokens)
+
+        Returns:
+            Pooled latent representation (batch, latent_dim)
+        """
+        return self.encoder(tokens, mask, return_all=False, return_both=False)
+
+    def encode_all(self, tokens: torch.Tensor, mask: torch.Tensor):
+        """
+        Encode tokens and return both encoded tokens and pooled latent.
+
+        Args:
+            tokens: Input signature tokens (batch, num_tokens, token_dim)
+            mask: Attention mask (batch, num_tokens)
+
+        Returns:
+            Tuple of (encoded_tokens, latent):
+            - encoded_tokens: (batch, num_tokens, d_model) for decoder memory
+            - latent: (batch, latent_dim) for behavioral conditioning/steering
+        """
+        return self.encoder(tokens, mask, return_both=True)
 
     def decode(
-        self, latent: torch.Tensor, arch_spec: Dict[str, Any], num_tokens: int
+        self,
+        memory: torch.Tensor,
+        latent: torch.Tensor,
+        arch_spec: Dict[str, Any],
+        num_tokens: int,
     ) -> torch.Tensor:
-        return self.decoder(latent, arch_spec, num_tokens)
+        """
+        Decode with seq2seq: cross-attend to encoded tokens with latent conditioning.
+
+        Args:
+            memory: Encoded signature tokens (batch, num_tokens, d_model)
+            latent: Pooled behavioral latent (batch, latent_dim)
+            arch_spec: Architecture specification
+            num_tokens: Number of output tokens
+
+        Returns:
+            Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
+        """
+        return self.decoder(memory, latent, arch_spec, num_tokens)
+
+    def forward(
+        self, tokens: torch.Tensor, mask: torch.Tensor, arch_spec: Dict[str, Any]
+    ) -> torch.Tensor:
+        """
+        Full forward pass: encode then decode.
+
+        Args:
+            tokens: Input signature tokens (batch, num_tokens, token_dim)
+            mask: Attention mask (batch, num_tokens)
+            arch_spec: Architecture specification
+
+        Returns:
+            Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
+        """
+        # Get both encoded tokens (for memory) and latent (for conditioning)
+        encoded_tokens, latent = self.encode_all(tokens, mask)
+
+        # Decode with seq2seq architecture
+        return self.decode(encoded_tokens, latent, arch_spec, tokens.size(1))
 
 
 def create_encoder_decoder(config: Dict[str, Any]) -> WeightSpaceEncoderDecoder:

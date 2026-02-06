@@ -81,7 +81,19 @@ def extract_neuron_weights_list(weights_dict: Dict[str, Any]) -> List[np.ndarray
 def extract_signature_features(
     signature_json: Union[str, Dict],
     method_names: List[str],
+    norm_stats: Dict[str, Dict[str, float]] = None,
 ) -> List[np.ndarray]:
+    """
+    Extract signature features from a signature JSON.
+    
+    Args:
+        signature_json: JSON string or dict containing neuron activations
+        method_names: List of method names to extract (e.g., ["mean", "std", "fourier"])
+        norm_stats: Optional normalization statistics to apply per-feature normalization
+        
+    Returns:
+        List of numpy arrays, one per neuron, containing the extracted features
+    """
     if isinstance(signature_json, str):
         signature_data = json.loads(signature_json)
     else:
@@ -89,6 +101,9 @@ def extract_signature_features(
 
     neuron_activations = signature_data.get("neuron_activations", {})
     signature_neurons = []
+    
+    # Build feature order from norm_stats if available
+    feature_order = norm_stats.get("_feature_order", []) if norm_stats else []
 
     for layer_idx_str in sorted(neuron_activations.keys(), key=int):
         layer_data = neuron_activations[layer_idx_str]
@@ -96,13 +111,29 @@ def extract_signature_features(
         for neuron_idx_str in sorted(neuron_profiles.keys(), key=int):
             profile = neuron_profiles[neuron_idx_str]
             neuron_features = []
+            feature_idx = 0
             for method_name in method_names:
                 if method_name in profile:
                     value = profile[method_name]
                     if isinstance(value, list):
-                        neuron_features.extend(value)
+                        # Apply per-feature normalization for array features
+                        for i, v in enumerate(value):
+                            if norm_stats and feature_order:
+                                feature_key = f"{method_name}_{i}"
+                                if feature_key in norm_stats:
+                                    mean = norm_stats[feature_key]["mean"]
+                                    std = norm_stats[feature_key]["std"]
+                                    v = (v - mean) / std
+                            neuron_features.append(v)
+                            feature_idx += 1
                     else:
+                        # Apply per-feature normalization for scalar features
+                        if norm_stats and method_name in norm_stats:
+                            mean = norm_stats[method_name]["mean"]
+                            std = norm_stats[method_name]["std"]
+                            value = (value - mean) / std
                         neuron_features.append(value)
+                        feature_idx += 1
             signature_neurons.append(np.array(neuron_features, dtype=np.float32))
 
     return signature_neurons
@@ -111,8 +142,20 @@ def extract_signature_features(
 def flatten_signature_features(
     signature_json: Union[str, Dict],
     method_names: List[str],
+    norm_stats: Dict[str, Dict[str, float]] = None,
 ) -> np.ndarray:
-    signature_neurons = extract_signature_features(signature_json, method_names)
+    """
+    Extract and flatten signature features into a single array.
+    
+    Args:
+        signature_json: JSON string or dict containing neuron activations
+        method_names: List of method names to extract
+        norm_stats: Optional normalization statistics to apply per-feature normalization
+        
+    Returns:
+        Flattened numpy array of all signature features
+    """
+    signature_neurons = extract_signature_features(signature_json, method_names, norm_stats)
     if not signature_neurons:
         return np.array([], dtype=np.float32)
     return np.concatenate(signature_neurons)
@@ -122,9 +165,22 @@ def interleave_weights_signatures(
     weights_dict: Dict[str, Any],
     signature_json: Union[str, Dict],
     method_names: List[str],
+    norm_stats: Dict[str, Dict[str, float]] = None,
 ) -> List[np.ndarray]:
+    """
+    Interleave weight data and signature features for each neuron.
+    
+    Args:
+        weights_dict: Dictionary mapping parameter names to weight tensors
+        signature_json: JSON string or dict containing neuron activations
+        method_names: List of method names to extract (e.g., ["mean", "std", "fourier"])
+        norm_stats: Optional normalization statistics to apply per-feature normalization
+        
+    Returns:
+        List of numpy arrays, one per neuron, containing concatenated weights + features
+    """
     weight_neurons = extract_neuron_weights_list(weights_dict)
-    signature_neurons = extract_signature_features(signature_json, method_names)
+    signature_neurons = extract_signature_features(signature_json, method_names, norm_stats)
 
     if len(weight_neurons) != len(signature_neurons):
         raise ValueError(
@@ -194,3 +250,55 @@ def extract_architecture_spec(weights_dict: Dict[str, Any]) -> Dict[str, Any]:
         "output_dim": weight_layers[-1]["neurons_out"] if weight_layers else 0,
         "layer_shapes": layer_shapes,
     }
+
+
+def compute_layer_weights(
+    neurons_per_layer: List[int],
+    num_tokens: int,
+    weight_decay: float = 0.3,
+    device: torch.device = None,
+) -> torch.Tensor:
+    """
+    Compute per-token loss weights inversely proportional to input_correlations predictive power.
+
+    Later layers get higher weights because input_correlations is less predictive for them.
+    This compensates for the information imbalance where layer 0 has ~0.96 correlation
+    between input_correlations and actual weights, while later layers have ~0.55-0.65.
+
+    Formula: weight = 1 + layer_idx * weight_decay
+
+    For a 6-layer network with weight_decay=0.3:
+    - Layer 0: weight = 1.0 (easiest to predict)
+    - Layer 1: weight = 1.3
+    - Layer 2: weight = 1.6
+    - Layer 3: weight = 1.9
+    - Layer 4: weight = 2.2
+    - Layer 5: weight = 2.5 (hardest to predict)
+
+    Args:
+        neurons_per_layer: List of neuron counts per layer
+        num_tokens: Total number of tokens (for padding)
+        weight_decay: How much weight increases per layer (default 0.3)
+        device: Target device for the tensor
+
+    Returns:
+        Tensor of shape (num_tokens,) with per-token weights
+    """
+    weights = []
+
+    for layer_idx, num_neurons in enumerate(neurons_per_layer):
+        layer_weight = 1.0 + layer_idx * weight_decay
+        weights.extend([layer_weight] * num_neurons)
+
+    # Pad if needed (for padding tokens, use weight 0 so they don't contribute)
+    while len(weights) < num_tokens:
+        weights.append(0.0)
+
+    # Truncate if needed
+    weights = weights[:num_tokens]
+
+    result = torch.tensor(weights, dtype=torch.float32)
+    if device is not None:
+        result = result.to(device)
+
+    return result

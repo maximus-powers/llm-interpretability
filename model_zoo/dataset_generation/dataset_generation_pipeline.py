@@ -298,10 +298,12 @@ class DatasetGenerationPipeline:
                     )
                     break
 
-                # if no more futures to wait for and we haven't reached target, something went wrong
-                if len(futures) == 0:
+                # if no more futures, the inner while loop will submit more on next iteration
+                # only break if we've tried way more examples than needed (e.g., 10x failures)
+                max_attempts = num_examples * 10
+                if len(futures) == 0 and example_id >= max_attempts:
                     logger.warning(
-                        f"No more futures but target not reached. Generated: {total_generated + len(completed_examples)}/{num_examples}"
+                        f"Exceeded max attempts ({max_attempts}). Generated: {total_generated + len(completed_examples)}/{num_examples}"
                     )
                     break
 

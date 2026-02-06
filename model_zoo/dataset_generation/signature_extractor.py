@@ -44,6 +44,15 @@ class ActivationSignatureExtractor:
             f"Initialized Signature Extractor: device={self.device}, profile_methods={list(self.neuron_profile_config.keys())}"
         )
 
+    def _needs_extended_activations(self) -> bool:
+        """Check if any configured methods require extended activation capture (inputs/pre-activations)."""
+        extended_methods = {
+            "input_correlations",
+            "pre_activation_mean",
+            "pre_activation_std",
+        }
+        return bool(extended_methods & set(self.neuron_profile_config.keys()))
+
     def extract(self, model: SubjectModel, batch_size: int = 32) -> Dict[str, Any]:
         """
         Extract activation features by processing signature dataset through the model.
@@ -73,6 +82,8 @@ class ActivationSignatureExtractor:
         layer_activations = {}
         predictions = []
         prediction_confidences = []
+        needs_extended = self._needs_extended_activations()
+
         with torch.no_grad():
             for (
                 data,
@@ -86,12 +97,27 @@ class ActivationSignatureExtractor:
                 prediction_confidences.extend(
                     torch.abs(probs - 0.5).cpu().numpy().flatten()
                 )
-                batch_activations = model.get_layer_activations(data)  # get's
+                batch_activations = model.get_layer_activations(
+                    data, capture_inputs=needs_extended
+                )
                 # accumulate activations by layer
                 for layer_name, activation in batch_activations.items():
                     if layer_name not in layer_activations:
                         layer_activations[layer_name] = []
-                    layer_activations[layer_name].append(activation.cpu().numpy())
+                    if needs_extended:
+                        # Extended format: dict with input/pre_activation/output
+                        layer_activations[layer_name].append(
+                            {
+                                "input": activation["input"].cpu().numpy(),
+                                "pre_activation": activation[
+                                    "pre_activation"
+                                ].cpu().numpy(),
+                                "output": activation["output"].cpu().numpy(),
+                            }
+                        )
+                    else:
+                        # Simple format: just the output tensor
+                        layer_activations[layer_name].append(activation.cpu().numpy())
 
         # aggregate activations with pattern information
         processed_features = self._process_layer_activations(
@@ -237,24 +263,100 @@ class ActivationSignatureExtractor:
 
         return pattern_means
 
+    def _compute_input_correlations(
+        self,
+        layer_inputs: np.ndarray,
+        pre_activations: np.ndarray,
+        neuron_id: int,
+        max_inputs: int = 8,
+    ) -> List[float]:
+        """
+        Correlation between each input neuron and this neuron's pre-activation.
+
+        Math insight: For pre_activation = weights · inputs + bias,
+        corr(input_i, pre_activation) ≈ weight_i × std(input_i) / std(pre_activation)
+        This provides direct signal about the weight values.
+
+        Args:
+            layer_inputs: [num_examples, num_input_neurons] - inputs to this layer
+            pre_activations: [num_examples, num_output_neurons] - Linear output before activation
+            neuron_id: Which output neuron to compute correlations for
+            max_inputs: Pad/truncate to this size for consistent feature dimension
+
+        Returns:
+            List of correlations, padded to max_inputs length
+        """
+        pre_act = pre_activations[:, neuron_id]
+        num_inputs = layer_inputs.shape[1]
+        correlations = []
+
+        for i in range(min(num_inputs, max_inputs)):
+            try:
+                corr = np.corrcoef(layer_inputs[:, i], pre_act)[0, 1]
+                correlations.append(float(corr) if not np.isnan(corr) else 0.0)
+            except Exception:
+                correlations.append(0.0)
+
+        # Pad to max_inputs
+        while len(correlations) < max_inputs:
+            correlations.append(0.0)
+
+        return correlations[:max_inputs]
+
+    def _compute_pre_activation_mean(
+        self, pre_activations: np.ndarray, neuron_id: int
+    ) -> float:
+        """Mean of pre-activation values (before ReLU/GELU clipping)."""
+        return float(np.mean(pre_activations[:, neuron_id]))
+
+    def _compute_pre_activation_std(
+        self, pre_activations: np.ndarray, neuron_id: int
+    ) -> float:
+        """Std of pre-activation values (before ReLU/GELU clipping)."""
+        return float(np.std(pre_activations[:, neuron_id]))
+
     def _process_layer_activations(
         self,
-        layer_activations: Dict[str, List[np.ndarray]],
+        layer_activations: Dict[str, List],
         example_patterns: List[str],
     ) -> Dict[str, Any]:
-        """Orchestrates the computation of neuron profiles for each layer."""
+        """Orchestrates the computation of neuron profiles for each layer.
+
+        Args:
+            layer_activations: Dict mapping layer names to list of activations.
+                Can be either:
+                - Simple format: List[np.ndarray] - just output activations
+                - Extended format: List[Dict] with keys 'input', 'pre_activation', 'output'
+            example_patterns: Pattern labels for each example in the signature dataset
+        """
         layer_profiles = {}
+        needs_extended = self._needs_extended_activations()
 
         for layer_name, activation_list in layer_activations.items():
-            all_activations = np.concatenate(
-                activation_list, axis=0
-            )  # [num_examples, num_neurons]
-            num_examples, num_neurons = all_activations.shape
+            # Detect format and concatenate appropriately
+            if needs_extended and isinstance(activation_list[0], dict):
+                # Extended format: list of dicts with input/pre_activation/output
+                all_outputs = np.concatenate(
+                    [d["output"] for d in activation_list], axis=0
+                )
+                all_inputs = np.concatenate(
+                    [d["input"] for d in activation_list], axis=0
+                )
+                all_pre_activations = np.concatenate(
+                    [d["pre_activation"] for d in activation_list], axis=0
+                )
+            else:
+                # Simple format: list of output tensors
+                all_outputs = np.concatenate(activation_list, axis=0)
+                all_inputs = None
+                all_pre_activations = None
+
+            num_examples, num_neurons = all_outputs.shape
 
             # create neuron profiles
             neuron_profiles = {}
             for neuron_id in range(num_neurons):
-                neuron_activations = all_activations[:, neuron_id]
+                neuron_activations = all_outputs[:, neuron_id]
                 profile = {}
 
                 for method, params in self.neuron_profile_config.items():
@@ -269,7 +371,7 @@ class ActivationSignatureExtractor:
                     elif method == "pca":
                         components = params.get("components", 1)
                         profile["pca"] = self._compute_pca(
-                            all_activations, neuron_id, components
+                            all_outputs, neuron_id, components
                         )
                     elif method == "entropy":
                         bins = params.get("bins", 20)
@@ -284,7 +386,7 @@ class ActivationSignatureExtractor:
                     elif method == "svd":
                         components = params.get("components", 1)
                         profile["svd"] = self._compute_svd(
-                            all_activations, neuron_id, components
+                            all_outputs, neuron_id, components
                         )
                     elif method == "fourier":
                         n_frequencies = params.get("n_frequencies", 1)
@@ -295,6 +397,43 @@ class ActivationSignatureExtractor:
                         profile["pattern_wise"] = self._compute_pattern_wise(
                             neuron_activations, example_patterns
                         )
+                    # NEW methods that require extended activations
+                    elif method == "input_correlations":
+                        if all_inputs is not None and all_pre_activations is not None:
+                            max_inputs = params.get("max_inputs", 8)
+                            profile["input_correlations"] = (
+                                self._compute_input_correlations(
+                                    all_inputs,
+                                    all_pre_activations,
+                                    neuron_id,
+                                    max_inputs,
+                                )
+                            )
+                        else:
+                            logger.warning(
+                                "input_correlations requires capture_inputs=True"
+                            )
+                            profile["input_correlations"] = [0.0] * params.get(
+                                "max_inputs", 8
+                            )
+                    elif method == "pre_activation_mean":
+                        if all_pre_activations is not None:
+                            profile["pre_activation_mean"] = (
+                                self._compute_pre_activation_mean(
+                                    all_pre_activations, neuron_id
+                                )
+                            )
+                        else:
+                            profile["pre_activation_mean"] = 0.0
+                    elif method == "pre_activation_std":
+                        if all_pre_activations is not None:
+                            profile["pre_activation_std"] = (
+                                self._compute_pre_activation_std(
+                                    all_pre_activations, neuron_id
+                                )
+                            )
+                        else:
+                            profile["pre_activation_std"] = 0.0
                     else:
                         logger.warning(f"Unknown profiling method: {method}")
 

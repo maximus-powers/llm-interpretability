@@ -15,6 +15,174 @@ from .neuron_utils import interleave_weights_signatures, extract_architecture_sp
 logger = logging.getLogger(__name__)
 
 
+def compute_feature_normalization_stats(
+    hf_dataset, method_names: List[str], num_samples: int = None
+) -> Dict[str, Dict[str, float]]:
+    """
+    Compute per-feature normalization statistics (mean, std) across the dataset.
+    
+    The 7 features are: mean, std, fourier_0, fourier_1, fourier_2, fourier_3, fourier_4
+    (or whatever methods are specified in method_names).
+    
+    Args:
+        hf_dataset: HuggingFace dataset with 'improved_signature' field
+        method_names: List of method names to extract (e.g., ["mean", "std", "fourier"])
+        num_samples: Number of samples to use for computing stats (None = all)
+    
+    Returns:
+        Dict mapping feature names to {"mean": float, "std": float}
+    """
+    logger.info("Computing feature normalization statistics...")
+    
+    # Collect all feature values
+    feature_values = defaultdict(list)
+    
+    dataset_size = len(hf_dataset)
+    if num_samples is not None:
+        dataset_size = min(num_samples, dataset_size)
+    
+    for idx in range(dataset_size):
+        example = hf_dataset[idx]
+        signature = json.loads(example["improved_signature"])
+        neuron_activations = signature.get("neuron_activations", {})
+        
+        for layer_idx_str, layer_data in neuron_activations.items():
+            neuron_profiles = layer_data.get("neuron_profiles", {})
+            for neuron_idx_str, profile in neuron_profiles.items():
+                feature_idx = 0
+                for method_name in method_names:
+                    if method_name not in profile:
+                        continue
+                    value = profile[method_name]
+                    if isinstance(value, list):
+                        # Handle array features like fourier coefficients
+                        for i, v in enumerate(value):
+                            feature_key = f"{method_name}_{i}"
+                            feature_values[feature_key].append(v)
+                            feature_idx += 1
+                    else:
+                        # Handle scalar features like mean, std
+                        feature_values[method_name].append(value)
+                        feature_idx += 1
+    
+    # Compute mean and std for each feature
+    norm_stats = {}
+    for feature_name, values in feature_values.items():
+        values_array = np.array(values, dtype=np.float64)
+        mean = float(np.mean(values_array))
+        std = float(np.std(values_array))
+        # Avoid division by zero
+        if std < 1e-8:
+            std = 1.0
+            logger.warning(f"Feature '{feature_name}' has near-zero std, using 1.0")
+        norm_stats[feature_name] = {"mean": mean, "std": std}
+        logger.info(f"  {feature_name}: mean={mean:.4f}, std={std:.4f}")
+    
+    # Also store the feature order for consistent application
+    feature_order = []
+    for method_name in method_names:
+        if method_name in feature_values:
+            feature_order.append(method_name)
+        else:
+            # Check for indexed versions (e.g., fourier_0, fourier_1, ...)
+            i = 0
+            while f"{method_name}_{i}" in feature_values:
+                feature_order.append(f"{method_name}_{i}")
+                i += 1
+    
+    norm_stats["_feature_order"] = feature_order
+    logger.info(f"Feature order: {feature_order}")
+    logger.info(f"Computed normalization stats for {len(feature_order)} features from {dataset_size} samples")
+    
+    return norm_stats
+
+
+def normalize_features(features: np.ndarray, norm_stats: Dict[str, Dict[str, float]]) -> np.ndarray:
+    """
+    Normalize features using precomputed statistics.
+    
+    Args:
+        features: Array of shape (..., num_features) where last dim is features
+        norm_stats: Dict from compute_feature_normalization_stats()
+    
+    Returns:
+        Normalized features with zero mean and unit variance per feature
+    """
+    feature_order = norm_stats.get("_feature_order", [])
+    if not feature_order:
+        return features
+    
+    normalized = features.copy()
+    num_features = len(feature_order)
+    
+    # Handle the case where features is flattened
+    if features.ndim == 1:
+        # Reshape to (..., num_features) for normalization
+        if len(features) % num_features != 0:
+            logger.warning(f"Feature array length {len(features)} not divisible by {num_features}")
+            return features
+        num_neurons = len(features) // num_features
+        normalized = features.reshape(num_neurons, num_features)
+        
+        for i, feature_name in enumerate(feature_order):
+            if feature_name in norm_stats:
+                mean = norm_stats[feature_name]["mean"]
+                std = norm_stats[feature_name]["std"]
+                normalized[:, i] = (normalized[:, i] - mean) / std
+        
+        return normalized.flatten()
+    
+    # For multi-dimensional arrays, assume last dim is features
+    for i, feature_name in enumerate(feature_order):
+        if feature_name in norm_stats and i < features.shape[-1]:
+            mean = norm_stats[feature_name]["mean"]
+            std = norm_stats[feature_name]["std"]
+            normalized[..., i] = (normalized[..., i] - mean) / std
+    
+    return normalized
+
+
+def denormalize_features(features: np.ndarray, norm_stats: Dict[str, Dict[str, float]]) -> np.ndarray:
+    """
+    Denormalize features back to original scale.
+    
+    Args:
+        features: Normalized features
+        norm_stats: Dict from compute_feature_normalization_stats()
+    
+    Returns:
+        Denormalized features in original scale
+    """
+    feature_order = norm_stats.get("_feature_order", [])
+    if not feature_order:
+        return features
+    
+    denormalized = features.copy()
+    num_features = len(feature_order)
+    
+    if features.ndim == 1:
+        if len(features) % num_features != 0:
+            return features
+        num_neurons = len(features) // num_features
+        denormalized = features.reshape(num_neurons, num_features)
+        
+        for i, feature_name in enumerate(feature_order):
+            if feature_name in norm_stats:
+                mean = norm_stats[feature_name]["mean"]
+                std = norm_stats[feature_name]["std"]
+                denormalized[:, i] = denormalized[:, i] * std + mean
+        
+        return denormalized.flatten()
+    
+    for i, feature_name in enumerate(feature_order):
+        if feature_name in norm_stats and i < features.shape[-1]:
+            mean = norm_stats[feature_name]["mean"]
+            std = norm_stats[feature_name]["std"]
+            denormalized[..., i] = denormalized[..., i] * std + mean
+    
+    return denormalized
+
+
 class BehaviorAwareBatchSampler(Sampler):
     def __init__(
         self,
@@ -253,12 +421,14 @@ class WeightSpaceDataset(Dataset):
         input_mode: str,
         config: Dict[str, Any],
         method_names: List[str] = None,
+        norm_stats: Dict[str, Dict[str, float]] = None,
     ):
         self.hf_dataset = hf_dataset
         self.tokenizer = tokenizer
         self.input_mode = input_mode
         self.config = config
         self.method_names = method_names or []
+        self.norm_stats = norm_stats  # Per-feature normalization statistics
 
         self.max_dims = None
         if input_mode in ["signature", "both"]:
@@ -357,6 +527,11 @@ class WeightSpaceDataset(Dataset):
                                     neuron_features.append(value)
                         features_list.extend(neuron_features)
                 signature_flat = np.array(features_list, dtype=np.float32)
+                
+                # Apply per-feature normalization if stats are available
+                if self.norm_stats is not None:
+                    signature_flat = normalize_features(signature_flat, self.norm_stats)
+                
                 encoder_tokenized = self.tokenizer.tokenize(
                     signature_flat, metadata_dict
                 )
@@ -364,6 +539,10 @@ class WeightSpaceDataset(Dataset):
                 signature_features, signature_mask = preprocess_signature(
                     example["improved_signature"], self.max_dims, self.method_names
                 )
+                # Apply per-feature normalization if stats are available
+                if self.norm_stats is not None:
+                    signature_features = normalize_features(signature_features, self.norm_stats)
+                
                 encoder_tokenized = {
                     "tokens": torch.from_numpy(signature_features.reshape(1, -1)),
                     "attention_mask": torch.from_numpy(signature_mask.reshape(1, -1)),
@@ -373,7 +552,8 @@ class WeightSpaceDataset(Dataset):
         elif self.input_mode == "both":
             if self.tokenizer.granularity == "neuron":
                 combined = interleave_weights_signatures(
-                    weights_dict, example["improved_signature"], self.method_names
+                    weights_dict, example["improved_signature"], self.method_names,
+                    norm_stats=self.norm_stats  # Pass normalization stats
                 )
                 encoder_tokenized = self.tokenizer.tokenize(combined, metadata_dict)
             else:
@@ -395,6 +575,10 @@ class WeightSpaceDataset(Dataset):
                 signature_features, signature_mask = preprocess_signature(
                     example["improved_signature"], self.max_dims, self.method_names
                 )
+                # Apply per-feature normalization to signature portion only
+                if self.norm_stats is not None:
+                    signature_features = normalize_features(signature_features, self.norm_stats)
+                
                 signature_flat = signature_features.flatten()
                 # concat
                 combined_array = np.array(
@@ -509,12 +693,22 @@ def load_dataset(config: Dict[str, Any]):
         if not isinstance(method_names, list) or not method_names:
             raise ValueError("neuron_profile.methods must be a list of method names")
         input_dims["signature_dim"] = None  # inferred during dataset init
+    
+    # Compute feature normalization statistics for signature features
+    # This fixes the severe feature scale imbalance (fourier_4 std=292 vs mean std=3.9)
+    norm_stats = None
+    if dataset_config["input_mode"] in ["signature", "both"]:
+        norm_stats = compute_feature_normalization_stats(
+            dataset, method_names, num_samples=min(1000, len(dataset))
+        )
+        logger.info(f"Computed normalization stats for {len(norm_stats) - 1} features")
 
     return {
         "dataset": dataset,
         "tokenizer": tokenizer,
         "input_dims": input_dims,
         "method_names": method_names,
+        "norm_stats": norm_stats,  # Store for inference denormalization
     }
 
 
@@ -588,12 +782,19 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
     train_dataset, val_dataset, test_dataset = random_split(
         dataset_info["dataset"], [train_size, val_size, test_size], generator=generator
     )
+    
+    # Get normalization stats from dataset_info (computed in load_dataset)
+    norm_stats = dataset_info.get("norm_stats", None)
+    if norm_stats:
+        logger.info("Using feature normalization for signature inputs")
+    
     train_dataset = WeightSpaceDataset(
         train_dataset,
         dataset_info["tokenizer"],
         dataset_config["input_mode"],
         config,
         dataset_info.get("method_names", []),
+        norm_stats=norm_stats,
     )
     val_dataset = WeightSpaceDataset(
         val_dataset,
@@ -601,6 +802,7 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
         dataset_config["input_mode"],
         config,
         dataset_info.get("method_names", []),
+        norm_stats=norm_stats,
     )
     test_dataset = WeightSpaceDataset(
         test_dataset,
@@ -608,6 +810,7 @@ def create_dataloaders(dataset_info: Dict[str, Any], config: Dict[str, Any]):
         dataset_config["input_mode"],
         config,
         dataset_info.get("method_names", []),
+        norm_stats=norm_stats,
     )
 
     # update input_dims and store inferred signature_features_per_neuron in config

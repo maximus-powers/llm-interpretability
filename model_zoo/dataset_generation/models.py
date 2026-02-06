@@ -146,26 +146,123 @@ class SubjectModel(nn.Module):
             )
         logger.info(f"Applied {quantization_type} quantization to model weights")
 
-    def get_layer_activations(self, x, layer_names: Optional[list] = None):
-        # for feature extraction
+    def get_layer_activations(
+        self,
+        x,
+        layer_names: Optional[list] = None,
+        capture_inputs: bool = False,
+    ):
+        """
+        Extract activations from Linear layers during forward pass.
+
+        Args:
+            x: Input tensor
+            layer_names: Optional list of layer names to capture. If None, captures all Linear layers.
+            capture_inputs: If True, returns extended info including layer inputs and pre-activations.
+                           This is needed for input-correlation based signature methods.
+
+        Returns:
+            If capture_inputs=False (default): Dict[str, Tensor] mapping layer names to post-activation outputs
+            If capture_inputs=True: Dict[str, Dict] with structure:
+                {
+                    "layer_name": {
+                        "output": Tensor,          # Post-activation output (current behavior)
+                        "input": Tensor,           # Input to the Linear layer
+                        "pre_activation": Tensor   # Linear output before activation function
+                    }
+                }
+        """
         activations = {}
 
-        def hook_fn(name):
-            def hook(module, input, output):
-                activations[name] = output.detach()
+        if capture_inputs:
+            # Extended mode: capture inputs and pre-activations
+            def hook_fn(name):
+                def hook(module, input, output):
+                    # input is a tuple, first element is the actual input tensor
+                    layer_input = input[0].detach() if len(input) > 0 else None
+                    # output of Linear layer IS the pre-activation (before ReLU/GELU)
+                    pre_activation = output.detach()
+                    activations[name] = {
+                        "input": layer_input,
+                        "pre_activation": pre_activation,
+                        "output": None,  # Will be filled by activation hook
+                    }
 
-            return hook
+                return hook
 
-        hooks = []
-        for name, module in self.network.named_modules():
-            if isinstance(module, nn.Linear):
-                if layer_names is None or name in layer_names:
-                    hook = module.register_forward_hook(hook_fn(name))
-                    hooks.append(hook)
-        with torch.no_grad():
-            _ = self.forward(x)
-        for hook in hooks:
-            hook.remove()
+            def activation_hook_fn(linear_name):
+                def hook(module, input, output):
+                    # This captures the output AFTER the activation function
+                    if linear_name in activations:
+                        activations[linear_name]["output"] = output.detach()
+
+                return hook
+
+            hooks = []
+            # Track which Linear layers we're hooking so we can hook their activations
+            linear_to_activation = {}
+
+            # First pass: identify Linear layers and their following activation modules
+            modules_list = list(self.network.named_modules())
+            for i, (name, module) in enumerate(modules_list):
+                if isinstance(module, nn.Linear):
+                    if layer_names is None or name in layer_names:
+                        # Hook the Linear layer
+                        hook = module.register_forward_hook(hook_fn(name))
+                        hooks.append(hook)
+
+                        # Find the next activation module (ReLU, GELU, etc.)
+                        for j in range(i + 1, len(modules_list)):
+                            next_name, next_module = modules_list[j]
+                            if isinstance(
+                                next_module,
+                                (
+                                    nn.ReLU,
+                                    nn.GELU,
+                                    nn.Tanh,
+                                    nn.Sigmoid,
+                                    nn.LeakyReLU,
+                                ),
+                            ):
+                                linear_to_activation[name] = (next_name, next_module)
+                                break
+
+            # Second pass: hook activation functions
+            for linear_name, (act_name, act_module) in linear_to_activation.items():
+                hook = act_module.register_forward_hook(activation_hook_fn(linear_name))
+                hooks.append(hook)
+
+            with torch.no_grad():
+                _ = self.forward(x)
+
+            for hook in hooks:
+                hook.remove()
+
+            # For layers without activation (e.g., output layer), use pre_activation as output
+            for name in activations:
+                if activations[name]["output"] is None:
+                    activations[name]["output"] = activations[name]["pre_activation"]
+
+        else:
+            # Original simple mode: just capture outputs
+
+            def hook_fn(name):
+                def hook(module, input, output):
+                    activations[name] = output.detach()
+
+                return hook
+
+            hooks = []
+            for name, module in self.network.named_modules():
+                if isinstance(module, nn.Linear):
+                    if layer_names is None or name in layer_names:
+                        hook = module.register_forward_hook(hook_fn(name))
+                        hooks.append(hook)
+            with torch.no_grad():
+                _ = self.forward(x)
+            for hook in hooks:
+                hook.remove()
+
         return activations
 
     def save_model(self, path: str):
