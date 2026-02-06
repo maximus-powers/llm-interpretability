@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import logging
 from typing import Dict, Any, List
 from sklearn.metrics import precision_score, recall_score, f1_score, hamming_loss

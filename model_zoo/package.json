@@ -1,0 +1,15 @@
+{
+  "name": "@muat/model-zoo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "ruff check .",
+    "lint:fix": "ruff check --fix .",
+    "format": "ruff format .",
+    "cli": "python cli.py",
+    "data:gen": "python cli.py data run-data-gen",
+    "train:classifier": "python cli.py experiment classifier train",
+    "train:encoder": "python cli.py experiment encoder-decoder train",
+    "rep-eng": "python cli.py experiment representation-engineering"
+  }
+}

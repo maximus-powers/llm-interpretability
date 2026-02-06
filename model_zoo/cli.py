@@ -641,7 +641,7 @@ def run_representation_engineering(args):
     pipeline.run()
 
     logger.info(f"\n{'=' * 70}")
-    logger.info(f"✅ Representation engineering complete!")
+    logger.info("✅ Representation engineering complete!")
     logger.info(f"📁 Results saved to: {run_dir.absolute()}")
     logger.info(f"{'=' * 70}\n")
 

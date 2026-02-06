@@ -139,7 +139,7 @@ class RepresentationPipeline:
                                 logged_count += 1
                                 if logged_count >= 5:
                                     break
-                            except:
+                            except Exception:
                                 pass
                     steering_computer.save_cache(metadata=cache_metadata)
 
@@ -319,12 +319,12 @@ class RepresentationPipeline:
                 results_path = self.run_dir / "evaluation_results.json"
                 with open(results_path, "w") as f:
                     json.dump(self._make_json_serializable(all_results), f, indent=2)
-                logger.info(f"Saved evaluation results")
+                logger.info("Saved evaluation results")
 
             config_path = self.run_dir / "config.json"
             with open(config_path, "w") as f:
                 json.dump(self.config, f, indent=2)
-            logger.info(f"Saved config")
+            logger.info("Saved config")
 
             # generate report
             report_path = self.run_dir / "report.md"
@@ -342,14 +342,14 @@ class RepresentationPipeline:
                     if aggregate:
                         f.write(f"- **Evaluations:** {aggregate['n_evaluations']}\n")
                         f.write(f"- **Failed:** {aggregate['n_failed']}\n\n")
-                        f.write(f"### Macro-Averaged Deltas\n\n")
+                        f.write("### Macro-Averaged Deltas\n\n")
                         f.write(
                             f"- **Mean F1 Delta:** {aggregate['mean_macro_f1_delta']:+.3f}\n"
                         )
                         f.write(
                             f"- **Mean Accuracy Delta:** {aggregate['mean_macro_accuracy_delta']:+.3f}\n\n"
                         )
-                        f.write(f"### Micro-Averaged Deltas\n\n")
+                        f.write("### Micro-Averaged Deltas\n\n")
                         f.write(
                             f"- **Mean F1 Delta:** {aggregate['mean_micro_f1_delta']:+.3f}\n"
                         )
@@ -357,7 +357,7 @@ class RepresentationPipeline:
                             f"- **Mean Accuracy Delta:** {aggregate['mean_micro_accuracy_delta']:+.3f}\n\n"
                         )
                         if aggregate.get("pattern_f1_delta_means"):
-                            f.write(f"### Per-Pattern F1 Delta Statistics\n\n")
+                            f.write("### Per-Pattern F1 Delta Statistics\n\n")
                             for pattern in sorted(
                                 aggregate["pattern_f1_delta_means"].keys()
                             ):
@@ -365,7 +365,7 @@ class RepresentationPipeline:
                                 std = aggregate["pattern_f1_delta_stds"][pattern]
                                 f.write(f"- **{pattern}:** {mean:+.3f} (±{std:.3f})\n")
                             f.write("\n")
-            logger.info(f"Generated report")
+            logger.info("Generated report")
 
             # phase 7: upload to huggingface
             if self.config.get("huggingface", {}).get("enabled", False):
@@ -382,7 +382,7 @@ class RepresentationPipeline:
                 if hf_config.get("save_local", True):
                     local_dataset_dir = self.run_dir / "huggingface_dataset"
                     dataset_builder.save_local(local_dataset_dir)
-                    logger.info(f"Saved dataset locally")
+                    logger.info("Saved dataset locally")
 
                 repo_id = hf_config.get("repo_id")
                 if repo_id:

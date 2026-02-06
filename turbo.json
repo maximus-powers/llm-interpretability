@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "cache": false
+    },
+    "lint:fix": {
+      "cache": false
+    },
+    "format": {
+      "cache": false
+    },
+    "cli": {
+      "cache": false,
+      "persistent": true
+    },
+    "data:gen": {
+      "cache": false
+    },
+    "train:classifier": {
+      "cache": false
+    },
+    "train:encoder": {
+      "cache": false
+    },
+    "rep-eng": {
+      "cache": false
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "muat",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo lint:fix",
+    "format": "turbo format",
+    "zoo": "python model_zoo/cli.py",
+    "zoo:data": "turbo data:gen --filter=@muat/model-zoo",
+    "zoo:classifier": "turbo train:classifier --filter=@muat/model-zoo",
+    "zoo:encoder": "turbo train:encoder --filter=@muat/model-zoo",
+    "zoo:rep-eng": "turbo rep-eng --filter=@muat/model-zoo"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

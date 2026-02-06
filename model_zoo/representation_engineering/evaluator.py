@@ -318,19 +318,19 @@ class RepresentationEvaluator:
         logger.info(
             f"Evaluations: {aggregate['n_evaluations']} (failed: {aggregate['n_failed']})"
         )
-        logger.info(f"\nMacro-Averaged Deltas:")
+        logger.info("\nMacro-Averaged Deltas:")
         logger.info(f"  Mean F1 Delta: {aggregate['mean_macro_f1_delta']:+.3f}")
         logger.info(
             f"  Mean Accuracy Delta: {aggregate['mean_macro_accuracy_delta']:+.3f}"
         )
-        logger.info(f"\nMicro-Averaged Deltas:")
+        logger.info("\nMicro-Averaged Deltas:")
         logger.info(f"  Mean F1 Delta: {aggregate['mean_micro_f1_delta']:+.3f}")
         logger.info(
             f"  Mean Accuracy Delta: {aggregate['mean_micro_accuracy_delta']:+.3f}"
         )
 
         if aggregate["pattern_f1_delta_means"]:
-            logger.info(f"\nPer-Pattern F1 Delta Means:")
+            logger.info("\nPer-Pattern F1 Delta Means:")
             for pattern in sorted(aggregate["pattern_f1_delta_means"].keys()):
                 mean = aggregate["pattern_f1_delta_means"][pattern]
                 std = aggregate["pattern_f1_delta_stds"][pattern]

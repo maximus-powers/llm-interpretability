@@ -4,6 +4,27 @@
 
 **Applied to Interpretability:** I think this concept can be extended to behavioral characteristics of models, such as predicting what they've been trained to classify as positive. Further, after encoding subject model weights into a latent space organized by behavior, we can push encodings within that space, and decode them back to weights to repair/add/remove behaviors to the weights.
 
+## Quick Start
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run the interactive CLI
+pnpm zoo
+
+# Or run specific commands directly
+pnpm zoo:data         # Dataset generation
+pnpm zoo:classifier   # Train pattern classifier
+pnpm zoo:encoder      # Train encoder-decoder
+pnpm zoo:rep-eng      # Run representation engineering
+
+# Development
+pnpm dev              # Run docs site in dev mode
+pnpm build            # Build all
+pnpm lint             # Lint all (TypeScript + Python)
+```
+
 >If you're looking for the experiments directory, go to [`/model_zoo/`](/model_zoo/). This readme describes the work, there is a readme in the model zoo which explains how to run experiments.
 
 ---

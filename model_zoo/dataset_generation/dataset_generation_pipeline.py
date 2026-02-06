@@ -11,7 +11,6 @@ import torch
 import numpy as np
 import shutil
 import os
-import yaml
 import copy
 
 # import ds gen classes
