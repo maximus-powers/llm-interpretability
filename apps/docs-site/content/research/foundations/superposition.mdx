@@ -1,0 +1,19 @@
+---
+title: Superposition
+order: 2
+---
+
+# Superposition
+
+Neural networks represent more features than they have neurons by encoding features as nearly orthogonal directions in activation space. This explains why neurons often respond to multiple unrelated concepts (polysemanticity).
+
+> ### Example: Dogs, planes, and the Statue of Liberty
+> You're probing a vision model and find a neuron that activates strongly for dogs, planes, and the Statue of Liberty. These concepts seem unrelated, but since you'd rarely see them in the same image, the network can reuse this neuron as part of each feature's representation without interference
+
+## Why does this happen
+
+In [2022 Elhage et al. at Anthropic](https://transformer-circuits.pub/2022/toy_model/index.html) demonstrated that sparsity is what makes superposition possible. When features are rarely active, the benefit of representing more features outweighs the occasional interference cost, so models pack multiple features into the same dimensions.
+
+## Geometric structure
+
+Features in superposition arrange themselves into polytopes (pentagons, tetrahedrons, etc.). This is a packing problem: if you want to cram as many directions as possible into a space, you need to maximize the angles between them (higher angle = more differentiated features = less interference). This geometric regularity suggests superposition isn't chaotic, but has interpretable structure.

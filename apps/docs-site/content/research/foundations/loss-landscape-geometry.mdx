@@ -1,0 +1,21 @@
+---
+title: Loss Landscape Geometry
+order: 3
+---
+
+# Loss Landscape Geometry
+
+The loss function of a neural network defines a surface over its weight space. The shape of this surface tells us which solutions exist, how training finds them, and whether we can move between them.
+
+> ### Example: averaging two trained networks
+> You train the same architecture twice with different seeds and get two different sets of weights. For many architectures, if you average both of those sets of weights, the averaged network works almost as well as either original. This makes sense if the two solutions are connected by a "valley" in the loss landscape.
+
+## Why does this happen
+
+In 2018 [Garipov, Izmailov et al.](https://arxiv.org/abs/1802.10026) showed that separately trained networks often land in minima that are connected by paths of low loss. This is called mode connectivity, and it's explains why merging models will usually land you within the shared valley instead of on the top of a hill.
+
+The loss landscape is not uniformly curved. In 2019 [Fort & Ganguli](https://arxiv.org/abs/1906.04724) showed that near a trained solution, only a handful of directions actually affect the loss. The vast majority of directions are flat. This is part of why weight interpolation works: most of the path between two solutions lies in directions that don't matter.
+
+## Overparameterized networks are easier to train
+
+In 2021 [Şimşek et al.](https://arxiv.org/abs/2107.08011) showed that adding just one extra neuron per layer is enough to connect all the isolated minima into a single continuous manifold. Overparameterized networks don't have separate valleys you can get stuck in. Everything is connected, which makes optimization much easier.
