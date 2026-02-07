@@ -1,0 +1,35 @@
+---
+title: Linear Representation Hypothesis
+order: 1
+---
+
+# Linear Representation Hypothesis
+
+High level semantic concepts like gender or tense can be present as one dimensional subspaces of neural network representations. 
+
+> ### Example: king − man + woman ≈ queen
+> There is a famous example done using [word2vec (Mikolov et al., 2013)](https://arxiv.org/abs/1301.3781) which showed that vectors of similar terms, differing in gender (e.g. king and queen, actor and actress) seemed to follow the same linear transformation.
+>
+> This transformation embodies the "concept of gender," and similar linear transformations have been observed for many other concepts like tense and sentiment.
+> 
+> You can imagine starting with the vector for "king", subtracting the vector for "man" (isolating the concept of nobility), then adding the vector for "woman", resulting in a representation near "queen."
+
+## Why does this happen
+
+In 2019, [Allen & Hospedales](https://arxiv.org/abs/1901.09813) showed that with word2vec, where this linear relationship exists, it's because the way that these words tend to occur in context contains additive information in the space of word2vec's skip-gram objective.
+
+However, this phenomenon has also been observed in transformers, with nonlinear attention. One potential reason for this is that stochastic gradient descent pressures models to find the simplest way to construct representations, and linear is the simplest possible. [Elhage et al. (2022)](https://transformer-circuits.pub/2022/toy_model/index.html) showed that linear directions enable superposition, the ability to pack more features than there are dimensions by encoding them as nearly-orthogonal directions, which means linearity also lets the network represent more concepts simultaneously.
+
+## Three interpretations
+
+In 2024 [Park, Choe, & Veitch](https://arxiv.org/abs/2311.03658) formalized three distinct forms of linear representation:
+
+| Interpretation | What It Claims | How It's Detected |
+|---|---|---|
+| **Subspace** | Each concept corresponds to a direction; all counterfactual pairs for that concept align with it | Compute difference vectors for word pairs; check alignment |
+| **Measurement** | The probability of a concept can be predicted with a linear probe (logit-linear in representations) | Train a linear classifier on intermediate activations |
+| **Intervention** | A concept can be changed by adding a steering vector, without affecting other concepts | Add/subtract direction vectors from activations at inference |
+
+## Binary vs Categorical/Hierarchical Geometry
+
+In 2024 [Park, Choe, Jiang & Veitch](https://arxiv.org/abs/2406.01506) validated that LRH can extend beyond binary concepts, into more complex concept structures such as categories like types of animals (represented as simplices) and hierarchies (represented as orthogonal directions of categories).

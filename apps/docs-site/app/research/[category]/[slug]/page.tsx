@@ -18,7 +18,7 @@ export default async function ResearchArticle({ params }: {
   const { content: mdxContent } = matter(content)
   
   return (
-    <article className="max-w-2xl mx-auto px-6 py-12 prose prose-invert prose-sm">
+    <article className="max-w-4xl mx-auto px-6 py-12 prose">
       <MDXRemote source={mdxContent} />
     </article>
   )
