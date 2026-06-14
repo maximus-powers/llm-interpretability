@@ -37,6 +37,7 @@ from model_zoo.encoder_decoder_training import (
     EncoderDecoderTrainer,
     load_checkpoint as load_checkpoint_encoder_decoder,
 )
+from model_zoo.hypernet.train import train as train_hypernet
 
 # ========== Logging Setup ==========
 _thread_local = threading.local()
@@ -648,6 +649,47 @@ def run_representation_engineering(args):
     cleanup_run_directory(run_dir, config)
 
 
+def run_hypernet_train(args):
+    """Train the functional hypernetwork."""
+    setup_experiment_logging()
+    logger = logging.getLogger(__name__)
+
+    logger.info("\n" + "=" * 70)
+    logger.info("Functional HyperNetwork Training")
+    logger.info("=" * 70 + "\n")
+
+    train_hypernet(
+        config_path=args.config if hasattr(args, 'config') else None,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        latent_dim=args.latent_dim,
+        lambda_kl=args.lambda_kl,
+        use_functional_loss=args.use_functional_loss,
+        max_samples=args.max_samples,
+        include_patterns=[p.strip() for p in args.patterns.split(',')] if args.patterns else None,
+        run_dir=args.run_dir,
+        auto_launch_tensorboard=args.auto_launch_tensorboard,
+        tensorboard_port=args.tensorboard_port,
+        early_stopping_patience=args.early_stopping_patience,
+    )
+
+
+def run_hypernet_evaluate(args):
+    """Run comprehensive evaluation pipeline on trained hypernet model."""
+    setup_experiment_logging()
+    logger = logging.getLogger(__name__)
+
+    logger.info("\n" + "=" * 70)
+    logger.info("Functional HyperNetwork Evaluation")
+    logger.info("=" * 70 + "\n")
+
+    from hypernet.evaluation import run_evaluation
+    run_evaluation(
+        model_path=args.model,
+        output_dir=args.output,
+    )
+
+
 ############## CLI ##############
 def run_interactive_mode():
     print("\n" + "=" * 70)
@@ -849,6 +891,80 @@ def run_traditional_cli():
         "--config", required=True, help="Path to configuration YAML file"
     )
 
+    # experiment hypernet
+    hypernet_parser = experiment_subparsers.add_parser(
+        "hypernet", help="Functional hypernetwork for behavioral weight generation"
+    )
+    hypernet_subparsers = hypernet_parser.add_subparsers(
+        dest="hypernet_command", help="Hypernet commands"
+    )
+
+    # experiment hypernet train
+    hypernet_train = hypernet_subparsers.add_parser(
+        "train", help="Train the functional hypernetwork"
+    )
+    hypernet_train.add_argument(
+        "--config", "-c",
+        help="Path to config YAML file",
+    )
+    hypernet_train.add_argument(
+        "--epochs", "-e", type=int, default=150,
+        help="Number of training epochs (default: 150)"
+    )
+    hypernet_train.add_argument(
+        "--batch-size", "-b", type=int, default=64,
+        help="Batch size (default: 64)"
+    )
+    hypernet_train.add_argument(
+        "--latent-dim", type=int, default=64,
+        help="Latent dimension (default: 64)"
+    )
+    hypernet_train.add_argument(
+        "--lambda-kl", type=float, default=0.1,
+        help="KL divergence weight (default: 0.1)"
+    )
+    hypernet_train.add_argument(
+        "--use-functional-loss", action="store_true",
+        help="Enable functional loss during training"
+    )
+    hypernet_train.add_argument(
+        "--max-samples", type=int, default=None,
+        help="Maximum samples to use (for testing)"
+    )
+    hypernet_train.add_argument(
+        "--patterns", type=str, default=None,
+        help="Comma-separated behavior patterns to include"
+    )
+    hypernet_train.add_argument(
+        "--run-dir", type=str, default=None,
+        help="Directory to save run outputs"
+    )
+    hypernet_train.add_argument(
+        "--auto-launch-tensorboard", action="store_true",
+        help="Auto-launch TensorBoard and open in browser"
+    )
+    hypernet_train.add_argument(
+        "--tensorboard-port", type=int, default=6006,
+        help="Port for TensorBoard (default: 6006)"
+    )
+    hypernet_train.add_argument(
+        "--early-stopping-patience", type=int, default=None,
+        help="Early stopping patience (epochs without improvement before stopping)"
+    )
+
+    # experiment hypernet evaluate
+    hypernet_evaluate = hypernet_subparsers.add_parser(
+        "evaluate", help="Run comprehensive evaluation pipeline on trained model"
+    )
+    hypernet_evaluate.add_argument(
+        "--model", "-m", required=True,
+        help="Path to trained model .pt file"
+    )
+    hypernet_evaluate.add_argument(
+        "--output", "-o", default=None,
+        help="Output directory for results (default: model_dir/evaluation/)"
+    )
+
     args = parser.parse_args()
 
     if not args.category:
@@ -882,6 +998,14 @@ def run_traditional_cli():
                     train_encoder_decoder(args)
             elif args.experiment_type == "representation-engineering":
                 run_representation_engineering(args)
+            elif args.experiment_type == "hypernet":
+                if not args.hypernet_command:
+                    hypernet_parser.print_help()
+                    sys.exit(1)
+                if args.hypernet_command == "train":
+                    run_hypernet_train(args)
+                elif args.hypernet_command == "evaluate":
+                    run_hypernet_evaluate(args)
     except KeyboardInterrupt:
         logging.info("Operation interrupted by user")
         sys.exit(0)

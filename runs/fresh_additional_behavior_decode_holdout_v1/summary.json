@@ -1,0 +1,165 @@
+{
+  "behavior_suite_metadata": {
+    "base": 10,
+    "hard_negative_fraction": 0.5,
+    "heldout_hash": "306802507d9d733609eb33b4c10b528d7d5205e81fdef3b01e04123a1173edb0",
+    "heldout_per_class": 64,
+    "name": "clean_proof_v1",
+    "negative_case_policy": "Each target's negative cases include other selected behavior positives as hard negatives plus generic no-selected-behavior negatives.",
+    "overlap_matrix": {
+      "has_majority": {
+        "has_majority": 8560,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "mountain_pattern": {
+        "has_majority": 0,
+        "mountain_pattern": 2892,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "sorted_ascending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 252,
+        "sorted_descending": 0
+      },
+      "sorted_descending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 252
+      }
+    },
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending",
+      "has_majority",
+      "mountain_pattern"
+    ],
+    "predicate_counts": {
+      "has_majority": 8560,
+      "mountain_pattern": 2892,
+      "sorted_ascending": 252,
+      "sorted_descending": 252
+    },
+    "seed": 20260609,
+    "sequence_length": 5,
+    "support_hash": "a38d36be966369630f56b3c8e7f9d904c897380bfce6caf32507bf015cae9727",
+    "support_heldout_overlap_count": 0,
+    "support_per_class": 32,
+    "thresholds": {
+      "condition_min_accuracy": 0.4,
+      "condition_min_delta_vs_majority": 0.1,
+      "decode_min_accuracy": 0.6,
+      "decode_min_accuracy_per_behavior": 0.5,
+      "decode_min_delta_vs_condition_ablation": 0.2,
+      "decode_min_delta_vs_control": 0.2,
+      "decode_min_delta_vs_control_per_behavior": 0.2,
+      "decode_min_delta_vs_noise_signature": 0.2,
+      "decode_min_delta_vs_null_signature": 0.2,
+      "decode_min_delta_vs_train_centroid_signature": 0.2,
+      "decode_min_margin": 0.0,
+      "decode_min_margin_per_behavior": 0.0,
+      "min_heldout_samples_per_behavior": 50,
+      "min_interpret_recall_per_behavior": 0.3,
+      "raw_signature_rf_min_accuracy": 0.45,
+      "raw_signature_rf_min_delta_vs_majority": 0.15,
+      "steer_min_delta_vs_no_edit": 0.25,
+      "steer_min_margin_delta": 0.05,
+      "steer_min_margin_delta_per_target": 0.0,
+      "steer_min_target_success": 0.6,
+      "steer_min_target_success_per_behavior": 0.5,
+      "subject_functional_specificity_min_improvement": 0.02,
+      "subject_functional_specificity_min_median_improvement": 0.0,
+      "subject_functional_specificity_min_samples": 50,
+      "subject_functional_specificity_min_samples_per_behavior": 50,
+      "subject_functional_specificity_min_win_rate": 0.55
+    }
+  },
+  "counts": {
+    "has_majority": 8,
+    "mountain_pattern": 8
+  },
+  "failures": [
+    {
+      "heldout_margin": 0.19311870634555817,
+      "pattern": "has_majority",
+      "seed": 20260930
+    },
+    {
+      "heldout_margin": 0.19881750643253326,
+      "pattern": "has_majority",
+      "seed": 20260932
+    },
+    {
+      "heldout_margin": 0.18656224012374878,
+      "pattern": "has_majority",
+      "seed": 20260933
+    },
+    {
+      "heldout_margin": 0.12259986996650696,
+      "pattern": "has_majority",
+      "seed": 20260934
+    },
+    {
+      "heldout_margin": 0.19060465693473816,
+      "pattern": "has_majority",
+      "seed": 20260935
+    },
+    {
+      "heldout_margin": 0.13553676009178162,
+      "pattern": "has_majority",
+      "seed": 20260937
+    },
+    {
+      "heldout_margin": 0.13474589586257935,
+      "pattern": "has_majority",
+      "seed": 20260938
+    },
+    {
+      "heldout_margin": 0.19770538806915283,
+      "pattern": "has_majority",
+      "seed": 20260941
+    },
+    {
+      "heldout_margin": 0.15133070945739746,
+      "pattern": "has_majority",
+      "seed": 20260942
+    },
+    {
+      "heldout_margin": 0.17489062249660492,
+      "pattern": "has_majority",
+      "seed": 20260943
+    },
+    {
+      "heldout_margin": 0.0964033305644989,
+      "pattern": "has_majority",
+      "seed": 20260945
+    },
+    {
+      "heldout_margin": 0.1424492597579956,
+      "pattern": "has_majority",
+      "seed": 20260947
+    }
+  ],
+  "lr": 0.003,
+  "max_train_positives": 512,
+  "n_per_behavior_requested": 8,
+  "n_subjects": 16,
+  "negative_multiple": 2,
+  "passed": true,
+  "patterns": [
+    "has_majority",
+    "mountain_pattern"
+  ],
+  "probe_examples_hash": "b156dabece5a9eb58a966271388c8e5479fd308712dcca7b373e0f253e670279",
+  "probe_set_id": "stored_digit_probe_v1_seed_20260610_n256",
+  "seed": 20260930,
+  "signature_hash_algorithm": "stable_hash_json_float_list_v1",
+  "source_margin_gate": 0.2,
+  "subjects_path": "runs/fresh_additional_behavior_decode_holdout_v1/subjects.json",
+  "subjects_sha256": "03b72098c773690011fa330487e51d08f69c2f3b4558e7ab1ae31ae82f5aeb6b",
+  "train_epochs": 200
+}

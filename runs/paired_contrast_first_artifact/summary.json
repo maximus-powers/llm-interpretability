@@ -1,0 +1,75 @@
+{
+  "artifact_path": "runs/paired_contrast_first_artifact/paired_contrast_artifact.json",
+  "validation_path": "runs/paired_contrast_first_artifact/validation.json",
+  "checkpoint_path": "runs/hypernet_centroid_residual_expanded_controls_20e/model.pt",
+  "required_behaviors": [
+    "sorted_ascending",
+    "sorted_descending"
+  ],
+  "required_control_types": [
+    "same_label_other_subject",
+    "opposite_direction",
+    "noise_signature"
+  ],
+  "min_count": 10,
+  "subjects_by_split_count": {
+    "train": 0,
+    "validation": 60,
+    "test": 60
+  },
+  "emitted_groups_by_split": {
+    "train": 0,
+    "validation": 20,
+    "test": 20
+  },
+  "passed": false,
+  "failure_count": 1,
+  "failures": [
+    "probe_provenance probe_examples is empty"
+  ],
+  "counts": {
+    "passed": true,
+    "failures": [],
+    "per_split": {
+      "validation": {
+        "passed": true,
+        "failures": [],
+        "counts": {
+          "sorted_ascending": {
+            "same_label_other_subject": 10,
+            "opposite_direction": 10,
+            "noise_signature": 10
+          },
+          "sorted_descending": {
+            "same_label_other_subject": 10,
+            "opposite_direction": 10,
+            "noise_signature": 10
+          }
+        },
+        "min_count": 10
+      },
+      "test": {
+        "passed": true,
+        "failures": [],
+        "counts": {
+          "sorted_ascending": {
+            "same_label_other_subject": 10,
+            "opposite_direction": 10,
+            "noise_signature": 10
+          },
+          "sorted_descending": {
+            "same_label_other_subject": 10,
+            "opposite_direction": 10,
+            "noise_signature": 10
+          }
+        },
+        "min_count": 10
+      }
+    },
+    "min_count": 10
+  },
+  "schema_passed": true,
+  "split_passed": true,
+  "source_pool_preflight_passed": true,
+  "probe_provenance_passed": false
+}

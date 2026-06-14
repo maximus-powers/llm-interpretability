@@ -1,0 +1,723 @@
+{
+  "aggregate": {
+    "mean_no_edit_target_margin": -0.24683690401347264,
+    "mean_noise_target_margin": -0.01060101499552562,
+    "mean_reverse_direction_target_margin": -0.25967691569100865,
+    "mean_steered_minus_no_edit_target_margin": 0.3642494159538665,
+    "mean_steered_minus_noise_target_margin": 0.12801352693591955,
+    "mean_steered_minus_reverse_direction_target_margin": 0.3770894276314026,
+    "mean_steered_source_margin_change": -0.4418467512693928,
+    "mean_steered_target_margin": 0.11741251194039393,
+    "n": 18
+  },
+  "alpha": 1.0,
+  "artifact_path": "runs/paired_contrast_final_artifact_v1/paired_contrast_artifact.json",
+  "behavior_suite_metadata": {
+    "base": 10,
+    "hard_negative_fraction": 0.5,
+    "heldout_hash": "1834946131a9022276a03f54a8a2f2b13bb960ca411b84c9637cacbeecb23ef5",
+    "heldout_per_class": 64,
+    "name": "clean_proof_v1",
+    "negative_case_policy": "Each target's negative cases include other selected behavior positives as hard negatives plus generic no-selected-behavior negatives.",
+    "overlap_matrix": {
+      "sorted_ascending": {
+        "sorted_ascending": 252,
+        "sorted_descending": 0
+      },
+      "sorted_descending": {
+        "sorted_ascending": 0,
+        "sorted_descending": 252
+      }
+    },
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending"
+    ],
+    "predicate_counts": {
+      "sorted_ascending": 252,
+      "sorted_descending": 252
+    },
+    "seed": 20260609,
+    "sequence_length": 5,
+    "support_hash": "714c8814f95c7ff9eb6caec0b7956abd286265be73b5a8e7755c040e66e07caf",
+    "support_heldout_overlap_count": 0,
+    "support_per_class": 32,
+    "thresholds": {
+      "condition_min_accuracy": 0.4,
+      "condition_min_delta_vs_majority": 0.1,
+      "decode_min_accuracy": 0.6,
+      "decode_min_accuracy_per_behavior": 0.5,
+      "decode_min_delta_vs_condition_ablation": 0.2,
+      "decode_min_delta_vs_control": 0.2,
+      "decode_min_delta_vs_control_per_behavior": 0.2,
+      "decode_min_delta_vs_noise_signature": 0.2,
+      "decode_min_delta_vs_null_signature": 0.2,
+      "decode_min_delta_vs_train_centroid_signature": 0.2,
+      "decode_min_margin": 0.0,
+      "decode_min_margin_per_behavior": 0.0,
+      "min_heldout_samples_per_behavior": 50,
+      "min_interpret_recall_per_behavior": 0.3,
+      "raw_signature_rf_min_accuracy": 0.45,
+      "raw_signature_rf_min_delta_vs_majority": 0.15,
+      "steer_min_delta_vs_no_edit": 0.25,
+      "steer_min_margin_delta": 0.05,
+      "steer_min_margin_delta_per_target": 0.0,
+      "steer_min_target_success": 0.6,
+      "steer_min_target_success_per_behavior": 0.5,
+      "subject_functional_specificity_min_improvement": 0.02,
+      "subject_functional_specificity_min_median_improvement": 0.0,
+      "subject_functional_specificity_min_samples": 50,
+      "subject_functional_specificity_min_samples_per_behavior": 50,
+      "subject_functional_specificity_min_win_rate": 0.55
+    }
+  },
+  "by_target": {
+    "sorted_ascending": {
+      "mean_no_edit_target_margin": -0.408913833789624,
+      "mean_noise_target_margin": -0.010905736179362671,
+      "mean_reverse_direction_target_margin": -0.4690813715319753,
+      "mean_steered_minus_no_edit_target_margin": 0.46246295071044713,
+      "mean_steered_minus_noise_target_margin": 0.06445485310018581,
+      "mean_steered_minus_reverse_direction_target_margin": 0.5226304884527985,
+      "mean_steered_source_margin_change": -0.4991679963984253,
+      "mean_steered_target_margin": 0.05354911692082314,
+      "n": 9
+    },
+    "sorted_descending": {
+      "mean_no_edit_target_margin": -0.08475997423732125,
+      "mean_noise_target_margin": -0.010296293811688569,
+      "mean_reverse_direction_target_margin": -0.05027245985004189,
+      "mean_steered_minus_no_edit_target_margin": 0.266035881197286,
+      "mean_steered_minus_noise_target_margin": 0.19157220077165327,
+      "mean_steered_minus_reverse_direction_target_margin": 0.2315483668100066,
+      "mean_steered_source_margin_change": -0.38452550614036024,
+      "mean_steered_target_margin": 0.1812759069599647,
+      "n": 9
+    }
+  },
+  "caveats": [
+    "Uses the already evaluated final decode artifact source subjects; this is a steering diagnostic, not a fresh final steering proof.",
+    "No model training or threshold tuning was performed for steering.",
+    "Only tests sorted_ascending <-> sorted_descending signature centroid steering."
+  ],
+  "centroid_counts": {
+    "sorted_ascending": 865,
+    "sorted_descending": 742
+  },
+  "centroid_patterns": [
+    "sorted_ascending",
+    "sorted_descending"
+  ],
+  "checkpoint_path": "runs/hypernet_centroid_residual_expanded_controls_20e/model.pt",
+  "claim_scope": "signature_space_steering_diagnostic_not_final_proof",
+  "dataset_provenance_comparison": {
+    "matches": true,
+    "mismatched_fields": []
+  },
+  "failures": [
+    "aggregate mean_steered_minus_noise_target_margin 0.12801352693591955 below 0.2",
+    "aggregate mean_steered_target_margin 0.11741251194039393 below 0.2",
+    "target/sorted_ascending mean_steered_minus_noise_target_margin 0.06445485310018581 below 0.2",
+    "target/sorted_ascending mean_steered_target_margin 0.05354911692082314 below 0.2",
+    "target/sorted_descending mean_steered_minus_noise_target_margin 0.19157220077165327 below 0.2",
+    "target/sorted_descending mean_steered_target_margin 0.1812759069599647 below 0.2"
+  ],
+  "leakage_audit": {
+    "checkpoint_train_count": 3592,
+    "checkpoint_validation_count": 399,
+    "development_subject_control_reference_count": 120,
+    "steering_source_count": 18,
+    "steering_source_overlap_checkpoint_validation_count": 18,
+    "steering_source_overlap_development_artifact_count": 0,
+    "steering_source_overlap_train_count": 0
+  },
+  "method": "source_signature_plus_train_centroid_delta_decoded_by_locked_v2",
+  "model_path": "runs/stored_probe_functional_decoder_v2_adaptive/model.pt",
+  "passed": false,
+  "records": [
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.5351657409564723,
+        "steered_minus_noise_target_margin": 0.5017203008028446,
+        "steered_minus_reverse_direction_target_margin": 0.5113190040718099,
+        "steered_source_margin_change": -0.6210883893072605
+      },
+      "group_id": "validation:dedup:3304:row:8265",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.01589432079344988,
+          "target_margin": -0.04871711779560428
+        },
+        "reverse_direction": {
+          "source_margin": 0.18196463258209405,
+          "target_margin": -0.05831582106456956
+        },
+        "source_no_edit": {
+          "source_margin": 0.16922071389853954,
+          "target_margin": -0.082162557949232
+        },
+        "steered": {
+          "source_margin": -0.45186767540872097,
+          "target_margin": 0.4530031830072403
+        }
+      },
+      "source_dedup_index": 3304,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3304:row:8265",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": -0.011625409207480918,
+        "steered_minus_noise_target_margin": -0.07108282742217398,
+        "steered_minus_reverse_direction_target_margin": -0.024434801273979338,
+        "steered_source_margin_change": -0.2513456178130582
+      },
+      "group_id": "validation:dedup:3947:row:9892",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0009079762166948058,
+          "target_margin": -7.595795079851086e-05
+        },
+        "reverse_direction": {
+          "source_margin": 0.166537414234881,
+          "target_margin": -0.04672398409899315
+        },
+        "source_no_edit": {
+          "source_margin": 0.19223565608263016,
+          "target_margin": -0.05953337616549157
+        },
+        "steered": {
+          "source_margin": -0.05910996173042804,
+          "target_margin": -0.07115878537297249
+        }
+      },
+      "source_dedup_index": 3947,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3947:row:9892",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.07837686373385111,
+        "steered_minus_noise_target_margin": 0.017904318319779122,
+        "steered_minus_reverse_direction_target_margin": 0.057319930597536706,
+        "steered_source_margin_change": -0.23615057920687832
+      },
+      "group_id": "validation:dedup:3519:row:8826",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.01765396323753521,
+          "target_margin": -0.009468258740525926
+        },
+        "reverse_direction": {
+          "source_margin": 0.17125443708755483,
+          "target_margin": -0.04888387101828351
+        },
+        "source_no_edit": {
+          "source_margin": 0.19503630141844042,
+          "target_margin": -0.06994080415459791
+        },
+        "steered": {
+          "source_margin": -0.0411142777884379,
+          "target_margin": 0.008436059579253197
+        }
+      },
+      "source_dedup_index": 3519,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3519:row:8826",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.6101148268207908,
+        "steered_minus_noise_target_margin": 0.42681432934818986,
+        "steered_minus_reverse_direction_target_margin": 0.4712710971857632,
+        "steered_source_margin_change": -0.6445450037717819
+      },
+      "group_id": "validation:dedup:1372:row:3444",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.00758296050298668,
+          "target_margin": -0.0006482121568751609
+        },
+        "reverse_direction": {
+          "source_margin": 0.16524721306632273,
+          "target_margin": -0.04510497999444851
+        },
+        "source_no_edit": {
+          "source_margin": 0.2639654502272606,
+          "target_margin": -0.18394870962947607
+        },
+        "steered": {
+          "source_margin": -0.38057955354452133,
+          "target_margin": 0.4261661171913147
+        }
+      },
+      "source_dedup_index": 1372,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:1372:row:3444",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.04460161898527981,
+        "steered_minus_noise_target_margin": -0.008126677836116869,
+        "steered_minus_reverse_direction_target_margin": 0.0278253145890379,
+        "steered_source_margin_change": -0.18889613099599956
+      },
+      "group_id": "validation:dedup:2063:row:5171",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.012463818478863686,
+          "target_margin": -0.005756719030614477
+        },
+        "reverse_direction": {
+          "source_margin": 0.15954678656180477,
+          "target_margin": -0.041708711455769244
+        },
+        "source_no_edit": {
+          "source_margin": 0.17118244769517332,
+          "target_margin": -0.05848501585201116
+        },
+        "steered": {
+          "source_margin": -0.017713683300826233,
+          "target_margin": -0.013883396866731346
+        }
+      },
+      "source_dedup_index": 2063,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:2063:row:5171",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.46279214780952316,
+        "steered_minus_noise_target_margin": 0.35666248461620853,
+        "steered_minus_reverse_direction_target_margin": 0.41416525088322587,
+        "steered_source_margin_change": -0.5692134718410671
+      },
+      "group_id": "validation:dedup:3931:row:9852",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0017582460789071774,
+          "target_margin": -4.376730339572532e-05
+        },
+        "reverse_direction": {
+          "source_margin": 0.186465437640436,
+          "target_margin": -0.05754653357041306
+        },
+        "source_no_edit": {
+          "source_margin": 0.2327311928384006,
+          "target_margin": -0.10617343049671035
+        },
+        "steered": {
+          "source_margin": -0.3364822790026665,
+          "target_margin": 0.3566187173128128
+        }
+      },
+      "source_dedup_index": 3931,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3931:row:9852",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.046576196637491796,
+        "steered_minus_noise_target_margin": -0.0015732177998870611,
+        "steered_minus_reverse_direction_target_margin": 0.02643126801891424,
+        "steered_source_margin_change": -0.1596147529926384
+      },
+      "group_id": "validation:dedup:3554:row:8904",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.05978235926043851,
+          "target_margin": -0.027409832924604416
+        },
+        "reverse_direction": {
+          "source_margin": 0.17137764471408445,
+          "target_margin": -0.055414318743405716
+        },
+        "source_no_edit": {
+          "source_margin": 0.14035008195787668,
+          "target_margin": -0.07555924736198327
+        },
+        "steered": {
+          "source_margin": -0.019264671034761705,
+          "target_margin": -0.028983050724491477
+        }
+      },
+      "source_dedup_index": 3554,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3554:row:8904",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.04318190599141626,
+        "steered_minus_noise_target_margin": -0.0218064051300928,
+        "steered_minus_reverse_direction_target_margin": 0.032588577366363766,
+        "steered_source_margin_change": -0.21148779895156622
+      },
+      "group_id": "validation:dedup:3124:row:7842",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.002879960768041201,
+          "target_margin": -0.0005380625628959024
+        },
+        "reverse_direction": {
+          "source_margin": 0.18142816325553213,
+          "target_margin": -0.05493304505935247
+        },
+        "source_no_edit": {
+          "source_margin": 0.1912545831874013,
+          "target_margin": -0.06552637368440496
+        },
+        "steered": {
+          "source_margin": -0.020233215764164925,
+          "target_margin": -0.0223444676929887
+        }
+      },
+      "source_dedup_index": 3124,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:3124:row:7842",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.5851390390482294,
+        "steered_minus_noise_target_margin": 0.5236375020461281,
+        "steered_minus_reverse_direction_target_margin": 0.5674496598513872,
+        "steered_source_margin_change": -0.578387810382992
+      },
+      "group_id": "validation:dedup:2287:row:5685",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0001784428347946232,
+          "target_margin": -8.715839882711407e-06
+        },
+        "reverse_direction": {
+          "source_margin": 0.1567348653479712,
+          "target_margin": -0.043820873645141756
+        },
+        "source_no_edit": {
+          "source_margin": 0.17617625975981355,
+          "target_margin": -0.06151025284198397
+        },
+        "steered": {
+          "source_margin": -0.4022115506231785,
+          "target_margin": 0.5236287862062454
+        }
+      },
+      "source_dedup_index": 2287,
+      "source_pattern": "sorted_ascending",
+      "source_subject_id": "dedup:2287:row:5685",
+      "target_pattern": "sorted_descending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.37132635163631467,
+        "steered_minus_noise_target_margin": 0.016344759194907965,
+        "steered_minus_reverse_direction_target_margin": 0.4304937371385833,
+        "steered_source_margin_change": -0.4754991837326088
+      },
+      "group_id": "validation:dedup:3035:row:7612",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.007186035510414968,
+          "target_margin": -0.02017174048887682
+        },
+        "reverse_direction": {
+          "source_margin": 0.5194050818681717,
+          "target_margin": -0.43432071843255216
+        },
+        "source_no_edit": {
+          "source_margin": 0.475410521030426,
+          "target_margin": -0.3751533329302835
+        },
+        "steered": {
+          "source_margin": -8.866270218274916e-05,
+          "target_margin": -0.0038269812939688563
+        }
+      },
+      "source_dedup_index": 3035,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:3035:row:7612",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.5085887911243177,
+        "steered_minus_noise_target_margin": 0.12035012456544791,
+        "steered_minus_reverse_direction_target_margin": 0.5745527949675306,
+        "steered_source_margin_change": -0.5391807369808354
+      },
+      "group_id": "validation:dedup:3664:row:9178",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.006645567364984117,
+          "target_margin": -0.007672041534533491
+        },
+        "reverse_direction": {
+          "source_margin": 0.5307109355926514,
+          "target_margin": -0.4618747119366162
+        },
+        "source_no_edit": {
+          "source_margin": 0.5072513073682785,
+          "target_margin": -0.39591070809340323
+        },
+        "steered": {
+          "source_margin": -0.03192942961255689,
+          "target_margin": 0.11267808303091442
+        }
+      },
+      "source_dedup_index": 3664,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:3664:row:9178",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.48741503477068215,
+        "steered_minus_noise_target_margin": 0.06911153727173769,
+        "steered_minus_reverse_direction_target_margin": 0.5347188348886505,
+        "steered_source_margin_change": -0.5347706153988656
+      },
+      "group_id": "validation:dedup:2229:row:5551",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0003705600747707649,
+          "target_margin": -0.0022693496284773573
+        },
+        "reverse_direction": {
+          "source_margin": 0.5068973451852798,
+          "target_margin": -0.46787664724539013
+        },
+        "source_no_edit": {
+          "source_margin": 0.5168185234069824,
+          "target_margin": -0.4205728471274218
+        },
+        "steered": {
+          "source_margin": -0.017952091991883176,
+          "target_margin": 0.06684218764326033
+        }
+      },
+      "source_dedup_index": 2229,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:2229:row:5551",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.5548556249985097,
+        "steered_minus_noise_target_margin": 0.06710055385701708,
+        "steered_minus_reverse_direction_target_margin": 0.5797072369653051,
+        "steered_source_margin_change": -0.5064638517796962
+      },
+      "group_id": "validation:dedup:2349:row:5842",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.00017217794993484858,
+          "target_margin": -0.004851646106544649
+        },
+        "reverse_direction": {
+          "source_margin": 0.541394367814064,
+          "target_margin": -0.5174583292148327
+        },
+        "source_no_edit": {
+          "source_margin": 0.4662524312734604,
+          "target_margin": -0.4926067172480373
+        },
+        "steered": {
+          "source_margin": -0.04021142050623586,
+          "target_margin": 0.062248907750472426
+        }
+      },
+      "source_dedup_index": 2349,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:2349:row:5842",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.4474695860793929,
+        "steered_minus_noise_target_margin": 0.05573275126516819,
+        "steered_minus_reverse_direction_target_margin": 0.4825312289622161,
+        "steered_source_margin_change": -0.5353434993709743
+      },
+      "group_id": "validation:dedup:1531:row:3833",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.06619993147614878,
+          "target_margin": -0.03761032409965992
+        },
+        "reverse_direction": {
+          "source_margin": 0.5451289415359497,
+          "target_margin": -0.46440880179670785
+        },
+        "source_no_edit": {
+          "source_margin": 0.5253041535615921,
+          "target_margin": -0.42934715891388464
+        },
+        "steered": {
+          "source_margin": -0.010039345809382094,
+          "target_margin": 0.01812242716550827
+        }
+      },
+      "source_dedup_index": 1531,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:1531:row:3833",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.3217088851005441,
+        "steered_minus_noise_target_margin": -0.010650402196475284,
+        "steered_minus_reverse_direction_target_margin": 0.36300970023480517,
+        "steered_source_margin_change": -0.48637182573868104
+      },
+      "group_id": "validation:dedup:1829:row:4540",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0009384991583374358,
+          "target_margin": 0.00047150568570941687
+        },
+        "reverse_direction": {
+          "source_margin": 0.4988405704498291,
+          "target_margin": -0.37318859674557103
+        },
+        "source_no_edit": {
+          "source_margin": 0.4863276481628418,
+          "target_margin": -0.33188778161130994
+        },
+        "steered": {
+          "source_margin": -4.4177575839242453e-05,
+          "target_margin": -0.010178896510765867
+        }
+      },
+      "source_dedup_index": 1829,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:1829:row:4540",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.5859221259656806,
+        "steered_minus_noise_target_margin": 0.06794678332880721,
+        "steered_minus_reverse_direction_target_margin": 0.6169655660523858,
+        "steered_source_margin_change": -0.5696256309613231
+      },
+      "group_id": "validation:dedup:204:row:490",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.00045373506998203084,
+          "target_margin": -0.0010184046150243375
+        },
+        "reverse_direction": {
+          "source_margin": 0.5773294568061829,
+          "target_margin": -0.550037187338603
+        },
+        "source_no_edit": {
+          "source_margin": 0.5323927849531174,
+          "target_margin": -0.5189937472518977
+        },
+        "steered": {
+          "source_margin": -0.03723284600820571,
+          "target_margin": 0.06692837871378288
+        }
+      },
+      "source_dedup_index": 204,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:204:row:490",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.44550627656280994,
+        "steered_minus_noise_target_margin": 0.18976450667832978,
+        "steered_minus_reverse_direction_target_margin": 0.6245695017278194,
+        "steered_source_margin_change": -0.32217059917456936
+      },
+      "group_id": "validation:dedup:2276:row:5654",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.008040842428727046,
+          "target_margin": -0.01737615981255658
+        },
+        "reverse_direction": {
+          "source_margin": 0.49439896643161774,
+          "target_margin": -0.45218115486204624
+        },
+        "source_no_edit": {
+          "source_margin": 0.26136040687561035,
+          "target_margin": -0.27311792969703674
+        },
+        "steered": {
+          "source_margin": -0.06081019229895901,
+          "target_margin": 0.1723883468657732
+        }
+      },
+      "source_dedup_index": 2276,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:2276:row:5654",
+      "target_pattern": "sorted_ascending"
+    },
+    {
+      "alpha": 1.0,
+      "deltas": {
+        "steered_minus_no_edit_target_margin": 0.4393738801557723,
+        "steered_minus_noise_target_margin": 0.004393063936731778,
+        "steered_minus_reverse_direction_target_margin": 0.49712579513789024,
+        "steered_source_margin_change": -0.5230860244482745
+      },
+      "group_id": "validation:dedup:4:row:5",
+      "margins": {
+        "noise_signature": {
+          "source_margin": -0.0002329012650079676,
+          "target_margin": -0.007653465014300309
+        },
+        "reverse_direction": {
+          "source_margin": 0.5365341603755951,
+          "target_margin": -0.5003861962154588
+        },
+        "source_no_edit": {
+          "source_margin": 0.5032892674207687,
+          "target_margin": -0.4426342812333408
+        },
+        "steered": {
+          "source_margin": -0.019796757027505676,
+          "target_margin": -0.003260401077568531
+        }
+      },
+      "source_dedup_index": 4,
+      "source_pattern": "sorted_descending",
+      "source_subject_id": "dedup:4:row:5",
+      "target_pattern": "sorted_ascending"
+    }
+  ],
+  "sidecar_path": "runs/paired_contrast_final_artifact_v1/regenerated_signatures.json",
+  "source_model_results_path": "runs/stored_probe_functional_decoder_v2_adaptive/results.json",
+  "thresholds": {
+    "min_mean_steered_minus_no_edit_target_margin": 0.2,
+    "min_mean_steered_minus_noise_target_margin": 0.2,
+    "min_mean_steered_minus_reverse_direction_target_margin": 0.2,
+    "min_mean_steered_target_margin": 0.2
+  }
+}

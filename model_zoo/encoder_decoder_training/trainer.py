@@ -135,11 +135,32 @@ class EncoderDecoderTrainer:
                     weight_decay=weight_decay,
                 )
         else:
-            self.optimizer = torch.optim.AdamW(
-                model.parameters(),
-                lr=base_lr,
-                weight_decay=weight_decay,
-            )
+            # Check if we should use separate learning rates for encoder and decoder
+            decoder_lr_ratio = config["training"].get("decoder_lr_ratio", 1.0)
+            
+            if hasattr(model, 'encoder') and hasattr(model, 'decoder') and decoder_lr_ratio != 1.0:
+                # Use separate parameter groups for encoder and decoder
+                encoder_params = list(model.encoder.parameters())
+                decoder_params = list(model.decoder.parameters())
+                
+                # Filter out frozen parameters (like bypass)
+                decoder_params = [p for p in decoder_params if p.requires_grad]
+                
+                param_groups = [
+                    {"params": encoder_params, "lr": base_lr, "name": "encoder"},
+                    {"params": decoder_params, "lr": base_lr * decoder_lr_ratio, "name": "decoder"},
+                ]
+                self.optimizer = torch.optim.AdamW(
+                    param_groups,
+                    weight_decay=weight_decay,
+                )
+                logger.info(f"Using separate learning rates: encoder_lr={base_lr}, decoder_lr={base_lr * decoder_lr_ratio}")
+            else:
+                self.optimizer = torch.optim.AdamW(
+                    model.parameters(),
+                    lr=base_lr,
+                    weight_decay=weight_decay,
+                )
         self.max_grad_norm = config["training"].get("max_grad_norm", 1.0)
         self.gradient_accumulation_steps = config["training"].get(
             "gradient_accumulation_steps", 1
@@ -297,6 +318,7 @@ class EncoderDecoderTrainer:
         original_shapes=None,
         model_configs=None,
         test_inputs=None,
+        raw_signature=None,  # Raw (unnormalized) signature for bypass
     ):
         batch_size = encoder_input.size(0)
 
@@ -304,10 +326,24 @@ class EncoderDecoderTrainer:
         # This is a simplification - for variable architectures, batch-per-architecture is needed
         arch_spec = arch_specs[0] if arch_specs else None
 
-        # Forward pass with hybrid seq2seq architecture
-        # encode_all returns (encoded_tokens, latent) for both reconstruction and contrastive loss
-        if hasattr(self.model, 'encode_all'):
-            # New seq2seq architecture
+        # Check if using FiLM decoder
+        use_film = getattr(self.model, 'use_film_decoder', False)
+        
+        # Forward pass - different paths for FiLM vs seq2seq decoder
+        if use_film:
+            # FiLM decoder: get BOTH pooled latent AND per-token encoder features
+            # The per-token features are CRITICAL for matching linear baseline
+            encoded_tokens, latent = self.model.encode_all(encoder_input, encoder_mask)
+            # CRITICAL: Use raw (unnormalized) signature for bypass if available
+            # The InputCorrelationBypass uses empirical coefficients based on raw data
+            bypass_signature = raw_signature if raw_signature is not None else encoder_input
+            reconstructed = self.model.decode_film(
+                latent, arch_spec, decoder_target.size(1), 
+                encoder_features=encoded_tokens,
+                raw_signature=bypass_signature,  # Pass raw signature for input_corr bypass
+            )
+        elif hasattr(self.model, 'encode_all'):
+            # Seq2seq architecture: encode_all returns (encoded_tokens, latent)
             encoded_tokens, latent = self.model.encode_all(encoder_input, encoder_mask)
             reconstructed = self.model.decode(encoded_tokens, latent, arch_spec, decoder_target.size(1))
         else:
@@ -418,6 +454,27 @@ class EncoderDecoderTrainer:
                 var_loss.item() if hasattr(var_loss, "item") else var_loss
             )
 
+        # Auxiliary loss for FiLM decoder (prevents conditioning collapse)
+        aux_cfg = self.config["loss"].get("auxiliary", {})
+        if aux_cfg.get("enabled", False) and use_film and arch_spec is not None:
+            aux_weight = aux_cfg.get("weight", 0.1)
+            
+            # Get position features for auxiliary loss computation
+            position_features = self.model.get_position_features_for_batch(
+                arch_spec, decoder_target.size(1), batch_size, self.device
+            )
+            
+            # Compute auxiliary loss (behavior + position prediction from weights)
+            aux_loss, aux_components = self.model.decoder.compute_auxiliary_loss(
+                reconstructed, latent, position_features
+            )
+            
+            weighted_aux = aux_weight * aux_loss
+            total_loss = total_loss + weighted_aux
+            loss_components["auxiliary"] = aux_loss.item()
+            loss_components["aux_behavior"] = aux_components["aux_behavior"]
+            loss_components["aux_position"] = aux_components["aux_position"]
+
         # Add decoder health metrics (for TensorBoard monitoring)
         loss_components.update(decoder_health)
 
@@ -500,6 +557,10 @@ class EncoderDecoderTrainer:
             model_configs = batch.get("model_config", None)
             test_inputs = batch.get("test_inputs", None)
             arch_specs = batch.get("arch_spec", None)
+            # CRITICAL: Get raw (unnormalized) signature for InputCorrelationBypass
+            raw_signature = batch.get("raw_signature", None)
+            if raw_signature is not None:
+                raw_signature = raw_signature.to(self.device)
             if test_inputs is not None:
                 test_inputs = test_inputs.to(self.device)
 
@@ -513,6 +574,7 @@ class EncoderDecoderTrainer:
                 original_shapes=original_shapes,
                 model_configs=model_configs,
                 test_inputs=test_inputs,
+                raw_signature=raw_signature,
             )
 
             # scale loss for gradient accumulation
@@ -629,6 +691,10 @@ class EncoderDecoderTrainer:
                 model_configs = batch.get("model_config", None)
                 test_inputs = batch.get("test_inputs", None)
                 arch_specs = batch.get("arch_spec", None)
+                # CRITICAL: Get raw (unnormalized) signature for InputCorrelationBypass
+                raw_signature = batch.get("raw_signature", None)
+                if raw_signature is not None:
+                    raw_signature = raw_signature.to(self.device)
                 if test_inputs is not None:
                     test_inputs = test_inputs.to(self.device)
 
@@ -643,6 +709,7 @@ class EncoderDecoderTrainer:
                     original_shapes=original_shapes,
                     model_configs=model_configs,
                     test_inputs=test_inputs,
+                    raw_signature=raw_signature,
                 )
 
                 # collect latents for tensorboard visualizations
@@ -766,6 +833,10 @@ class EncoderDecoderTrainer:
                 model_configs = batch.get("model_config", None)
                 test_inputs = batch.get("test_inputs", None)
                 arch_specs = batch.get("arch_spec", None)
+                # CRITICAL: Get raw (unnormalized) signature for InputCorrelationBypass
+                raw_signature = batch.get("raw_signature", None)
+                if raw_signature is not None:
+                    raw_signature = raw_signature.to(self.device)
                 if test_inputs is not None:
                     test_inputs = test_inputs.to(self.device)
 
@@ -780,6 +851,7 @@ class EncoderDecoderTrainer:
                     original_shapes=original_shapes,
                     model_configs=model_configs,
                     test_inputs=test_inputs,
+                    raw_signature=raw_signature,
                 )
 
                 # Decoder always outputs weights only (architecture bypasses latent)

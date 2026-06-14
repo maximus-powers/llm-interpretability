@@ -1,0 +1,9 @@
+{"elapsed_seconds": 2.8667000000037746e-05, "event": "preflight_completed", "failure_count": 0, "range_count": 12, "updated_at_unix": 1781423804.5363321}
+{"elapsed_seconds": 11.316596792, "event": "pool_generation_start", "pool": "train", "updated_at_unix": 1781423815.852941}
+{"elapsed_seconds": 241.380925375, "event": "pool_generation_completed", "pool": "train", "pool_file_sha256": "888d539fe8efefcaad91bb6ce0ee48c55f3903d2ed75b6791c4c8b314c0bc35d", "updated_at_unix": 1781424045.9180968}
+{"elapsed_seconds": 241.381091792, "event": "pool_generation_start", "pool": "development", "updated_at_unix": 1781424045.918263}
+{"elapsed_seconds": 324.353551167, "event": "pool_generation_completed", "pool": "development", "pool_file_sha256": "d26f7506cd919de5eeabd9be9ebe205c707d04f169368698849484c3d819a659", "updated_at_unix": 1781424128.891021}
+{"elapsed_seconds": 324.353962, "event": "pool_generation_start", "pool": "final", "updated_at_unix": 1781424128.8914309}
+{"elapsed_seconds": 410.952374958, "event": "pool_generation_completed", "pool": "final", "pool_file_sha256": "0d4c2a2402600f31577c73c19517e5c6b5f80471daab127ffdb14bd3d981ff1d", "updated_at_unix": 1781424215.490156}
+{"elapsed_seconds": 410.953505958, "event": "final_redacted_audit_written", "final_redacted_audit_sha256": "255e4574513c172367a2b968926f9a89fe054243105d3c965310cf5f882f59ec", "updated_at_unix": 1781424215.491287}
+{"combined_audit_sha256": "3f8758823b748cbbf9c1d23cdd358b74e2c6b1835f16d12ae20939335f184df2", "elapsed_seconds": 410.95676175, "event": "combined_audit_written", "updated_at_unix": 1781424215.4945421}

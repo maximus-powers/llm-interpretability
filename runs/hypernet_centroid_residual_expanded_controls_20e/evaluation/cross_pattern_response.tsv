@@ -1,0 +1,13 @@
+source	target	resp_sorted_descending	resp_sorted_ascending	resp_mountain_pattern	resp_has_majority
+sorted_descending	sorted_ascending	0.0001	0.0003	-0.0006	-0.0004
+sorted_descending	mountain_pattern	0.0000	-0.0001	-0.0009	0.0002
+sorted_descending	has_majority	0.3615	-0.3342	-0.2100	0.1317
+sorted_ascending	sorted_descending	-0.0072	0.0056	-0.0003	-0.0037
+sorted_ascending	mountain_pattern	-0.0015	0.0011	-0.0000	-0.0004
+sorted_ascending	has_majority	-0.1246	0.0849	0.0475	-0.0127
+mountain_pattern	sorted_descending	-0.0027	0.0018	-0.0022	-0.0017
+mountain_pattern	sorted_ascending	-0.0003	0.0004	-0.0001	-0.0002
+mountain_pattern	has_majority	0.0140	-0.0333	-0.0256	0.0305
+has_majority	sorted_descending	0.0157	-0.0125	-0.0095	0.0062
+has_majority	sorted_ascending	0.0003	0.0004	-0.0009	-0.0006
+has_majority	mountain_pattern	0.0004	-0.0004	-0.0011	0.0003

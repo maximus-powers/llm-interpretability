@@ -1,0 +1,834 @@
+{
+  "created_at_utc": "2026-06-12T18:35:20.597973+00:00",
+  "description": "SHA-256 manifest for the current MUAT small-scale evidence package.",
+  "file_count": 165,
+  "files": [
+    {
+      "path": "docs/muat_small_scale_evidence_report.md",
+      "sha256": "66bc584e22b99fca78bc1aa818953982cdc415af9f54c2ef29c9d9e2cfb9e70c",
+      "size_bytes": 33439
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_stored_probe_decoder_v1.md",
+      "sha256": "38780b50970a79790dc12bb9f2d58da0d979cce69b99fc2eaa364a1e3dbe00ef",
+      "size_bytes": 6966
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_source_generation_v2_expanded_support.md",
+      "sha256": "487ea4a9621017a93823fd10bcc9c3308f101a96e721ee5989959e8a086eb3ec",
+      "size_bytes": 3573
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_source_generation_v3_full_pool.md",
+      "sha256": "e51df5b6d573301a0b19c724dbd6315bdfd752096295139e87b8f03ae188c4d5",
+      "size_bytes": 4806
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_source_generation_v4_accept_reject.md",
+      "sha256": "e4b0b0894fa2806752c18a6c974a1700aba9da40658da83f3c4001be7cd08d0a",
+      "size_bytes": 4258
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_decoder_source_pools_v1.md",
+      "sha256": "1e4b0e8e1a8aa68bee8ee941f015e42659337cdd6dda4f945e9fdd556e7bf254",
+      "size_bytes": 5639
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_decoder_source_pools_v2.md",
+      "sha256": "8e5295754cff29183c9b91922a2d4b75948466b29db7c58a14dac2bf4eb428a4",
+      "size_bytes": 6850
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_decoder_development_v1.md",
+      "sha256": "ab1904e012b1cf0e6b00a59daa87ffaa5376b0fe65b184bb198bcd7e1ca19e2b",
+      "size_bytes": 9620
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_decoder_development_v2.md",
+      "sha256": "84026c0b5d67d9cfef7f255d7946ccb43499376bfd8d8fdfe1ae09b8e6669e8f",
+      "size_bytes": 11381
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_decoder_development_v3_signature_inversion.md",
+      "sha256": "10b2dd00eae70ae1cfaa42d53ae44f2ff9faaa6f34f65e74732bb773673b8d3c",
+      "size_bytes": 12744
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v1.md",
+      "sha256": "e76aaeb3a0f2a7d0369544a492f0ff5594acba82ab704b25e6fe007b1443ff6b",
+      "size_bytes": 17886
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v2_centroid_delta.md",
+      "sha256": "b003fd4d15ef815e0e849add70bcea42d145bc9e8c2e6e4fec0646f8e02987d6",
+      "size_bytes": 11137
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v3_diagonal_transport.md",
+      "sha256": "bd1cc19dd97f32278234903309439a5d27992a510d6eaab9778e3058680078bd",
+      "size_bytes": 15421
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v4_low_rank_residual_transport.md",
+      "sha256": "3d0409e95d64884b1dcc99cf19daa9e7760ea7ae4f4bd5bbb2d6043d19ccfbca",
+      "size_bytes": 18598
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v5_contrastive_residual_calibration.md",
+      "sha256": "907c4dac9734f4d266d2f69764d97816f42e8993580f73e4fd83f9259c59745c",
+      "size_bytes": 20972
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v6_centroid_constrained_primary_correction.md",
+      "sha256": "ac713d5403ceb056d4ea6bad56a22d617d55e98fd0e49791e0c9b916828c062c",
+      "size_bytes": 19582
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v7_pareto_frontier_correction.md",
+      "sha256": "9e41e8054aa43212bfd3886553c75d50e384aefb636f3aa2b444a5dcdf970bde",
+      "size_bytes": 22769
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v8_source_conditional_tournament_correction.md",
+      "sha256": "69834a7ccb35c4970b4e1cc6eda6796c6e7dbcd70b5ef8729c13429eb99c5baa",
+      "size_bytes": 13268
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_representation_steering_v9_source_invariant_target_attractor.md",
+      "sha256": "a6b79a06c2915232ab3dd8397b59eae269a164efeca07420e7a057c442798958",
+      "size_bytes": 11350
+    },
+    {
+      "path": "docs/preregistrations/four_behavior_functional_weight_editing_v10_v9_conditioned_delta.md",
+      "sha256": "0f44a92a0ba03283de4c3ac43af76ba65bd142f78651c712d8f124149918ee3e",
+      "size_bytes": 18067
+    },
+    {
+      "path": "docs/representation_steering_v1_failure_diagnosis.md",
+      "sha256": "bcafb15c9b74fe286171efb6d72b6958024f825cec2d96f13a72e0d6acbf0f8b",
+      "size_bytes": 5757
+    },
+    {
+      "path": "docs/representation_steering_v2_failure_diagnosis.md",
+      "sha256": "7b53f658a7d3e907dd33b991a4b3772ed67048b673ff519b779d98dc9c6a4050",
+      "size_bytes": 4471
+    },
+    {
+      "path": "research-log.md",
+      "sha256": "8fed0a15e9f751522bf0f28e2648b557d7183ddff2d99cf86345ee27d9b9ca31",
+      "size_bytes": 317492
+    },
+    {
+      "path": "model_zoo/scripts/audit_muat_evidence_package.py",
+      "sha256": "9fb9b7803687ae623a0133b04bb5267b77f37c4d19d2d57e1965963b9788b9a9",
+      "size_bytes": 172328
+    },
+    {
+      "path": "model_zoo/scripts/build_evidence_manifest.py",
+      "sha256": "41416d7b9bcfd4d26ff8023a6d3606f56b589a9e81788175a54b3db3b0320ae2",
+      "size_bytes": 17254
+    },
+    {
+      "path": "model_zoo/scripts/evaluate_additional_behavior_decode_feasibility.py",
+      "sha256": "63d262eed600323253f4955738aa31b4b6aab47cb207f909e9294ee49956230a",
+      "size_bytes": 21258
+    },
+    {
+      "path": "model_zoo/scripts/evaluate_four_behavior_source_generation_feasibility.py",
+      "sha256": "cbf47dede610eaa2c8fb3503cb89f7f5fe305b02f90e0d83e43e44d4a94fe9f2",
+      "size_bytes": 21771
+    },
+    {
+      "path": "model_zoo/scripts/generate_four_behavior_decoder_source_pools.py",
+      "sha256": "d84b3e2799e1124d82ae833a8aab61ac083f94e4e031590280236eb7e648de52",
+      "size_bytes": 17007
+    },
+    {
+      "path": "model_zoo/scripts/run_stored_probe_steering_robustness.py",
+      "sha256": "92a010512fa79dc37e9304e676575e56a78d55bf428ab2efba55f4efecf71943",
+      "size_bytes": 28100
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_decoder_development_helpers.py",
+      "sha256": "70b138e3e4831082a645b130c7a88251d41d8089b9526b0f5a20972e386a3bd9",
+      "size_bytes": 2599
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_decoder_development_v2_helpers.py",
+      "sha256": "f359e345dcf4ae5c54301dd8a761b84d0cfc282104403954b770d9707bea0e97",
+      "size_bytes": 3091
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_decoder_development_v3_helpers.py",
+      "sha256": "b8d9ac1931cff1d56477529ee7bdacb8ba74e0db3d56502d0869f04bd41f4fab",
+      "size_bytes": 2705
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_helpers.py",
+      "sha256": "f733688e3b187c74e1cd11173f421deb3ae44ccc220cb6fe147156f456f1cf2a",
+      "size_bytes": 5848
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v2_helpers.py",
+      "sha256": "0b4b7f25f204a1829baabc5191c65f15dcf2fe88d04bde6d03debb5c6dc18fca",
+      "size_bytes": 10429
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v3_helpers.py",
+      "sha256": "2dd4f4faaa151e65f756648885c7d97dbc6a7ed842650dc5fe5c27f5dbabe1de",
+      "size_bytes": 7182
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v4_helpers.py",
+      "sha256": "f3df70c3f3abe51aa92ea4dac565fd46c52b6b4a0ee18aa5945390d011ed39b4",
+      "size_bytes": 13740
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v5_helpers.py",
+      "sha256": "46ddad9c0b37b193df47bfd40b6093761aaa310a74fd44ca4b818f3a0d1ff199",
+      "size_bytes": 11368
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v6_helpers.py",
+      "sha256": "89634ad71c15a6cb878c03161d14194d1f5d1c291673f9c8c243fea1580e67e2",
+      "size_bytes": 4585
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v7_helpers.py",
+      "sha256": "10fdc5102544391c22914da951daaae62f656ac0013459480f663e1edcfbbde7",
+      "size_bytes": 8467
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v8_helpers.py",
+      "sha256": "9f00d7e9ebb282de021265be92f837be87d9785c16475c7116cd2fe37f207dcd",
+      "size_bytes": 5900
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_representation_steering_v9_helpers.py",
+      "sha256": "c2af611b999cc7f6a54836984dfdc76475768c40b7b3cdef97f29a6f7adc1c4c",
+      "size_bytes": 14680
+    },
+    {
+      "path": "model_zoo/scripts/test_four_behavior_functional_weight_editing_v10_helpers.py",
+      "sha256": "41aa6656c2eb8757ac5d2131088dddf3c517871a10272ab5fee7f2bbe9563509",
+      "size_bytes": 11006
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_decoder_development.py",
+      "sha256": "1b74aaee3fd89ddd2054376480e033b9758bd0a8c425726a5aa2c9dea732215c",
+      "size_bytes": 34847
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_decoder_development_v2.py",
+      "sha256": "195026d6b7557d966e417e07d33c9dce29099799fae021144ec012057216a9d5",
+      "size_bytes": 15343
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_decoder_development_v3_signature_inversion.py",
+      "sha256": "ed0a0fe0c34247c501a97fd6427969f884184614d024647f990a0ad5b63e2f97",
+      "size_bytes": 33910
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering.py",
+      "sha256": "52b52deb511310cfd06aeca54d8ec48c21f9535cac4b5c505b78b92dff2edfa1",
+      "size_bytes": 47895
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v2_centroid_delta.py",
+      "sha256": "f5be653539e862a957d80d445fcff2adb2a50c3c297199ba240e7268819d0a7c",
+      "size_bytes": 41509
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v3_diagonal_transport.py",
+      "sha256": "73283df7ec02c3507127972b4f5bfd8c4700ff1e33fe7a7295bdaf01a9bb721c",
+      "size_bytes": 46739
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v4_low_rank_residual_transport.py",
+      "sha256": "fa72ad42d8b8568d2f1f18d7b2fdbfaf5e3ccc348cea54b623985ce57fc89564",
+      "size_bytes": 56150
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v5_contrastive_residual_calibration.py",
+      "sha256": "50ac2eeaef3950b20c8c7be7bfb2efe5d949fc7647f87411d53d83fcf6b815bc",
+      "size_bytes": 69112
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v6_centroid_constrained_primary_correction.py",
+      "sha256": "287339eaa0c846cd0157cf797bc040944258a9f92bf7d00205c82c41083f1913",
+      "size_bytes": 80292
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v7_pareto_frontier_correction.py",
+      "sha256": "11a2fcdc17430ab8b6ccd1fd0fbc7a2538f6d4200243a7139ad9df3e07505077",
+      "size_bytes": 84751
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v8_source_conditional_tournament_correction.py",
+      "sha256": "b4fc81c27ebf309ff27dc9a089cdcc6ae7cda760ef416ee171d47e42628ef16e",
+      "size_bytes": 93032
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_representation_steering_v9_source_invariant_target_attractor.py",
+      "sha256": "6d3185eda5ea5f6125c248a6a8ee6d9911c8228ad1cd130347a9682f8eb7d5e6",
+      "size_bytes": 97501
+    },
+    {
+      "path": "model_zoo/scripts/train_four_behavior_functional_weight_editing_v10_v9_conditioned_delta.py",
+      "sha256": "1d520ef1eba4a06ed09fb64c9efd843e968a9330423520763f29d8ca6a6b32bb",
+      "size_bytes": 54142
+    },
+    {
+      "path": "model_zoo/scripts/train_robust_signature_edit_vectors.py",
+      "sha256": "7144dba2bbfea9da87a1b1a4dd431a54b89f9052b9a1b2415392a402143d40a8",
+      "size_bytes": 14859
+    },
+    {
+      "path": "model_zoo/scripts/verify_muat_evidence_package.py",
+      "sha256": "1ab418c308a637dba978cdede51f82cad784fa129c85c2db826b3dc5e021d555",
+      "size_bytes": 4701
+    },
+    {
+      "path": "runs/muat_evidence_package_audit/results.json",
+      "sha256": "60db21fa2728d4c240dbcd3196c2b5055e24531937bce3d0026473f7886f3bd5",
+      "size_bytes": 92332
+    },
+    {
+      "path": "runs/stored_probe_interpret_v1/results.json",
+      "sha256": "01f0392b0d82556509cc7ff3141f10d617cdbd083575f032ec517ca585de50e0",
+      "size_bytes": 3019
+    },
+    {
+      "path": "runs/stored_probe_interpret_v1/stored_probe_signatures.pt",
+      "sha256": "1dbaabfb610ce04401fb12268de33e525da5a49f7bd698aa57423aaf9e0ed635",
+      "size_bytes": 10075299
+    },
+    {
+      "path": "runs/paired_contrast_final_artifact_v1/paired_contrast_artifact.json",
+      "sha256": "ccde8f4a486f0327ba842d3ba5da0c441bc3f27f29ecc94f75d4599fcd989ac5",
+      "size_bytes": 59024
+    },
+    {
+      "path": "runs/paired_contrast_final_artifact_v1/regenerated_signatures.json",
+      "sha256": "7776deaa0626e4c7c4c652cc18745cc2e3d3877947433fa25afd61a4c09868f0",
+      "size_bytes": 849908
+    },
+    {
+      "path": "runs/paired_contrast_final_artifact_v1/sidecar_audit.json",
+      "sha256": "737c056738174e1baa9f443d8de81c4c16e4e340ade9906ceed1d8afbb821da5",
+      "size_bytes": 121
+    },
+    {
+      "path": "runs/paired_contrast_final_artifact_v1/summary.json",
+      "sha256": "8973cc80959e1980135165842f6212a6dd62c6c5476931f53c9933fe0c31ebbe",
+      "size_bytes": 2108
+    },
+    {
+      "path": "runs/paired_contrast_final_artifact_v1/validation.json",
+      "sha256": "6bd5a294866a659459959a8b51f416b4db5818d8eb22187acd2f67aaa51dbc8d",
+      "size_bytes": 2728
+    },
+    {
+      "path": "runs/stored_probe_functional_decoder_v2_adaptive/model.pt",
+      "sha256": "eaf85583b8e5c0d0c4d5660671b993cc550e4a071bedb61fa8900ea4d2099e59",
+      "size_bytes": 2945160
+    },
+    {
+      "path": "runs/stored_probe_functional_decoder_v2_final_eval/predictions.json",
+      "sha256": "7d580d372ef5c68d6e3d25101ae9ad9b94c28dcd7646d16b40a679fb15b2bda8",
+      "size_bytes": 16032
+    },
+    {
+      "path": "runs/stored_probe_functional_decoder_v2_final_eval/results.json",
+      "sha256": "ab87fc7cb047fcba0b4a3591e2828aaa00460489312b2365a563ce46cb3637ef",
+      "size_bytes": 15692
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v1_robust_external_eval/results.json",
+      "sha256": "4c064a844ab79f032627ce893176ffd02d7c2d1c03396fbfc8b4dbbbba040c25",
+      "size_bytes": 92202
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v2_robust_development/edit_vectors.pt",
+      "sha256": "f63bbaca1a92879efcea05f2556a40deaf489bcd3df27ef6314c2c10c12595c4",
+      "size_bytes": 356086
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v2_robust_development/results.json",
+      "sha256": "21ed2bfb17a0be947b0c201d1cbeda3b08720dd6a8347362136caff422d8013b",
+      "size_bytes": 17143
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v2_robust_development/train_pool_results.json",
+      "sha256": "4c0ed2af0cdeba3b8e575857616074debf253cebeef273b79bc99f6da90b2310",
+      "size_bytes": 114639
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v2_robust_development/validation_pool_results.json",
+      "sha256": "081c9bc89b8bb81ec0d1449e01031259e1d01c1fcab317d4526e1283bcc5fd75",
+      "size_bytes": 36809
+    },
+    {
+      "path": "runs/stored_probe_signature_edit_vectors_v2_robust_final_eval/results.json",
+      "sha256": "168f97f809f3ed39d42059a11a8c058add2e6cac96b309ea7c1696721b7143ac",
+      "size_bytes": 88717
+    },
+    {
+      "path": "runs/stored_probe_additional_behavior_decode_feasibility_v1/results.json",
+      "sha256": "96506de8ffdd49c031c4fecb7aa9a1bacdfdcee7e80322ac7f384b41209a7330",
+      "size_bytes": 27412
+    },
+    {
+      "path": "runs/four_behavior_source_generation_feasibility_v1/results.json",
+      "sha256": "b988c173d5c31b5944de595e496f82b79e8f55bacad009f9b7bf7a1a79cefe65",
+      "size_bytes": 26666
+    },
+    {
+      "path": "runs/four_behavior_source_generation_v2_expanded_support/results.json",
+      "sha256": "39800a4828dc7b83c8c9be5d018ec93bf1d17ef519c351e5f4980aefc80b29bc",
+      "size_bytes": 26747
+    },
+    {
+      "path": "runs/four_behavior_source_generation_v3_full_pool/results.json",
+      "sha256": "12da2ca6763b7900d359756dc68286154a4addb42112eeafa12c75ee8d04e4d5",
+      "size_bytes": 50225
+    },
+    {
+      "path": "runs/four_behavior_source_generation_v4_accept_reject/results.json",
+      "sha256": "6c53a32141285de0299617e6ea34973bbd0927d676ffc997999d0c420fa113f0",
+      "size_bytes": 57578
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v1/combined_audit.json",
+      "sha256": "da9dffb877a143709aff4ebbd6af4c30080805abf276033aeb3a3d0670c51ceb",
+      "size_bytes": 48829
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v1/final_redacted_audit.json",
+      "sha256": "0037f24cc0eb09e5e369f3229b6b77910e0f8d6f5d27c3e1373f863d548927d5",
+      "size_bytes": 11495
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v2/combined_audit.json",
+      "sha256": "9516364b68463a7b514bdeee73a77df9cea59f8874fbf43768bc25dcd5b44d1c",
+      "size_bytes": 41298
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v2/development_subjects.json",
+      "sha256": "958b77dab1f18339bd4f96b229f7632402f00e02aaa35f36784d1b49aeef0813",
+      "size_bytes": 2716893
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v2/final_redacted_audit.json",
+      "sha256": "04952532f52de659f85092ee492a732c4f4bcb8664de61147e464ab9354be10c",
+      "size_bytes": 1003
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v2/final_subjects.json",
+      "sha256": "a6e7467c3946f0499422a4003176de7ab8c790b4a3642466e975b312f9fe8111",
+      "size_bytes": 2715459
+    },
+    {
+      "path": "runs/four_behavior_decoder_source_pools_v2/train_subjects.json",
+      "sha256": "3794b1ab0b0013cd91323945fb6f967fde78860d4cac0040b106d669fa91a36d",
+      "size_bytes": 7366298
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v1/model.pt",
+      "sha256": "da480c3c24ea3509cd60edc673fafa25af5f86bd778d3d47bfb9af0014b53a84",
+      "size_bytes": 3982644
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v1/results.json",
+      "sha256": "22da4824302b24e35bddd5c93eec7e9df4407e0ffaf58875423a6a12fc2a047f",
+      "size_bytes": 1281543
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v2/model.pt",
+      "sha256": "b90a38ab5491a9c8b3742c4ab52df420e03eebffd75c4c09ae7f487c15117232",
+      "size_bytes": 13543584
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v2/results.json",
+      "sha256": "851c7b7a913741263ac85ded206bbb899d96a1530a2dfcf1f999c514b4ebc02d",
+      "size_bytes": 1210479
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v3_signature_inversion/decoded_weights.pt",
+      "sha256": "180190fd491443684fd29720016e4906004afba7196513078f9a13e1bbcbb5c0",
+      "size_bytes": 29007241
+    },
+    {
+      "path": "runs/four_behavior_decoder_development_v3_signature_inversion/results.json",
+      "sha256": "fde0d4664ccfd9c60ac2b11dede6a3003e35ea5f6af00203a56b6e506ae036b2",
+      "size_bytes": 2265028
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1/development_results.json",
+      "sha256": "0f31390a05cc6d665f9a0bdf65d955745f6b8f5b187ad4a1175b38b83ab2a9cb",
+      "size_bytes": 7161373
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1/edit_vectors.pt",
+      "sha256": "48f03f841c8110feb4b8bef90dcc3769621891995ec7f3db1b708a6df5d1800c",
+      "size_bytes": 67522
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1_pools/combined_audit.json",
+      "sha256": "8544de3a1ff76db337b2279240fb35af6b387823f02e089ae90c8c47bf75d0ed",
+      "size_bytes": 41057
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1_pools/development_subjects.json",
+      "sha256": "03209a49da4c5a22bff1f58c32a73b09492c777ec2f50f56f355fadeaa69b899",
+      "size_bytes": 2743818
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1_pools/final_redacted_audit.json",
+      "sha256": "5789aca2169d0eaaed12f3bcf65fc8b223818641e7d8cc495235ad8af674127c",
+      "size_bytes": 1012
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v1_pools/train_subjects.json",
+      "sha256": "647de04abee48213cac1564b684ee53e4495f570121adca4f9e340f90a87dc87",
+      "size_bytes": 7257020
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_centroid_delta/centroid_delta_vectors.pt",
+      "sha256": "f44cc033c0e7648434cd3698998b945e99907e9c4f2e513b1ff230c67368ac5b",
+      "size_bytes": 31650
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_centroid_delta/development_results.json",
+      "sha256": "3155ab64139414dd191c295bfba422084709ae7ad66150ce3239a9f24a463178",
+      "size_bytes": 8360295
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_pools/combined_audit.json",
+      "sha256": "cb21e83a24d2ceb27c23f1ded4b9996b9b21b994ec64c32349aee3c51df0d2b0",
+      "size_bytes": 40643
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_pools/development_subjects.json",
+      "sha256": "9b32576791d8fb421fc5c7e9098af5e8170d51423a27322d5240e1078cd7d5ef",
+      "size_bytes": 2661611
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_pools/final_redacted_audit.json",
+      "sha256": "15eb8272cbda2988adf0c9e8be5d891b23418c3ec7f1ab02613e2e3fd8c99fe3",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v2_pools/train_subjects.json",
+      "sha256": "0cdd41872c33f61e5f0f35cc8e6a9cc4929913491fc3fc1a74d93c272ec8af01",
+      "size_bytes": 7228513
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_diagonal_transport/development_results.json",
+      "sha256": "35dd691ba1b35d5fd9c3079744f5f988c6c325528f7126add9b76e66b68849f4",
+      "size_bytes": 8782224
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_diagonal_transport/diagonal_transport_stats.pt",
+      "sha256": "38e977b4f1d05d86fbcb153519fee12cb5683145fb0f95f9376f5ed5df84182e",
+      "size_bytes": 21324
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_pools/combined_audit.json",
+      "sha256": "568e3440462ae787d294b64edbb7cba9b4f5100d73412a8f44e677603c912a47",
+      "size_bytes": 40657
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_pools/development_subjects.json",
+      "sha256": "fc2b75ce91404298ee6d450afd55edd0d6f610051c75314b512c50b3d711181a",
+      "size_bytes": 2716096
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_pools/final_redacted_audit.json",
+      "sha256": "2084dd64c27251e6f42354af988772b775d41ccadd7ca67c3b0d57a0ce140dc7",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v3_pools/train_subjects.json",
+      "sha256": "1280a2aa8932e519e48fcee8a4d210e0df38f0a1937ad9f87b847306f4db07e9",
+      "size_bytes": 7174470
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_low_rank_residual_transport/development_results.json",
+      "sha256": "f82a430f31d9be12741b48a348429dba979401e52b5aaee3fd4b6b9c0bae741e",
+      "size_bytes": 9090514
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_low_rank_residual_transport/low_rank_residual_transport_stats.pt",
+      "sha256": "be839f993b4510ecff6700c015ebbf605d3df26bb2e9a4877665d4bb4020d499",
+      "size_bytes": 205253
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_pools/combined_audit.json",
+      "sha256": "88517affeb17c11ca496997e4706ea119d85fe60ea59023764b5deba1b7df379",
+      "size_bytes": 41464
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_pools/development_subjects.json",
+      "sha256": "f08f8d5aecf30ddfa301baff889b834ca70ec60e8180ec6a6c995d6a0fa993db",
+      "size_bytes": 2826004
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_pools/final_redacted_audit.json",
+      "sha256": "568dc03c33127bdb882487680119344f47904ecf82b1a1dae9b3cd1791f4c976",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v4_pools/train_subjects.json",
+      "sha256": "83484f74c43b02ab8aa5ae1b91ffa88066b5c438d0d47aa502519075a37ead8b",
+      "size_bytes": 7312633
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_contrastive_residual_calibration/contrastive_residual_calibration_stats.pt",
+      "sha256": "89760225f4d1219b44cc3b2212241117889708baccc32a87550d7209763712c2",
+      "size_bytes": 211710
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_contrastive_residual_calibration/development_results.json",
+      "sha256": "e08bbb0f14feac17f76629fb81cfb704acdaa66e2d731284ec7c757e03466189",
+      "size_bytes": 9337293
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_pools/combined_audit.json",
+      "sha256": "53d584f6da3044bdb63874039d1a6b62babca45481aa8bafce59ac35de50618d",
+      "size_bytes": 41090
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_pools/development_subjects.json",
+      "sha256": "31f4c31a435d87330afe97aa979b679c5a85f9d8a369922c2854daec322d94b0",
+      "size_bytes": 2742552
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_pools/final_redacted_audit.json",
+      "sha256": "f78f122a4fbe3d83885636a63ca0e354a82b2c85a3ec4295bf095b9b1c6864b5",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v5_pools/train_subjects.json",
+      "sha256": "49923d35cedee5bf5359f91f47e7a5873c8ac99b498cb855b5d2c20037413365",
+      "size_bytes": 7283199
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_centroid_constrained_primary_correction/centroid_constrained_primary_correction_stats.pt",
+      "sha256": "7a65ebc84dc891e2c6e2d2f9d11eebb73ff863bbc45091e38b0f09aa8523edd2",
+      "size_bytes": 211941
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_centroid_constrained_primary_correction/development_results.json",
+      "sha256": "4dcb37d961d00dcdb4535208e1caed32961c4719e49f79580719c2960f3c35a3",
+      "size_bytes": 9728812
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_centroid_constrained_primary_correction/posthoc_pareto_diagnosis.json",
+      "sha256": "fbfc74b1ca840fb2ac88b3fb3b7e80478384cd5866ec5d538baf7378283f0340",
+      "size_bytes": 4819
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_pools/combined_audit.json",
+      "sha256": "f8c2d662ca66e37a976831357a8ea0825a7460639e83dbac64a56d883a4904ce",
+      "size_bytes": 40655
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_pools/development_subjects.json",
+      "sha256": "fabe93ad16ec3047e914372cc831c1bf147443aaa37614d52fa57242041bc974",
+      "size_bytes": 2743912
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_pools/final_redacted_audit.json",
+      "sha256": "a94d321e1845230ff7056c1bb32a27eca1b62b5fdb7e93385a8f5c30b2625495",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v6_pools/train_subjects.json",
+      "sha256": "fa88913363f7e0b25245c32bb065be12ccba2c62f5f07f7eb067b21668120f96",
+      "size_bytes": 7146386
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pareto_frontier_correction/development_results.json",
+      "sha256": "40af4a83ea28879a29c29517d0caf45526525670b2506e59d3cf59ccd7771b59",
+      "size_bytes": 18338293
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pareto_frontier_correction/pareto_frontier_correction_stats.pt",
+      "sha256": "3ece50444e6150b4abb9697cac71cc7bc790c872d289500c14a2a82620c29492",
+      "size_bytes": 211448
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pools/combined_audit.json",
+      "sha256": "7992e2710dbb0797ebe590678dbda3cd748352177283da72bc2238eb5b748321",
+      "size_bytes": 41109
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pools/development_subjects.json",
+      "sha256": "815df92248f7bad4be8e716e754735553c15720f3b416493f53d5a3b9f127414",
+      "size_bytes": 2661931
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pools/final_redacted_audit.json",
+      "sha256": "4bd7619414d55949666724d2831f4f92d60404fc7fe82e1f74e60d6be5e4f350",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v7_pools/train_subjects.json",
+      "sha256": "051409a6a91ad0d5bc8549b21ee8892224099d7ff8fdb872a2b9ec8956b3db7a",
+      "size_bytes": 7367048
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_source_conditional_tournament_correction/development_results.json",
+      "sha256": "2cba86cd4e9713fedbb1e5217a0e6bfc14cb813722601f355c95da8b62dffa85",
+      "size_bytes": 19900943
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_source_conditional_tournament_correction/source_conditional_tournament_correction_stats.pt",
+      "sha256": "475dd2c58c8086214f28a169978e40bb30457f48121b67c7155d942c8f5c4f2c",
+      "size_bytes": 211974
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_pools/combined_audit.json",
+      "sha256": "aaef133812c9c873581192b732005007e882d0c121481bf05251edd760ff66c8",
+      "size_bytes": 41002
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_pools/development_subjects.json",
+      "sha256": "37b5cedbed50df65b827c1597ce7cc6af3a320ccd13c77b03134b1273f0ff784",
+      "size_bytes": 2770175
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_pools/final_redacted_audit.json",
+      "sha256": "e726e2581bd24a0940aeddc5cf6f1a7d082a0c84cf3c205c3c873f297be3548a",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v8_pools/train_subjects.json",
+      "sha256": "38c63e3655dcc25def775d2d89d75439947a02e186e46586ee32942bd9ac4084",
+      "size_bytes": 7228153
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_source_invariant_target_attractor/development_results.json",
+      "sha256": "c7cc3991ceba08dfb3dc4a1234fc29c13a41f4f06398f3d88c821696fa819647",
+      "size_bytes": 18235557
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_source_invariant_target_attractor/final_results.json",
+      "sha256": "87bfd43120a1872b409a63c6824b832ef62123ccad9be5a0c8d84f475f9f5a24",
+      "size_bytes": 18234635
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_source_invariant_target_attractor/source_invariant_target_attractor_stats.pt",
+      "sha256": "e8f0230447dadabb779712e089792d08ab1e69974666da0cd3e423d133666ff8",
+      "size_bytes": 211679
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_pools/combined_audit.json",
+      "sha256": "b1990dbe18aa97c87a54e9549273e9b342ed5de893a9008322c177bd8ea3360e",
+      "size_bytes": 40744
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_pools/development_subjects.json",
+      "sha256": "2a574f2aaf3c5499d3084aefac3b4dddcf6aef52eeb807709535284b26633f15",
+      "size_bytes": 2688537
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_pools/final_redacted_audit.json",
+      "sha256": "45434156480024e28837a3a8c52d6229dd09f9e53ea3511c69abada96d2f0830",
+      "size_bytes": 1015
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_pools/final_subjects.json",
+      "sha256": "130b50e7ecb95e27e5e60109cc02c86f5b340df67fd87698b8cc450a58c4d1d0",
+      "size_bytes": 2796917
+    },
+    {
+      "path": "runs/four_behavior_representation_steering_v9_pools/train_subjects.json",
+      "sha256": "1522c9efa4e7e1fb3d7cb82e523141fbe9c7e84f4a28ae4caf8bd2b721d57b2c",
+      "size_bytes": 7229558
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_pools/combined_audit.json",
+      "sha256": "de7e0148c9d0381c4a1b9d085af74634600926e77d972640a1aa1867511ca766",
+      "size_bytes": 41468
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_pools/development_subjects.json",
+      "sha256": "08bb89db889fcc7d8994f49d71e0a649c22e07e6423ffec972c686d10fa18d36",
+      "size_bytes": 2770048
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_pools/final_redacted_audit.json",
+      "sha256": "7acc0ff040cc9f796f9152836e360d4e35bad32b0340835720d243ee4dbdc0c3",
+      "size_bytes": 1033
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_pools/train_subjects.json",
+      "sha256": "bd47ad73128bc686c46dc7b68753c4f86d0b9e3cbcc478ec1e5282bc38f0016c",
+      "size_bytes": 7364274
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_v9_conditioned_delta/development_results.json",
+      "sha256": "3520a01bfb48ca3b966ccad9d0c096deb3094c981c399869ca27009bb1535bc8",
+      "size_bytes": 9549229
+    },
+    {
+      "path": "runs/four_behavior_functional_weight_editing_v10_v9_conditioned_delta/v10_ridge_editor.pt",
+      "sha256": "5e1efb3f983122792b3299632f5c89d5a7926de245f9bef0d3473ab86337edad",
+      "size_bytes": 2336329
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v1/subjects.json",
+      "sha256": "6116ad4af8e10fbd515e41e09ed7ed738c28ff2611917d7561fad0cf74825754",
+      "size_bytes": 630996
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v1/summary.json",
+      "sha256": "589e9048a6d1bce796ded8f9911110be6384dd15334c0ef8e4689b632b585ac1",
+      "size_bytes": 3226
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v2_robust/subjects.json",
+      "sha256": "a0f1727294b7bb188a461b0222592d890245408394e7a87cb806000d9ad53e9f",
+      "size_bytes": 1265334
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v2_robust/summary.json",
+      "sha256": "f5584277ada6f6df69468fb402164d7bcb86ecf92fc6a9a766dcd54264f2ec32",
+      "size_bytes": 3350
+    },
+    {
+      "path": "runs/fresh_robust_edit_v2_train_pool/subjects.json",
+      "sha256": "ce49fc086eaab211c48e45c59f92d22c7288d6cb7da980c8cba8e65b0004e8dd",
+      "size_bytes": 2108884
+    },
+    {
+      "path": "runs/fresh_robust_edit_v2_train_pool/summary.json",
+      "sha256": "2e3c5f0381d4396e72ead7a0efe48635a5c921920b8a48174a816eadf4a3cfed",
+      "size_bytes": 3340
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v3_robust_final/subjects.json",
+      "sha256": "8c9f2cc2ddf1f407c52155f6b483dbed96c00c02a9ad846b1f64ac9f5c1e1124",
+      "size_bytes": 1264980
+    },
+    {
+      "path": "runs/fresh_external_steering_holdout_v3_robust_final/summary.json",
+      "sha256": "4c312529ca65aff7077ba4e30e29937bb3b38b590e8de2f310ef9f5145564dc4",
+      "size_bytes": 3358
+    },
+    {
+      "path": "runs/fresh_additional_behavior_decode_holdout_v1/subjects.json",
+      "sha256": "03b72098c773690011fa330487e51d08f69c2f3b4558e7ab1ae31ae82f5aeb6b",
+      "size_bytes": 421511
+    },
+    {
+      "path": "runs/fresh_additional_behavior_decode_holdout_v1/summary.json",
+      "sha256": "4bab267b3d5e16696a14fc6574fbc205d5a7296946e0b3cd21e5e8ea19110149",
+      "size_bytes": 4976
+    }
+  ],
+  "missing_files": [],
+  "passed": true
+}

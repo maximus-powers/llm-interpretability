@@ -1,0 +1,5 @@
+source	sorted_descending	sorted_ascending	mountain_pattern	has_majority
+sorted_descending	-	0.000	0.000	0.662
+sorted_ascending	0.078	-	0.000	0.033
+mountain_pattern	0.067	0.000	-	0.010
+has_majority	0.023	0.000	0.828	-

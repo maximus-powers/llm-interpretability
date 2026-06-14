@@ -1,0 +1,434 @@
+{
+  "validation:dedup:1372:row:3444": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.004511456622822152,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 79.7071304321289
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.48024103164789267,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 22.82469367980957
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2545665018260479,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 31.635496139526367
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2639654502272606,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 3.8695616722106934
+    }
+  },
+  "validation:dedup:1531:row:3833": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -2.679714251829779e-05,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 201.23536682128906
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1477014727133792,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 106.40266418457031
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5395075082778931,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 43.23246765136719
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5253041535615921,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 13.778785705566406
+    }
+  },
+  "validation:dedup:1829:row:4540": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.006180648735607974,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 389.902099609375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.054896589344413924,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 610.0077514648438
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5230413377285004,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 284.6742248535156
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.4863276481628418,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 45.757328033447266
+    }
+  },
+  "validation:dedup:204:row:490": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.0008646708498041278,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 197.2298583984375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.06562191247780429,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 604.3462524414062
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.4539269655942917,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 49.90608596801758
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5323927849531174,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 12.725722312927246
+    }
+  },
+  "validation:dedup:2063:row:5171": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.0485497338231653,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 137.10015869140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3194655552506447,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 313.93292236328125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.20949390577152371,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 46.67917251586914
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.17118244769517332,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 12.52638053894043
+    }
+  },
+  "validation:dedup:2229:row:5551": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.101721490925911e-05,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 230.10501098632812
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.20484365965239704,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 280.228515625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5026276260614395,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 53.71617126464844
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5168185234069824,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 56.622108459472656
+    }
+  },
+  "validation:dedup:2276:row:5654": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.0044433367447709315,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 129.06602478027344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.10526137807721625,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 192.592041015625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.41842223703861237,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 8.734769821166992
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.26136040687561035,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 0.7571155428886414
+    }
+  },
+  "validation:dedup:2287:row:5685": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.008653655648231506,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 9.64248275756836
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4489960370526232,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 170.47796630859375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.18300427127542207,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 99.48832702636719
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.17617625975981355,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 25.87163543701172
+    }
+  },
+  "validation:dedup:2349:row:5842": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.3124419851351377e-05,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 176.53819274902344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.0978937293293135,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 279.7396545410156
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.3818289339542389,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 71.64515686035156
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.4662524312734604,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 17.256929397583008
+    }
+  },
+  "validation:dedup:3035:row:7612": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.06891845352947712,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 439.93560791015625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.09213460955396258,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 559.6651611328125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5620002597570419,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 536.7498168945312
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.475410521030426,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 77.2384262084961
+    }
+  },
+  "validation:dedup:3124:row:7842": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.007277974552494015,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 158.98184204101562
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4353383772296233,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 787.8348388671875
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.19810763373970985,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 450.79248046875
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.1912545831874013,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 28.411617279052734
+    }
+  },
+  "validation:dedup:3304:row:8265": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.016468473011627793,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 12.038920402526855
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.42334062996087596,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 57.596282958984375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.29972004890441895,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 19.5661678314209
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.16922071389853954,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 1.8220977783203125
+    }
+  },
+  "validation:dedup:3519:row:8826": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.045408801721350756,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 95.42405700683594
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3712475392901098,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 189.21255493164062
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.20043734554201365,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 83.73528289794922
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.19503630141844042,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 2.0848636627197266
+    }
+  },
+  "validation:dedup:3554:row:8904": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.04601790320521104,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 218.55593872070312
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.45723252572442163,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 327.70562744140625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.24838924035429955,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 129.08035278320312
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.14035008195787668,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 5.491646766662598
+    }
+  },
+  "validation:dedup:3664:row:9178": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.00020358881874926738,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 58.891746520996094
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1508170956512913,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 67.79365539550781
+      },
+      "same_label_other_subject": {
+        "behavior_margin": -0.014890655875205994,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 83.179931640625
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5072513073682785,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 13.876819610595703
+    }
+  },
+  "validation:dedup:3931:row:9852": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.0011684894270729274,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 10.385297775268555
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.43709012865938596,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 474.82318115234375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.26683777837024536,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 568.0045166015625
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2327311928384006,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 1.257197380065918
+    }
+  },
+  "validation:dedup:3947:row:9892": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.01873974461841499,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 108.28375244140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.48487996002995715,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 334.3122253417969
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.21451907022856176,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 38.12604522705078
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.19223565608263016,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 17.54916763305664
+    }
+  },
+  "validation:dedup:4:row:5": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.0193331267614667,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 103.04693603515625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.09619181593832611,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 402.98822021484375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.48773495852947235,
+        "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+        "subject_output_mse": 33.16847229003906
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5032892674207687,
+      "decoder": "stored_probe_functional_decoder_v2_locked_final_eval",
+      "subject_output_mse": 15.851154327392578
+    }
+  }
+}

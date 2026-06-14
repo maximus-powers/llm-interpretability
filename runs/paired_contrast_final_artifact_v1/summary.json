@@ -1,0 +1,71 @@
+{
+  "artifact_path": "runs/paired_contrast_final_artifact_v1/paired_contrast_artifact.json",
+  "artifact_validation_passed": true,
+  "available_unused_counts": {
+    "sorted_ascending": 31,
+    "sorted_descending": 29
+  },
+  "builder_passed": true,
+  "checkpoint_path": "runs/hypernet_centroid_residual_expanded_controls_20e/model.pt",
+  "counts": {
+    "failures": [],
+    "min_count": 9,
+    "passed": true,
+    "per_split": {
+      "validation": {
+        "counts": {
+          "sorted_ascending": {
+            "noise_signature": 9,
+            "opposite_direction": 9,
+            "same_label_other_subject": 9
+          },
+          "sorted_descending": {
+            "noise_signature": 9,
+            "opposite_direction": 9,
+            "same_label_other_subject": 9
+          }
+        },
+        "failures": [],
+        "min_count": 9,
+        "passed": true
+      }
+    }
+  },
+  "development_artifact_path": "runs/paired_contrast_stored_probe_artifact/paired_contrast_artifact.json",
+  "failures": [],
+  "leakage_audit": {
+    "checkpoint_train_count": 3592,
+    "checkpoint_validation_count": 399,
+    "development_subject_control_reference_count": 120,
+    "final_overlap_checkpoint_validation_count": 54,
+    "final_overlap_development_artifact_count": 0,
+    "final_overlap_train_count": 0,
+    "final_subject_control_reference_count": 54,
+    "unused_checkpoint_validation_count": 279
+  },
+  "min_count": 9,
+  "n_groups": 18,
+  "passed": true,
+  "proof_splits": [
+    "validation"
+  ],
+  "required_behaviors": [
+    "sorted_ascending",
+    "sorted_descending"
+  ],
+  "required_control_types": [
+    "same_label_other_subject",
+    "opposite_direction",
+    "noise_signature"
+  ],
+  "seed": 20260612,
+  "selected_counts": {
+    "sorted_ascending": 27,
+    "sorted_descending": 27
+  },
+  "sidecar_audit_passed": true,
+  "sidecar_audit_path": "runs/paired_contrast_final_artifact_v1/sidecar_audit.json",
+  "sidecar_path": "runs/paired_contrast_final_artifact_v1/regenerated_signatures.json",
+  "signature_dim": 560,
+  "validation_path": "runs/paired_contrast_final_artifact_v1/validation.json"
+}

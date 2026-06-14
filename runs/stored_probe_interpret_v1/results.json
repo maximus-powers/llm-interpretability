@@ -1,0 +1,139 @@
+{
+  "checkpoint_path": "runs/hypernet_centroid_residual_expanded_controls_20e/model.pt",
+  "probe_config": {
+    "seed": 20260610,
+    "n_examples": 256,
+    "seq_len": 5,
+    "base": 10
+  },
+  "signature_dim": 560,
+  "train_samples": 3592,
+  "val_samples": 399,
+  "patterns": [
+    "has_majority",
+    "mountain_pattern",
+    "sorted_ascending",
+    "sorted_descending"
+  ],
+  "label_names": [
+    "sorted_descending",
+    "sorted_ascending",
+    "mountain_pattern",
+    "has_majority"
+  ],
+  "dataset_provenance_comparison": {
+    "matches": true,
+    "mismatched_fields": []
+  },
+  "label_counts": {
+    "train": {
+      "sorted_descending": 742,
+      "sorted_ascending": 865,
+      "mountain_pattern": 806,
+      "has_majority": 1179
+    },
+    "val": {
+      "sorted_descending": 89,
+      "sorted_ascending": 91,
+      "mountain_pattern": 95,
+      "has_majority": 124
+    }
+  },
+  "majority_baseline": {
+    "label": "has_majority",
+    "accuracy": 0.3107769423558897,
+    "balanced_accuracy": 0.25,
+    "per_behavior_recall": {
+      "sorted_descending": 0.0,
+      "sorted_ascending": 0.0,
+      "mountain_pattern": 0.0,
+      "has_majority": 1.0
+    }
+  },
+  "models": {
+    "logistic_regression": {
+      "accuracy": 0.9223057644110275,
+      "balanced_accuracy": 0.9226935780497331,
+      "delta_accuracy_vs_majority": 0.6115288220551378,
+      "delta_balanced_accuracy_vs_majority": 0.6726935780497331,
+      "per_behavior_recall": {
+        "sorted_descending": 0.9101123595505618,
+        "sorted_ascending": 0.9560439560439561,
+        "mountain_pattern": 0.9052631578947369,
+        "has_majority": 0.9193548387096774
+      },
+      "confusion_matrix": [
+        [
+          81,
+          0,
+          4,
+          4
+        ],
+        [
+          1,
+          87,
+          2,
+          1
+        ],
+        [
+          6,
+          2,
+          86,
+          1
+        ],
+        [
+          3,
+          2,
+          5,
+          114
+        ]
+      ],
+      "shuffled_train_label_control": {
+        "accuracy": 0.22556390977443608,
+        "balanced_accuracy": 0.2197300658175117
+      }
+    },
+    "random_forest": {
+      "accuracy": 0.974937343358396,
+      "balanced_accuracy": 0.9727588201272411,
+      "delta_accuracy_vs_majority": 0.6641604010025063,
+      "delta_balanced_accuracy_vs_majority": 0.7227588201272411,
+      "per_behavior_recall": {
+        "sorted_descending": 1.0,
+        "sorted_ascending": 0.9120879120879121,
+        "mountain_pattern": 0.9789473684210527,
+        "has_majority": 1.0
+      },
+      "confusion_matrix": [
+        [
+          89,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          83,
+          6,
+          2
+        ],
+        [
+          0,
+          2,
+          93,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          124
+        ]
+      ],
+      "shuffled_train_label_control": {
+        "accuracy": 0.2832080200501253,
+        "balanced_accuracy": 0.234732858612363
+      }
+    }
+  }
+}

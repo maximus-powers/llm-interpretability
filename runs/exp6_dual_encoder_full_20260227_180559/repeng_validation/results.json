@@ -1,0 +1,22 @@
+{
+  "structure": {
+    "intra_layer_var_behavior": "0.7323338",
+    "intra_layer_var_weight": "0.9118697",
+    "variance_ratio": "0.8031123"
+  },
+  "causality": {
+    "behavior_effect_0.5": 1.537501811981201e-05,
+    "weight_effect_0.5": 0.01630678176879883,
+    "behavior_sensitivity": 3.075003562462331e-05
+  },
+  "interpolation": {
+    "interpolation_smoothness": 0.9997845739126205,
+    "monotonic_from_start": false,
+    "monotonic_from_end": false
+  },
+  "functional": {
+    "valid_network_rate": 1.0,
+    "different_behavior_rate": 0.0,
+    "mean_functional_agreement": 0.9990000009536744
+  }
+}

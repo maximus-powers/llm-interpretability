@@ -14,9 +14,9 @@ class ReconstructionLoss:
         self.config = config
         self.loss_type = loss_type
         self.mask_padding = mask_padding
-        if loss_type not in ["mse", "mae", "cosine"]:
+        if loss_type not in ["mse", "mae", "cosine", "cosine_batch"]:
             raise ValueError(
-                f"Unknown loss type: {loss_type}. Must be 'mse', 'mae', or 'cosine'"
+                f"Unknown loss type: {loss_type}. Must be 'mse', 'mae', 'cosine', or 'cosine_batch'"
             )
 
     def compute(
@@ -40,6 +40,30 @@ class ReconstructionLoss:
         Returns:
             Scalar loss tensor
         """
+        # Batch-wide cosine: compute cosine on all valid values concatenated
+        # This matches our evaluation metric and should optimize better
+        if self.loss_type == "cosine_batch":
+            # Flatten and mask
+            batch_size = predicted.size(0)
+            mask_expanded = mask.unsqueeze(-1).expand_as(predicted)
+            
+            # Compute per-sample cosine for proper batching
+            cosine_losses = []
+            for b in range(batch_size):
+                sample_mask = mask[b].bool()
+                pred_flat = predicted[b, sample_mask, :].flatten()
+                target_flat = target[b, sample_mask, :].flatten()
+                
+                if pred_flat.numel() > 0:
+                    # Compute batch-wide cosine similarity
+                    cos_sim = F.cosine_similarity(pred_flat.unsqueeze(0), target_flat.unsqueeze(0))
+                    cosine_losses.append(1 - cos_sim)
+            
+            if cosine_losses:
+                return torch.stack(cosine_losses).mean()
+            else:
+                return torch.tensor(0.0, device=predicted.device)
+        
         if self.loss_type == "mse":
             token_error = ((predicted - target) ** 2).mean(dim=-1)
         elif self.loss_type == "mae":
@@ -277,6 +301,11 @@ class FunctionalReconstructionLoss(nn.Module):
         # test_samples: null = use all, 0.0-1.0 = percentage of benchmark
         self.test_samples_ratio = func_cfg.get("test_samples", None)
 
+        # Sign-invariant mode: compute loss for both polarities, take minimum
+        # This handles the case where reconstructed models have inverted decision boundaries
+        # (correct behavior but opposite labels - equally valid for binary classification)
+        self.sign_invariant = func_cfg.get("sign_invariant", False)
+
         # Load benchmark dataset for consistent test sequences
         benchmark_path = func_cfg.get("benchmark_path")
         self.benchmark_sequences = None
@@ -331,6 +360,10 @@ class FunctionalReconstructionLoss(nn.Module):
             logger.info(
                 f"FunctionalReconstructionLoss initialized with random inputs: n_test_samples={self.n_test_samples}"
             )
+
+        logger.info(
+            f"FunctionalReconstructionLoss: sign_invariant={self.sign_invariant}"
+        )
 
     def forward(
         self,
@@ -443,7 +476,17 @@ class FunctionalReconstructionLoss(nn.Module):
             return torch.tensor(1e6, device=self.device, requires_grad=True)
 
         # Use smooth L1 loss for robustness to outliers
-        loss = F.smooth_l1_loss(recon_out, original_out.detach())
+        original_out_detached = original_out.detach()
+
+        if self.sign_invariant:
+            # Compute loss for both polarities and take minimum
+            # This handles models with inverted decision boundaries (correct behavior, opposite labels)
+            # For binary classification, negating the logits is equivalent to swapping class predictions
+            loss_normal = F.smooth_l1_loss(recon_out, original_out_detached)
+            loss_inverted = F.smooth_l1_loss(-recon_out, original_out_detached)
+            loss = torch.min(loss_normal, loss_inverted)
+        else:
+            loss = F.smooth_l1_loss(recon_out, original_out_detached)
 
         # Note: weight is now applied in trainer, not here
         return loss

@@ -6,6 +6,7 @@ from typing import Dict, List, Any
 from datasets import load_dataset
 
 from .data_loader import infer_signature_dimensions
+from .film_decoder import FiLMDecoder
 
 logger = logging.getLogger(__name__)
 
@@ -684,24 +685,30 @@ class TransformerDecoder(nn.Module):
 
 class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
     """
-    Hybrid seq2seq encoder-decoder for weight reconstruction.
+    Encoder-decoder for weight reconstruction.
+
+    Supports two decoder modes:
+    1. TransformerDecoder (seq2seq): Cross-attends to encoded tokens with latent conditioning
+    2. FiLMDecoder: Behavioral latent modulates position processing via FiLM layers
+
+    The FiLM decoder is recommended as it prevents decoder collapse by making
+    behavior CONTROL how position is processed, rather than competing additively.
 
     Architecture:
-    - Encoder: Transforms signature tokens → encoded tokens + pooled latent
-    - Decoder: Cross-attends to encoded tokens with latent conditioning
-
-    This allows:
-    1. Per-position reconstruction: decoder sees each neuron's signature features
-    2. Behavioral steering: latent can be modified for representation engineering
+    - Encoder: Transforms signature tokens → pooled behavioral latent (pure behavior, no position)
+    - Decoder: Latent + Position features → Weights
     """
 
     def __init__(self, config: Dict[str, Any]):
         super().__init__(config)
         transformer_config = config["architecture"]["transformer"]
         encoder_cfg = transformer_config["encoder"]
-        decoder_cfg = transformer_config["decoder"]
+        
+        # Check if FiLM decoder is enabled
+        film_cfg = config["architecture"].get("film_decoder", {})
+        self.use_film_decoder = film_cfg.get("enabled", False)
 
-        # Architecture encoder config (for position embeddings in decoder)
+        # Architecture encoder config (for position embeddings)
         arch_encoder_cfg = config["architecture"].get("arch_encoder", {})
         # Use dataset max_dimensions for architecture limits if not specified
         max_dims = config["dataset"].get("max_dimensions", {})
@@ -709,10 +716,12 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
             arch_encoder_cfg["max_layers"] = max_dims.get("max_hidden_layers", 10) + 2
         if "max_neurons" not in arch_encoder_cfg:
             arch_encoder_cfg["max_neurons"] = max_dims.get("max_neurons_per_layer", 256)
+        self.arch_encoder_cfg = arch_encoder_cfg
 
-        # Encoder positional encoding: now enabled by default for seq2seq
-        # Position info helps encoder produce position-aware representations
-        use_positional_encoding = encoder_cfg.get("use_positional_encoding", True)
+        # Encoder positional encoding
+        # For FiLM decoder: should be False to keep latent purely behavioral
+        # For seq2seq decoder: can be True for position-aware representations
+        use_positional_encoding = encoder_cfg.get("use_positional_encoding", not self.use_film_decoder)
 
         self.encoder = TransformerEncoder(
             token_dim=self.token_dim,
@@ -721,37 +730,85 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
             encoder_cfg=encoder_cfg,
             use_positional_encoding=use_positional_encoding,
         )
-        self.decoder = TransformerDecoder(
-            token_dim=self.decoder_token_dim,
-            latent_dim=self.latent_dim,
-            max_tokens=self.max_tokens,
-            decoder_cfg=decoder_cfg,
-            arch_encoder_cfg=arch_encoder_cfg,
-            encoder_d_model=encoder_cfg["d_model"],  # For memory projection if needed
-        )
+        
+        # Choose decoder type
+        if self.use_film_decoder:
+            # FiLM decoder: behavior modulates position processing
+            logger.info("Using FiLM decoder (behavior modulates position)")
+            
+            # Get direct path config
+            direct_path_cfg = film_cfg.get("direct_path", {})
+            use_direct_path = direct_path_cfg.get("enabled", True)
+            direct_hidden_dim = direct_path_cfg.get("hidden_dim", 256)
+            
+            # Get residual learning config
+            residual_cfg = film_cfg.get("residual_learning", {})
+            use_base_weights = residual_cfg.get("enabled", True)
+            
+            # Calculate max_positions from dataset config
+            max_dims = config["dataset"].get("max_dimensions", {})
+            max_layers = max_dims.get("max_hidden_layers", 6)
+            max_neurons = max_dims.get("max_neurons_per_layer", 8)
+            max_positions = max_layers * max_neurons
+            
+            # Get encoder feature config - this is CRITICAL for matching linear baseline
+            encoder_features_cfg = film_cfg.get("encoder_features", {})
+            use_encoder_features = encoder_features_cfg.get("enabled", True)
+            encoder_dim = encoder_cfg["d_model"]  # Match encoder output dim
+            film_delta_disabled = film_cfg.get("film_delta_disabled", False)  # Bypass-only mode
+            
+            self.decoder = FiLMDecoder(
+                behavior_dim=self.latent_dim,
+                position_dim=film_cfg.get("position_dim", 8),
+                hidden_dim=film_cfg.get("hidden_dim", 256),
+                num_film_layers=film_cfg.get("num_film_layers", 3),
+                bilinear_dim=film_cfg.get("bilinear_dim", 64),
+                output_dim=self.decoder_token_dim,
+                max_positions=max_positions,
+                use_direct_path=use_direct_path,
+                use_base_weights=use_base_weights,
+                direct_hidden_dim=direct_hidden_dim,
+                encoder_dim=encoder_dim,
+                use_encoder_features=use_encoder_features,
+                film_delta_disabled=film_delta_disabled,
+            )
+            
+            # Enable input correlation bypass if configured
+            input_corr_cfg = film_cfg.get("input_corr_bypass", {})
+            if input_corr_cfg.get("enabled", False):
+                self.decoder.enable_input_corr_bypass(
+                    signature_dim=input_corr_cfg.get("signature_dim", 17),
+                    input_corr_start_idx=input_corr_cfg.get("input_corr_start_idx", 7),
+                    input_corr_dim=input_corr_cfg.get("input_corr_dim", 8),
+                    num_layers=input_corr_cfg.get("num_layers", 8),
+                    freeze_params=input_corr_cfg.get("freeze_params", True),
+                )
+        else:
+            # Original TransformerDecoder (seq2seq)
+            decoder_cfg = transformer_config["decoder"]
+            self.decoder = TransformerDecoder(
+                token_dim=self.decoder_token_dim,
+                latent_dim=self.latent_dim,
+                max_tokens=self.max_tokens,
+                decoder_cfg=decoder_cfg,
+                arch_encoder_cfg=arch_encoder_cfg,
+                encoder_d_model=encoder_cfg["d_model"],
+            )
 
-        # Setup positional encodings
-        # Encoder: only if use_positional_encoding is True
-        # Decoder: always needs positional encoding for target sequence
+        # Setup positional encodings for encoder (if enabled)
         pos_encoding_type = encoder_cfg.get("positional_encoding", "learned")
         logger.info(
             f"Encoder positional encoding: {'enabled' if use_positional_encoding else 'disabled'} "
             f"(type: {pos_encoding_type})"
         )
 
-        if pos_encoding_type == "learned":
-            if use_positional_encoding:
+        if use_positional_encoding:
+            if pos_encoding_type == "learned":
                 self.encoder.pos_encoding = nn.Parameter(
                     torch.randn(1, self.max_tokens, encoder_cfg["d_model"]) * 0.02
                 )
-            # Decoder always uses positional encoding for target sequence
-            # Use larger scale (0.1) to provide stronger positional signals
-            self.decoder.decoder_pos_encoding = nn.Parameter(
-                torch.randn(1, self.max_tokens, decoder_cfg["d_model"]) * 0.1
-            )
-        else:
-            # Sinusoidal positional encodings
-            if use_positional_encoding:
+            else:
+                # Sinusoidal positional encodings
                 self.encoder.register_buffer(
                     "pos_encoding_buffer",
                     self._create_sinusoidal_encoding(
@@ -759,23 +816,40 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
                     ),
                     persistent=True,
                 )
-            # Decoder always uses positional encoding for target sequence
-            self.decoder.register_buffer(
-                "decoder_pos_encoding_buffer",
-                self._create_sinusoidal_encoding(
-                    self.max_tokens, decoder_cfg["d_model"]
-                ),
-                persistent=True,
-            )
+        
+        # Setup decoder positional encoding (only for TransformerDecoder)
+        if not self.use_film_decoder:
+            decoder_cfg = transformer_config["decoder"]
+            if pos_encoding_type == "learned":
+                self.decoder.decoder_pos_encoding = nn.Parameter(
+                    torch.randn(1, self.max_tokens, decoder_cfg["d_model"]) * 0.1
+                )
+            else:
+                self.decoder.register_buffer(
+                    "decoder_pos_encoding_buffer",
+                    self._create_sinusoidal_encoding(
+                        self.max_tokens, decoder_cfg["d_model"]
+                    ),
+                    persistent=True,
+                )
 
+        # Logging
         logger.info(
             f"Encoder: d_model={encoder_cfg['d_model']}, heads={encoder_cfg['num_heads']}, "
             f"layers={encoder_cfg['num_layers']}, pooling={encoder_cfg.get('pooling', 'mean')}"
         )
-        logger.info(
-            f"Decoder: d_model={decoder_cfg['d_model']}, heads={decoder_cfg['num_heads']}, "
-            f"layers={decoder_cfg['num_layers']} (seq2seq: memory from encoder tokens)"
-        )
+        if self.use_film_decoder:
+            logger.info(
+                f"FiLM Decoder: hidden_dim={film_cfg.get('hidden_dim', 256)}, "
+                f"num_film_layers={film_cfg.get('num_film_layers', 3)}, "
+                f"bilinear_dim={film_cfg.get('bilinear_dim', 64)}"
+            )
+        else:
+            decoder_cfg = transformer_config["decoder"]
+            logger.info(
+                f"Transformer Decoder: d_model={decoder_cfg['d_model']}, "
+                f"heads={decoder_cfg['num_heads']}, layers={decoder_cfg['num_layers']}"
+            )
 
         self._init_weights()
 
@@ -791,6 +865,18 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
 
     def _init_weights(self):
         for name, module in self.named_modules():
+            # SKIP InputCorrelationBypass - it has its own specialized initialization
+            # (per-layer slopes for the linear relationship weight ≈ slope*input_corr + intercept)
+            if "input_corr_bypass" in name:
+                continue
+            
+            # SKIP encoder_feature_path and output_head final layers - they are zero-initialized
+            # in FiLMDecoder.__init__ to let the bypass dominate initially
+            # encoder_feature_path has 7 layers (0-6), final Linear is at index 6
+            # output_head has 3 layers (0-2), final Linear is at index 2
+            if "encoder_feature_path.6" in name or "output_head.2" in name:
+                continue
+                
             if isinstance(module, nn.Linear):
                 if "output_projection" in name or "latent_projection" in name:
                     nn.init.xavier_normal_(module.weight, gain=0.1)
@@ -830,26 +916,150 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         """
         return self.encoder(tokens, mask, return_both=True)
 
-    def decode(
+    def generate_position_features(
         self,
-        memory: torch.Tensor,
+        arch_spec: Dict[str, Any],
+        num_tokens: int,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """
+        Generate rich position features for each neuron position.
+        
+        Features (8 dims):
+        - layer_idx (normalized): Which layer this neuron is in
+        - neuron_idx (normalized): Position within the layer
+        - layer_width / max_neurons: How wide this layer is
+        - fan_in / max_neurons: Input connections to this layer
+        - fan_out / max_neurons: Output connections from this layer
+        - global_position / total_neurons: Position in entire network
+        - is_first_layer: Binary flag (1.0 or 0.0)
+        - is_last_layer: Binary flag (1.0 or 0.0)
+        
+        Args:
+            arch_spec: Architecture specification with neurons_per_layer, input_dim, output_dim
+            num_tokens: Number of tokens to generate features for
+            device: Target device
+        
+        Returns:
+            [num_tokens, 8] tensor of position features
+        """
+        neurons_per_layer = arch_spec["neurons_per_layer"]
+        num_layers = len(neurons_per_layer)
+        max_neurons = self.arch_encoder_cfg.get("max_neurons", max(neurons_per_layer))
+        total_neurons = sum(neurons_per_layer)
+        
+        features = []
+        global_pos = 0
+        
+        for layer_idx, num_neurons in enumerate(neurons_per_layer):
+            # Fan-in: inputs to this layer
+            if layer_idx == 0:
+                fan_in = arch_spec.get("input_dim", 8)
+            else:
+                fan_in = neurons_per_layer[layer_idx - 1]
+            
+            # Fan-out: outputs from this layer
+            if layer_idx == num_layers - 1:
+                fan_out = arch_spec.get("output_dim", 1)
+            else:
+                fan_out = neurons_per_layer[layer_idx + 1]
+            
+            for neuron_idx in range(num_neurons):
+                feat = [
+                    layer_idx / max(num_layers - 1, 1),           # normalized layer
+                    neuron_idx / max(num_neurons - 1, 1),         # normalized neuron
+                    num_neurons / max_neurons,                     # layer width
+                    fan_in / max_neurons,                          # fan-in
+                    fan_out / max_neurons,                         # fan-out
+                    global_pos / max(total_neurons - 1, 1),       # global position
+                    1.0 if layer_idx == 0 else 0.0,               # is first layer
+                    1.0 if layer_idx == num_layers - 1 else 0.0,  # is last layer
+                ]
+                features.append(feat)
+                global_pos += 1
+                
+                if len(features) >= num_tokens:
+                    break
+            if len(features) >= num_tokens:
+                break
+        
+        # Pad if needed
+        while len(features) < num_tokens:
+            features.append([0.0] * 8)
+        
+        return torch.tensor(features, dtype=torch.float32, device=device)
+
+    def decode_film(
+        self,
         latent: torch.Tensor,
         arch_spec: Dict[str, Any],
         num_tokens: int,
+        encoder_features: torch.Tensor = None,
+        raw_signature: torch.Tensor = None,
     ) -> torch.Tensor:
         """
-        Decode with seq2seq: cross-attend to encoded tokens with latent conditioning.
-
+        Decode using FiLM decoder with per-token encoder features.
+        
         Args:
-            memory: Encoded signature tokens (batch, num_tokens, d_model)
-            latent: Pooled behavioral latent (batch, latent_dim)
-            arch_spec: Architecture specification
+            latent: [batch, latent_dim] - pooled behavioral latent
+            arch_spec: Architecture specification (for position features)
             num_tokens: Number of output tokens
+            encoder_features: [batch, num_tokens, encoder_dim] - per-token encoder outputs
+                            CRITICAL for matching linear baseline performance!
+            raw_signature: [batch, num_tokens, signature_dim] - raw signature input
+                          for input_correlation bypass (optional but recommended)
+        
+        Returns:
+            Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
+        """
+        # Generate position features
+        position_features = self.generate_position_features(
+            arch_spec, num_tokens, latent.device
+        )
+        # Expand for batch
+        position_features = position_features.unsqueeze(0).expand(
+            latent.size(0), -1, -1
+        )
+        
+        return self.decoder(latent, position_features, encoder_features, raw_signature)
+    
+    def decode(
+        self,
+        memory_or_latent: torch.Tensor,
+        latent_or_arch: torch.Tensor = None,
+        arch_spec: Dict[str, Any] = None,
+        num_tokens: int = None,
+    ) -> torch.Tensor:
+        """
+        Decode latent to weights.
+        
+        For FiLM decoder:
+            decode(latent, arch_spec, num_tokens)
+            - latent: Behavioral latent
+            - arch_spec: Architecture specification (for position features)
+            - num_tokens: Number of output tokens
+        
+        For TransformerDecoder (seq2seq):
+            decode(memory, latent, arch_spec, num_tokens)
+            - memory: Encoded signature tokens
+            - latent: Behavioral latent
+            - arch_spec: Architecture specification
+            - num_tokens: Number of output tokens
 
         Returns:
             Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
         """
-        return self.decoder(memory, latent, arch_spec, num_tokens)
+        if self.use_film_decoder:
+            # FiLM decoder: latent + position features -> weights
+            # NOTE: This version doesn't pass encoder_features - use decode_film() for full version
+            latent = memory_or_latent
+            arch_spec = latent_or_arch if isinstance(latent_or_arch, dict) else arch_spec
+            return self.decode_film(latent, arch_spec, num_tokens)
+        else:
+            # TransformerDecoder: memory + latent + arch_spec -> weights
+            memory = memory_or_latent
+            latent = latent_or_arch
+            return self.decoder(memory, latent, arch_spec, num_tokens)
 
     def forward(
         self, tokens: torch.Tensor, mask: torch.Tensor, arch_spec: Dict[str, Any]
@@ -865,11 +1075,41 @@ class TransformerEncoderDecoder(WeightSpaceEncoderDecoder):
         Returns:
             Reconstructed weight tokens (batch, num_tokens, decoder_token_dim)
         """
-        # Get both encoded tokens (for memory) and latent (for conditioning)
-        encoded_tokens, latent = self.encode_all(tokens, mask)
+        if self.use_film_decoder:
+            # FiLM decoder needs BOTH pooled latent AND per-token encoder features
+            # The per-token features are CRITICAL for matching linear baseline
+            # Also pass raw tokens for input_correlation bypass
+            encoded_tokens, latent = self.encode_all(tokens, mask)
+            return self.decode_film(latent, arch_spec, tokens.size(1), encoded_tokens, raw_signature=tokens)
+        else:
+            # TransformerDecoder needs encoded tokens (memory) and latent
+            encoded_tokens, latent = self.encode_all(tokens, mask)
+            return self.decode(encoded_tokens, latent, arch_spec, tokens.size(1))
 
-        # Decode with seq2seq architecture
-        return self.decode(encoded_tokens, latent, arch_spec, tokens.size(1))
+
+    def get_position_features_for_batch(
+        self,
+        arch_spec: Dict[str, Any],
+        num_tokens: int,
+        batch_size: int,
+        device: torch.device,
+    ) -> torch.Tensor:
+        """
+        Generate position features expanded for a batch.
+        
+        Convenience method for trainer to get position features for auxiliary loss.
+        
+        Args:
+            arch_spec: Architecture specification
+            num_tokens: Number of tokens
+            batch_size: Batch size
+            device: Target device
+        
+        Returns:
+            [batch_size, num_tokens, 8] tensor of position features
+        """
+        position_features = self.generate_position_features(arch_spec, num_tokens, device)
+        return position_features.unsqueeze(0).expand(batch_size, -1, -1)
 
 
 def create_encoder_decoder(config: Dict[str, Any]) -> WeightSpaceEncoderDecoder:

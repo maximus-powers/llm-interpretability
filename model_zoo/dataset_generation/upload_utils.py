@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-from datasets import Dataset, DatasetDict
+from datasets import Dataset, DatasetDict, load_dataset, concatenate_datasets
 from huggingface_hub import login, DatasetCard, DatasetCardData, HfApi
 from transformers import AutoTokenizer
 import copy
@@ -523,16 +523,32 @@ def incremental_save_to_hub(
 
             formatted_examples.append(formatted)
 
-        new_dataset = DatasetDict(
-            {
-                "train": Dataset.from_list(formatted_examples),
-            }
-        )
+        new_data = Dataset.from_list(formatted_examples)
+        
+        # Try to load existing dataset and append to it
+        try:
+            existing_ds = load_dataset(hub_dataset_name, split='train', token=hub_token)
+            # Re-index example_id to continue from existing max
+            max_existing_id = max(existing_ds['example_id']) if len(existing_ds) > 0 else -1
+            # Update example_ids in new data to avoid collisions
+            new_data = new_data.map(
+                lambda x, idx: {**x, 'example_id': max_existing_id + 1 + idx},
+                with_indices=True
+            )
+            combined = concatenate_datasets([existing_ds, new_data])
+            logger.info(
+                f"Appending {len(formatted_examples)} new records to existing {len(existing_ds)} records..."
+            )
+        except Exception as e:
+            logger.info(f"No existing dataset found or error loading ({e}), creating new dataset...")
+            combined = new_data
+        
+        final_dataset = DatasetDict({"train": combined})
 
         logger.info(
-            f"Uploading dataset with {len(formatted_examples)} records to {hub_dataset_name}..."
+            f"Uploading dataset with {len(combined)} total records to {hub_dataset_name}..."
         )
-        new_dataset.push_to_hub(hub_dataset_name, private=private, token=hub_token)
+        final_dataset.push_to_hub(hub_dataset_name, private=private, token=hub_token)
         hub_url = f"https://huggingface.co/datasets/{hub_dataset_name}"
         logger.info(f"Dataset uploaded to HuggingFace Hub: {hub_url}")
 
@@ -542,7 +558,7 @@ def incremental_save_to_hub(
             aggregate_stats = None
             if metrics_dir:
                 valid_example_ids = set()
-                for example in new_dataset["train"]:
+                for example in final_dataset["train"]:
                     try:
                         metadata = example.get("metadata", "{}")
                         if isinstance(metadata, str):

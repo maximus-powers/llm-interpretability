@@ -1,0 +1,338 @@
+{
+  "artifact_path": "runs/paired_contrast_stored_probe_artifact/paired_contrast_artifact.json",
+  "failures": [
+    "validation/sorted_descending/same_label_other_subject mean_control_minus_matched_subject_output_mse -0.01204267106950283 below 0.02",
+    "test/sorted_descending/same_label_other_subject mean_control_minus_matched_subject_output_mse 0.01766653060913086 below 0.02",
+    "test/sorted_descending/opposite_direction mean_control_minus_matched_subject_output_mse 0.03685356602072716 below 0.05",
+    "test/sorted_descending/opposite_direction mean_matched_minus_control_behavior_margin 0.18810587473478932 below 0.2"
+  ],
+  "metrics": {
+    "aggregate": {
+      "mean_control_behavior_margin": -0.09661901678146609,
+      "mean_control_minus_matched_subject_output_mse": 0.10902150448140067,
+      "mean_control_subject_output_mse": 0.21012904290594936,
+      "mean_matched_behavior_margin": 0.1949082864724005,
+      "mean_matched_minus_control_behavior_margin": 0.2915273032538666,
+      "mean_matched_subject_output_mse": 0.1011075384245487,
+      "n": 120
+    },
+    "by_split": {
+      "test": {
+        "aggregate": {
+          "mean_control_behavior_margin": -0.1012804749334021,
+          "mean_control_minus_matched_subject_output_mse": 0.11339129946815471,
+          "mean_control_subject_output_mse": 0.21845555434507938,
+          "mean_matched_behavior_margin": 0.15010751110003184,
+          "mean_matched_minus_control_behavior_margin": 0.25138798603343393,
+          "mean_matched_subject_output_mse": 0.10506425487692468,
+          "n": 60
+        },
+        "by_behavior": {
+          "sorted_ascending": {
+            "noise_signature": {
+              "mean_control_behavior_margin": -0.2860110909678042,
+              "mean_control_minus_matched_subject_output_mse": 0.2753246825770475,
+              "mean_control_subject_output_mse": 0.29238880071789025,
+              "mean_matched_behavior_margin": 0.15782558731734753,
+              "mean_matched_minus_control_behavior_margin": 0.4438366782851517,
+              "mean_matched_subject_output_mse": 0.017064118140842764,
+              "n": 10
+            },
+            "opposite_direction": {
+              "mean_control_behavior_margin": -0.2817782476082186,
+              "mean_control_minus_matched_subject_output_mse": 0.2029259296716191,
+              "mean_control_subject_output_mse": 0.21999004781246184,
+              "mean_matched_behavior_margin": 0.15782558731734753,
+              "mean_matched_minus_control_behavior_margin": 0.43960383492556615,
+              "mean_matched_subject_output_mse": 0.017064118140842764,
+              "n": 10
+            },
+            "same_label_other_subject": {
+              "mean_control_behavior_margin": 0.03720128450913762,
+              "mean_control_minus_matched_subject_output_mse": 0.04013500248547643,
+              "mean_control_subject_output_mse": 0.0571991206263192,
+              "mean_matched_behavior_margin": 0.15782558731734753,
+              "mean_matched_minus_control_behavior_margin": 0.1206243028082099,
+              "mean_matched_subject_output_mse": 0.017064118140842764,
+              "n": 10
+            }
+          },
+          "sorted_descending": {
+            "noise_signature": {
+              "mean_control_behavior_margin": -0.26607387537465,
+              "mean_control_minus_matched_subject_output_mse": 0.10744208544492721,
+              "mean_control_subject_output_mse": 0.3005064770579338,
+              "mean_matched_behavior_margin": 0.14238943488271616,
+              "mean_matched_minus_control_behavior_margin": 0.40846331025736615,
+              "mean_matched_subject_output_mse": 0.1930643916130066,
+              "n": 10
+            },
+            "opposite_direction": {
+              "mean_control_behavior_margin": -0.04571643985207317,
+              "mean_control_minus_matched_subject_output_mse": 0.03685356602072716,
+              "mean_control_subject_output_mse": 0.22991795763373374,
+              "mean_matched_behavior_margin": 0.14238943488271616,
+              "mean_matched_minus_control_behavior_margin": 0.18810587473478932,
+              "mean_matched_subject_output_mse": 0.1930643916130066,
+              "n": 10
+            },
+            "same_label_other_subject": {
+              "mean_control_behavior_margin": 0.23469551969319583,
+              "mean_control_minus_matched_subject_output_mse": 0.01766653060913086,
+              "mean_control_subject_output_mse": 0.21073092222213746,
+              "mean_matched_behavior_margin": 0.14238943488271616,
+              "mean_matched_minus_control_behavior_margin": -0.09230608481047967,
+              "mean_matched_subject_output_mse": 0.1930643916130066,
+              "n": 10
+            }
+          }
+        }
+      },
+      "validation": {
+        "aggregate": {
+          "mean_control_behavior_margin": -0.09195755862953009,
+          "mean_control_minus_matched_subject_output_mse": 0.10465170949464664,
+          "mean_control_subject_output_mse": 0.20180253146681934,
+          "mean_matched_behavior_margin": 0.23970906184476917,
+          "mean_matched_minus_control_behavior_margin": 0.33166662047429923,
+          "mean_matched_subject_output_mse": 0.0971508219721727,
+          "n": 60
+        },
+        "by_behavior": {
+          "sorted_ascending": {
+            "noise_signature": {
+              "mean_control_behavior_margin": -0.20959108506795018,
+              "mean_control_minus_matched_subject_output_mse": 0.20720869491342456,
+              "mean_control_subject_output_mse": 0.2235268924385309,
+              "mean_matched_behavior_margin": 0.17242267820984125,
+              "mean_matched_minus_control_behavior_margin": 0.38201376327779146,
+              "mean_matched_subject_output_mse": 0.01631819752510637,
+              "n": 10
+            },
+            "opposite_direction": {
+              "mean_control_behavior_margin": -0.2645662892052485,
+              "mean_control_minus_matched_subject_output_mse": 0.1899406455690041,
+              "mean_control_subject_output_mse": 0.2062588430941105,
+              "mean_matched_behavior_margin": 0.17242267820984125,
+              "mean_matched_minus_control_behavior_margin": 0.43698896741508975,
+              "mean_matched_subject_output_mse": 0.01631819752510637,
+              "n": 10
+            },
+            "same_label_other_subject": {
+              "mean_control_behavior_margin": -0.0045797862112522125,
+              "mean_control_minus_matched_subject_output_mse": 0.05892065817024559,
+              "mean_control_subject_output_mse": 0.07523885569535196,
+              "mean_matched_behavior_margin": 0.17242267820984125,
+              "mean_matched_minus_control_behavior_margin": 0.17700246442109346,
+              "mean_matched_subject_output_mse": 0.01631819752510637,
+              "n": 10
+            }
+          },
+          "sorted_descending": {
+            "noise_signature": {
+              "mean_control_behavior_margin": -0.32994316852855265,
+              "mean_control_minus_matched_subject_output_mse": 0.1284478560090065,
+              "mean_control_subject_output_mse": 0.30643130242824557,
+              "mean_matched_behavior_margin": 0.3069954454796971,
+              "mean_matched_minus_control_behavior_margin": 0.6369386140082497,
+              "mean_matched_subject_output_mse": 0.17798344641923905,
+              "n": 10
+            },
+            "opposite_direction": {
+              "mean_control_behavior_margin": -0.033128643867940614,
+              "mean_control_minus_matched_subject_output_mse": 0.0554350733757019,
+              "mean_control_subject_output_mse": 0.23341851979494094,
+              "mean_matched_behavior_margin": 0.3069954454796971,
+              "mean_matched_minus_control_behavior_margin": 0.3401240893476377,
+              "mean_matched_subject_output_mse": 0.17798344641923905,
+              "n": 10
+            },
+            "same_label_other_subject": {
+              "mean_control_behavior_margin": 0.2900636211037636,
+              "mean_control_minus_matched_subject_output_mse": -0.01204267106950283,
+              "mean_control_subject_output_mse": 0.16594077534973622,
+              "mean_matched_behavior_margin": 0.3069954454796971,
+              "mean_matched_minus_control_behavior_margin": 0.0169318243759335,
+              "mean_matched_subject_output_mse": 0.17798344641923905,
+              "n": 10
+            }
+          }
+        }
+      }
+    },
+    "n_pairs": 120
+  },
+  "passed": false,
+  "predictions_path": "runs/stored_probe_knn_decode_v1/predictions.json",
+  "proof_gates": {
+    "by_split": {
+      "test": {
+        "sorted_ascending": {
+          "noise_signature": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.2753246825770475,
+            "mean_matched_minus_control_behavior_margin": 0.4438366782851517,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "opposite_direction": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.2029259296716191,
+            "mean_matched_minus_control_behavior_margin": 0.43960383492556615,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "same_label_other_subject": {
+            "mean_control_minus_matched_subject_output_mse": 0.04013500248547643,
+            "mean_matched_minus_control_behavior_margin": 0.1206243028082099,
+            "min_mean_control_minus_matched_subject_output_mse": 0.02,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          }
+        },
+        "sorted_descending": {
+          "noise_signature": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.10744208544492721,
+            "mean_matched_minus_control_behavior_margin": 0.40846331025736615,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "opposite_direction": {
+            "behavior_margin_delta_passed": false,
+            "mean_control_minus_matched_subject_output_mse": 0.03685356602072716,
+            "mean_matched_minus_control_behavior_margin": 0.18810587473478932,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": false,
+            "subject_output_mse_delta_passed": false
+          },
+          "same_label_other_subject": {
+            "mean_control_minus_matched_subject_output_mse": 0.01766653060913086,
+            "mean_matched_minus_control_behavior_margin": -0.09230608481047967,
+            "min_mean_control_minus_matched_subject_output_mse": 0.02,
+            "n": 10,
+            "passed": false,
+            "subject_output_mse_delta_passed": false
+          }
+        }
+      },
+      "validation": {
+        "sorted_ascending": {
+          "noise_signature": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.20720869491342456,
+            "mean_matched_minus_control_behavior_margin": 0.38201376327779146,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "opposite_direction": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.1899406455690041,
+            "mean_matched_minus_control_behavior_margin": 0.43698896741508975,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "same_label_other_subject": {
+            "mean_control_minus_matched_subject_output_mse": 0.05892065817024559,
+            "mean_matched_minus_control_behavior_margin": 0.17700246442109346,
+            "min_mean_control_minus_matched_subject_output_mse": 0.02,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          }
+        },
+        "sorted_descending": {
+          "noise_signature": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.1284478560090065,
+            "mean_matched_minus_control_behavior_margin": 0.6369386140082497,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "opposite_direction": {
+            "behavior_margin_delta_passed": true,
+            "mean_control_minus_matched_subject_output_mse": 0.0554350733757019,
+            "mean_matched_minus_control_behavior_margin": 0.3401240893476377,
+            "min_mean_control_minus_matched_subject_output_mse": 0.05,
+            "min_mean_matched_minus_control_behavior_margin": 0.2,
+            "n": 10,
+            "passed": true,
+            "subject_output_mse_delta_passed": true
+          },
+          "same_label_other_subject": {
+            "mean_control_minus_matched_subject_output_mse": -0.01204267106950283,
+            "mean_matched_minus_control_behavior_margin": 0.0169318243759335,
+            "min_mean_control_minus_matched_subject_output_mse": 0.02,
+            "n": 10,
+            "passed": false,
+            "subject_output_mse_delta_passed": false
+          }
+        }
+      }
+    },
+    "failures": [
+      "validation/sorted_descending/same_label_other_subject mean_control_minus_matched_subject_output_mse -0.01204267106950283 below 0.02",
+      "test/sorted_descending/same_label_other_subject mean_control_minus_matched_subject_output_mse 0.01766653060913086 below 0.02",
+      "test/sorted_descending/opposite_direction mean_control_minus_matched_subject_output_mse 0.03685356602072716 below 0.05",
+      "test/sorted_descending/opposite_direction mean_matched_minus_control_behavior_margin 0.18810587473478932 below 0.2"
+    ],
+    "passed": false,
+    "thresholds": {
+      "by_control_type": {
+        "noise_signature": {
+          "min_mean_control_minus_matched_subject_output_mse": 0.05,
+          "min_mean_matched_minus_control_behavior_margin": 0.2
+        },
+        "opposite_direction": {
+          "min_mean_control_minus_matched_subject_output_mse": 0.05,
+          "min_mean_matched_minus_control_behavior_margin": 0.2
+        },
+        "same_label_other_subject": {
+          "min_mean_control_minus_matched_subject_output_mse": 0.02
+        }
+      }
+    }
+  },
+  "threshold_policy": "control_specific_decode_proof_gate_v1",
+  "threshold_rationale": {
+    "noise_signature": "requires behavior-margin separation and subject-output specificity",
+    "opposite_direction": "requires behavior-margin separation and subject-output specificity",
+    "same_label_other_subject": "subject-output specificity only; same-label behavior margins are not a valid separation target"
+  },
+  "thresholds": {
+    "by_control_type": {
+      "noise_signature": {
+        "min_mean_control_minus_matched_subject_output_mse": 0.05,
+        "min_mean_matched_minus_control_behavior_margin": 0.2
+      },
+      "opposite_direction": {
+        "min_mean_control_minus_matched_subject_output_mse": 0.05,
+        "min_mean_matched_minus_control_behavior_margin": 0.2
+      },
+      "same_label_other_subject": {
+        "min_mean_control_minus_matched_subject_output_mse": 0.02
+      }
+    }
+  }
+}

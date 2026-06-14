@@ -1,0 +1,22 @@
+{
+  "behavior_suite_hashes": {
+    "heldout_hash": "c65c0c32aba2dc62db3ea7af3999859027a236ce98e21c091f50fab503a07204",
+    "support_hash": "8f75b98bd5ba8c7fff78289de3c9d40c1621d5820709cb8bb02fd58cf59500f3"
+  },
+  "candidate_pool_summary_hash": "8e74b8c41cbbaffc25521f2bdddd264f58a3d19c2b38c5dd6cc68c0f817be7a2",
+  "claim_scope": "redacted_final_steering_v4_source_pool_audit_surface_only",
+  "config_hash": "ce59d3399fb3f829c8fce14d19dafb847f90138516ee2050ff295289b71e1f20",
+  "pool": "final",
+  "pool_file_sha256": "7df5cc1ebb826e6e00a3679af7cd443c9ea84980a0e6a546fd9533ea9944bd93",
+  "pool_redacted_payload_sha256": "74ae168ab3bf7ed5bdc22794996bccb2420b5941913c3e66b33ff400d82c19f3",
+  "summary": {
+    "accepted_counts_by_behavior": {
+      "has_majority": 24,
+      "mountain_pattern": 24,
+      "sorted_ascending": 24,
+      "sorted_descending": 24
+    },
+    "max_selected_train_vs_heldout_overlap_count": 0
+  },
+  "summary_payload_sha256": "20e3bd251618b533da9442de26b2dcde1c2e3db10cc3f43c4cc27a5e24be86a9"
+}

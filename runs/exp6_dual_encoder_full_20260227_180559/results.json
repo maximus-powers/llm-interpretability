@@ -1,0 +1,11 @@
+{
+  "config": "dual_encoder_full",
+  "best_val_cosine": 0.9799178619519807,
+  "best_epoch": 100,
+  "final_z_alignment": 0.5597109384834766,
+  "balanced_accuracy": 0.976950004696846,
+  "output_correlation": 0.9914318561553955,
+  "collapse_rate": 0.03,
+  "train_time_minutes": 67.12749133507411,
+  "run_dir": "/Users/max/Desktop/muat/runs/exp6_dual_encoder_full_20260227_180559"
+}

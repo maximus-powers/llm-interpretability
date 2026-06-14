@@ -1,0 +1,1107 @@
+{
+  "decode_policy": "condition_only",
+  "probe_provenance": {
+    "probe_set_id": "maximuspowers/hypernet_validated:improved_signature",
+    "probe_examples": [],
+    "probe_examples_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "behavior_suite_hash": "e3fd9b130153643bc28c5b47cd3718aeb98aa38933cfd00bc3113a6c16d0e920",
+    "probe_generation_config_hash": "ac39387be9bbb14880e6cc21d4655dfb40583f96a252bfb2f4635b7b215937e4",
+    "extractor_config_hash": "39991f35711d6177b301183e2d2d33d95f690d3aa53d7f6fb03c1fa7c51cd5bc",
+    "extractor_code_hash": "e8b8cabfe08e731e8d1381c470fe852f322f0e8ccd9f3fa1fa454f69dcdcc237",
+    "normalization_stats_hash": "bbf88ab3044d0fac9f00e5a3d708bb2ea56ae829687f29a865ceea41e66e8f5b",
+    "dataset_source_hash": "5caded16871a57cbc8ca7d81392c93ecc1d33c3d4182ee6487d899dd34714d15",
+    "git_commit": "5bb604b209cc6f82e1a227fe1d7bb31c9e8fc47b",
+    "audit_note": "HF improved_signature rows do not embed actual fixed probe examples; proof validation should fail until probe examples are regenerated or recovered."
+  },
+  "source_pool_preflight": {
+    "passed": true,
+    "failures": []
+  },
+  "splits": {
+    "train": [],
+    "validation": [
+      {
+        "group_id": "validation:dedup:3286:row:8229",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3286:row:8229",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "0c372aefbb0ae8fa95fa59ec29eb422617f89cf1959e5bdba732bd90c1195578",
+          "signature_hash": "48767e8d1e86bbfbd4babf7260335583b2c82bccc1a1a7c7171bf6edd0c3ebe8"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3172:row:7961",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "39baf933b2b86dc8bef7f5a104bd4930666fa07add8ff1abf3c16cdfc7c9a7a6",
+            "signature_hash": "a6b3c48dc00c5cc5eee9547680385ecf58f29441b0a052bb7790ab51f780c508"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2702:row:6723",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "c9d597e717ea3372d6ecb41a0159511d4689bc9fd2c7297c68244e5b44d87ce4",
+            "signature_hash": "1712d5433a94efea09f9b542e8a8a1f3c8a1e83d1c94e713d947cf057ad01266"
+          },
+          "noise_signature": {
+            "seed": 20260610
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:3272:row:8195",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3272:row:8195",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "62fe5e35e7d58d283cbded3fce0aad9a635239775a3d5b14512eae8bfb099a60",
+          "signature_hash": "dee3309c1455787606cd55dadc7a03aa50989703b33adcb2220667a5bc284829"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:112:row:262",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "54b82373e4ad03e433ea68d372dc0b3fdb25f2e21ed1a2bd613ec8235e2432a1",
+            "signature_hash": "5746f2a19510cfa823dd7358087afc2d394af9a7ad760de85b476f95cbf28212"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1381:row:3461",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "c0c175ad7b5992aaecbb5f23dd5b8f9f05e4082ca00a43ef1eb573bd621ed9d6",
+            "signature_hash": "f7e1f22c368264a87ed54e36629565ce241cd36c9590e5876d7ffb1231240ddd"
+          },
+          "noise_signature": {
+            "seed": 20260611
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:880:row:2255",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:880:row:2255",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "8244e2945611b308a98c0e9a89dbee6c010a107d92d1ee90a84e8269f55fe523",
+          "signature_hash": "a76ff2ba4776684423fa6be6d95c3523cdd14574019fcbb0a6fd72584faf93d2"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3345:row:8375",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "e2124c315a5e563f102e5d016a27bbd6e5ff8ab3c7dc19abb764e1770c2d4df9",
+            "signature_hash": "b721b9e211977c44394223aa7f1aeb89f33967d1d4d8714bdfe76fdec9f313d7"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3904:row:9787",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "ca679a9d954d2c2a0601a854361eb7912ff2e753df87c7d2fa9a74e11c61e410",
+            "signature_hash": "97a0e14aefd7f196e7a5f850aef71052a3976a3cf12dc1ccbf790c4f08e2b833"
+          },
+          "noise_signature": {
+            "seed": 20260612
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1494:row:3734",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:1494:row:3734",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "a1b6d3a7adeb1092556842a6b9dd070a157b527b5d7ae36dfdef7fd44965ceb5",
+          "signature_hash": "5eacd96434b3ae102eb043ebefea424f3a5f954ee2059e9708fde730f5852891"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2826:row:7081",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "768461b79ca9d9e70f7d073bb0a753c4eb22c8a11baefd7c26c3fcc5481469a4",
+            "signature_hash": "fae5601acd79d9c0e45ec806724470867badb84fd6e2611e6ee468e5086dcd2a"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:336:row:825",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "f783ed8933770a3426933722467e250d360e6a65212e94396677ddb9692ffd96",
+            "signature_hash": "37d6be50df99f0b63b718fc4fdd9e0bc7f357d9d69ed7fba106aff46b0742533"
+          },
+          "noise_signature": {
+            "seed": 20260613
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:987:row:2507",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:987:row:2507",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "a61f4773c717c121c1409c87a5c75a0aa1697fe0f4bec2224d206d5a76e25879",
+          "signature_hash": "7ff64c01654bd81fd8698e228c7188c89e69d0cc0a6fd9d556139b916bdb0f7d"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1415:row:3553",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "679d980f7e8ec2cf3183e86f719af5ba431200f2ed44a26dd5fd6ce114240175",
+            "signature_hash": "17410d344057473f490ddd2b330f464fbb4f81ef5e20becb3273446f1cb8b943"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1781:row:4418",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "6b797c9f695ffe2c2327cfc6765927cb0a39cb0e5307bf5de37ca5fb6240dca2",
+            "signature_hash": "f6d23f3f75ed427f73a609e6a99cf77d53ec18cbc6766d391826cd4ebfaa6117"
+          },
+          "noise_signature": {
+            "seed": 20260614
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:3524:row:8834",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3524:row:8834",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "f66a37fecdb9bd8dd39b130122496127b5ac22ed4026e76f604766f96b049dab",
+          "signature_hash": "f91f2b2293f8a5b9162ddf4008efe359d1d4727b0dd91b067b0a354d5ae20586"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2312:row:5743",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "55970b8114e1db87dec41661cc22da4c2d6160c55d048f30f3111ea328d240bb",
+            "signature_hash": "d7917cf71d070fad034178bc9f036c443f256d2f75b4bfa7c0b92d2d1ab7173f"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:389:row:973",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "0ccbc75dbf1857e870c461c07f5fc9556cdbeceeb8f4cef8d80477cd1bee9d0c",
+            "signature_hash": "8b11d975942f4853e8af1ae4d58b1825f33c8494eb32709dbb87ab56f98b03bf"
+          },
+          "noise_signature": {
+            "seed": 20260615
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:471:row:1154",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:471:row:1154",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "7b878593e53dba288c8d0076cf6b99dae4b029ab141a5be7119bb7ebcf73df90",
+          "signature_hash": "8a50be383b46ac753ee8db3775bfe2f94fbc0669a96ffa92fa93eb0c9bf021ad"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:280:row:681",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "e0bba58d548aae0e4b455904b12619b55aab4dd645289145663430ac277f7174",
+            "signature_hash": "b436ca5a546389c76b01777802e742772337c278d7acd227ec9dc54ff78312c5"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2215:row:5521",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "eef28ee608d9e4f365e6255800398df8db8685c4026e9202d6498b9a18927f16",
+            "signature_hash": "29b5772ec008dd888159283f547587ea37abae118e5636ffc79fc71ceb2a8334"
+          },
+          "noise_signature": {
+            "seed": 20260616
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1906:row:4732",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:1906:row:4732",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "03bf5319a24a0666080794d119c593152bc1893f7c49265deea2b6dcde5a8baf",
+          "signature_hash": "3cefca9cae2b44ebc4c35e47e43368100210079360b3cb0a1f42e6871a442d2a"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3704:row:9269",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "6f06be30a51093a639082bb9715e5bde15067bc19b8451306bb94c80c0ce6119",
+            "signature_hash": "dd460d350bca855b2025f5fb15edadb0e9ea13491ffa5e04a26b57c534d91431"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2156:row:5388",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "550ec4e42ea6527c5e035e6fa1da28fe0a346ee3e740b86ebae74d14ed4215e5",
+            "signature_hash": "dbe40e81ecde6d72aa3b5a82452e5398300c928ebbd74bea7a632e10edc4aade"
+          },
+          "noise_signature": {
+            "seed": 20260617
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:2932:row:7363",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:2932:row:7363",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "5f8b78d6e7b8b820b7c4c8422f90954f9c1b87533de98a02fe08d6835923ef42",
+          "signature_hash": "4856ba420efaf7c878035cbe3ecfd0efec00282527acc1ffc5a2e635465f6737"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2431:row:6009",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "976ff0552547cc2a2371cbe990cb007dbf0905e2e4715eed27eaffa22860382f",
+            "signature_hash": "9c2431b009325093d9e5c44011ec55514cc5b3b2ba54e27ce360ed7491a4f4e6"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3889:row:9747",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "8acc79283dfdceb7ad95b9b910844e103a4fd0f4d25521360c656b3e5b0c7a33",
+            "signature_hash": "14a9a4f82e2bd64d3b0648783451affe1a6afcc82289a7f919c0d915bb9b9006"
+          },
+          "noise_signature": {
+            "seed": 20260618
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:2585:row:6412",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:2585:row:6412",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "62eb0adef80a7fd04fdb0d46d4b02c549a1cbdcc04c7d5964ac1b2280c405e72",
+          "signature_hash": "886e74930196962306ce71957e8e343d9e971d24457e417325b59024c65a7a08"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:264:row:646",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "eb74224e44f036e90d0853c3956b294619cf06ebcaddc5ce41eb44419717bbf7",
+            "signature_hash": "063525e11eb308d6af266a8012a0e2d084767c43909c75ba8780f55c91c1daac"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:412:row:1004",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "ff965882cf2049238fcaa8d2324d1ec8adcf0d7946fc6c1821ef19008dd15cc5",
+            "signature_hash": "58ce4b95b76a5e0ed720ae6d0a4af8389b5d4d2fd8c7de4babca9cf0642f7298"
+          },
+          "noise_signature": {
+            "seed": 20260619
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1268:row:3198",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:1268:row:3198",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "e7d8faed1b73b5474adeabe620809d9d629591ddf53a382d089449c0459908aa",
+          "signature_hash": "7b9e6c61fbac6d07f23e905436f874f05c80b45760640894a2ae97da387858fd"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1579:row:3931",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "0718e8388ddb444b1db6c5c37629f7eecbd0d9e28426ee103b90369e599b018c",
+            "signature_hash": "fde5bb59eb7534f5d1578a169fc5bbc14b90cd9921fc26a253df93363e2cd3a9"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1946:row:4861",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "daf613d99c9b98faee5584b3f3aab6fca8b01dd1c37997b1138096ce810dd1a5",
+            "signature_hash": "0e44d22e2f0a2d29f6e23f6af46aa7a31e3cf7126811bed362a68b383f644c00"
+          },
+          "noise_signature": {
+            "seed": 20260620
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1884:row:4676",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:1884:row:4676",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "3a4b6a3181fa382fde914291198af458bb8c0064c87c26ef1b320feaa027b9c5",
+          "signature_hash": "2d89f5c1e46b3886521c8dea4c1f9d227f6553affe74a834dfdd1b5d791c1967"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:561:row:1387",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "3fc3b3834c21dee67af04826afb750b8d3bf01953f8048278701ced08aaf5eaf",
+            "signature_hash": "16b721ee0cea69338fdea635c31ee3532d84908c1d4491202b909f96ee928abd"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:606:row:1525",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "5559f41f651eea5e114b7360423abdc58b7c184ae985f48f76be14199125c153",
+            "signature_hash": "f4ade2b83a6c123e3be835be02d79949c3462a261772e6861279ddb350bb8f97"
+          },
+          "noise_signature": {
+            "seed": 20260621
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:3672:row:9198",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3672:row:9198",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "8228dd03916157dd2890af2c91e15fa69557e783882f3abf750f2a863e56af6c",
+          "signature_hash": "03fc9b794fa52073b6f725264d0d4b0a3d3b2cc9f335ecebc7f5fb516b033860"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2991:row:7512",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "401351f918457ff84daf81382aaea518a2e4865642cb37d431a75ce8b6e3d543",
+            "signature_hash": "55839632a2d0e55d44c9f9e4f5921def6172d05a712fbba1e5f1449f3f91cd26"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3758:row:9398",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "57444a362fab1d3850d842a3f9a32433cedfb15f6e4a32a6a90f39b38d1470c6",
+            "signature_hash": "a45312f269f502c75e63e9456ff5d6c144f4b7f630fb8b6d82c7280eee284fee"
+          },
+          "noise_signature": {
+            "seed": 20260622
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:334:row:818",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:334:row:818",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "bc1ede0a8ba27f5b002982c35b8715290f1ec839a18b69ab08800795eea85b51",
+          "signature_hash": "5ded9a383b72c2cc312a38e010314460ce99f709574cd249a7dddea4c281bbbb"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:161:row:396",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "725e05ea77e81f9d898504469a24ec372739b9e1d17590d01c0eb72b95d51b8b",
+            "signature_hash": "e2d5d11e306d6f19c2449d8f626f0e426a9c76db3f6adb3f5a879b394e228cb2"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3189:row:8009",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "fe0d047a52e12506347c554dd252356b5d8fa5ce77007a75f52c4a4a2d5f73a7",
+            "signature_hash": "5b6efd820c9a605fc63e1832cd6686b1f7ad291786a4930e68b29270e8451113"
+          },
+          "noise_signature": {
+            "seed": 20260623
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:2581:row:6403",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2581:row:6403",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "b9ee3b77a7836d929379452a7e13c57230c65e83c18a9555cf432fae732caf56",
+          "signature_hash": "9c56841d4298544e2efe4a524d8ae461491ace9b5270b8cfdeccfb5814aad041"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:333:row:817",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "ee3bc936b49ba9b4a6ed42432322fafdbec24420a94d8b1afcf6219ab5485e37",
+            "signature_hash": "69046e59f49151bf08a46df154d1d6b33d41fc736725e658df178ee8e91a30f8"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2629:row:6535",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "a9e841eee1cd3ec84db2f4364f28d1373e091f60b76f0e8238310a71edd90f8a",
+            "signature_hash": "c7875a3c2e1cb35629499b4518cddcee68f450bf79cfd02034c480b07349f68f"
+          },
+          "noise_signature": {
+            "seed": 20260624
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1095:row:2761",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:1095:row:2761",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "a9e1c566df1c2ee22d126df2f6d12f3a624625fbadb9b13f7b14f58c8d3f92da",
+          "signature_hash": "b7474156caf14be09e9d938a14f8884a34092e67a0ba4f6dc4e3343f8241bef5"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1217:row:3064",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "c9e55770ac18fddd5e426471f8858ee117d76415c3da27b40ce012cc4b8cf048",
+            "signature_hash": "563500c261a3b1a5f4679e7e0ab717e2ed95b691e9d3f1ebecf6ce572b155291"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3475:row:8700",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "b78825a54727f8179a2be4e6ab7ca2f5e2cd50596e0e4241397fc59cf0fde0f7",
+            "signature_hash": "1e5b966755f978117501b2b208e94db5ccdb8e3c4405f0555355c26d20dac06b"
+          },
+          "noise_signature": {
+            "seed": 20260625
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:2989:row:7508",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2989:row:7508",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "a159c484e2eb82264cf4f02a080c4a54f7486f5b78e2dbdcc33e838ccbc02d42",
+          "signature_hash": "e59d2e6249aae5a1d350275988cbf66af1e8925188401e8455db85a698ea4369"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2697:row:6717",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "aa0ed87f550334dad70504c4b572c44c33acf3ee1835174adc33e70d4a7b9ffb",
+            "signature_hash": "8abec9294faf460301424323af033c0c81e2ae8fcfca10152c9933bdaa75430a"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2948:row:7411",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "efa8dc9fadf904c8213584348ff8d8279364e4da82b2e8f928bf44d58a2d9aaa",
+            "signature_hash": "07006f0b02518edf751ecd2927f61e7e984c1ec2232f695547b3177fad0957bc"
+          },
+          "noise_signature": {
+            "seed": 20260626
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:1690:row:4201",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:1690:row:4201",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "4ca6bd5308f154d70a5886d973906f84fcf80d27f92c29a3aeb57e1c89554917",
+          "signature_hash": "23e582b9eda25941ee2b568ecd1373ee6610de69b0ab02f6bb4451e14b60a55d"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2957:row:7434",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "1e965f45a5ac94f5626a0a8203d6a8d21b001ed8116f1d021f049d86e5a07691",
+            "signature_hash": "762425f845db902c4575e992133176d6dc884d0a6ccc50b2120b30927ccb801b"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1707:row:4251",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "ce36baeecab951b17bad759ab58d560eb03c1ccba1dec631bb098b32faabad6f",
+            "signature_hash": "4f8e9be1ae00ad582fc57226cba60c3f6925526068c293fcb0d5945559d85c5c"
+          },
+          "noise_signature": {
+            "seed": 20260627
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:3133:row:7860",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3133:row:7860",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "22eeff9e0a7badfed7ceae7006aa492bb7c3ec7d946e86106e96d0d574b81913",
+          "signature_hash": "bddbefdc7e09d7cde55683b1c4f089d2d496a3d02efe90bd56812da5aa048598"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2006:row:5040",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "53a9174db1cb6d8ee9db8d9c79a8f8ff2296ea48bdb32661017862273dc54f9a",
+            "signature_hash": "49ab130faa9641ea29a73a83ec9d8b4f7a699959f340232a542f22358b74bff0"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1157:row:2914",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "4e45ea0f24d3035ddb5a944f276e28dfd7529fb94474bc869ab9eb10796b54b6",
+            "signature_hash": "502619a4bde55ac2f4ff62bac9f2d8f3129eb690ddbfbb15ed59eb17f3264e02"
+          },
+          "noise_signature": {
+            "seed": 20260628
+          }
+        }
+      },
+      {
+        "group_id": "validation:dedup:2513:row:6220",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2513:row:6220",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "d2805f219ef7e1d583886dfa086417fe99399584f93f4c2f58e9204759aa3185",
+          "signature_hash": "a7404323358a4db099ac333ef4d091035301a6923c545c743c27aefd7adea6b2"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1813:row:4500",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "c7cd4b56446c62c2d1aefc02a46ad9f9c12bdf90fcbabe30585d58dec013e9f7",
+            "signature_hash": "a2ec01a62ab5b7835fe67f2767c2d4e7b4fb2ed3441f6aca49b01040969df6df"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:241:row:575",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "9455c52ffdba568b69699b0d851607bacaf3a23277f54785d3054a473f59e348",
+            "signature_hash": "827f758de22ad0b5f43db621e8f1af243af48e63cba8081cd94b836118b72d86"
+          },
+          "noise_signature": {
+            "seed": 20260629
+          }
+        }
+      }
+    ],
+    "test": [
+      {
+        "group_id": "test:dedup:3951:row:9897",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3951:row:9897",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "48f4b575123138fa7b98bb5c535f2b074939b80d3a3a431ae64b99b4750e8c11",
+          "signature_hash": "b3133c7c2f797c444fb4dff97a470feea9e807ccc0e85406a5b0295273dc9839"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:79:row:185",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "b735b4489226dc03cbf72944d1b3877b95c91fb1d57588d2884bca749d92d9ae",
+            "signature_hash": "66bc3921665de2d8e5f06a5a616c75b81d5c7da3e3579e6c751954d0ee13bf88"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2756:row:6882",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "8682151bfecaa286b8d1a243021ddd772aaed2372ff86080a33581e6fdaa05a1",
+            "signature_hash": "9623d850078e7c3186188964d24f439a3eb182b3f05304e8cd91ce5632dcbfbc"
+          },
+          "noise_signature": {
+            "seed": 20260610
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3060:row:7682",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3060:row:7682",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "2f8c7a99d02dc6faa5a0f46cfc44231b62a0b7455fc0b32cb316a814175d6a9a",
+          "signature_hash": "33b649508e4073e4e853500a1e26bcdac2f8ebdd16794c877bc1fb1d96f03be6"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1448:row:3616",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "469263c4492643f8b6e9357dfbb5bbc887c49185ba044fed24651b9386222c9c",
+            "signature_hash": "bdfef24ab0e24512fa096d8b724d9addf8836fba61776256b645d60edced6b5c"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3545:row:8881",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "8311a60e413c037b6e527990d9b41cf128b991aee4b315876b880544294a233c",
+            "signature_hash": "7ab787ee1384675b60962f85a3ca073417836fad014980f9cad081a8201e2815"
+          },
+          "noise_signature": {
+            "seed": 20260611
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:2499:row:6187",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:2499:row:6187",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "552efc4c9dbc564f2d98fb79b824a27ef772fa39584a55cd16e50022e2de5810",
+          "signature_hash": "0cfd3d0fdd0dd5baf1430761d03395d94a19e8234490f1acb5e659b8a5c90728"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:47:row:101",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "fd99a1dce92c19db67836413be8caf6e64ba83409cec5d6e8480e10830507b79",
+            "signature_hash": "3cfb8ab1f42b5ae3f725154372629f1cbf072fd50b0dfe80a61a16cf827c1932"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1491:row:3723",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "560134e6b2226258bc6ab28334623db89d98e42e9cbfd3d7e1fddeb8ce060ba8",
+            "signature_hash": "eff9be0dcb7fe19053a9abe1f269b10bb24c357265c2a9b04de516a7091dd209"
+          },
+          "noise_signature": {
+            "seed": 20260612
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:149:row:363",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:149:row:363",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "cd137a13890259397294aeb7ac18fdf62e43b3d89cb5d9e45ff1d48d08a0fb85",
+          "signature_hash": "06cab9558ad1b131be07038cddd1aeecbf28e201e102826462855d8c72cf45e5"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2225:row:5540",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "6a2d4f857f486f9ff7e6364886b294c6e5462909525650de4e67a54c94dfe492",
+            "signature_hash": "3d69517b69c7c54b9360cd88cced25b0d91ce4cb7107d94cb6ace6195e65164e"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2010:row:5049",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "fc55d67483904a8c7249176ddb6398d1d020da529263927d78b1664a6ad9e5e5",
+            "signature_hash": "55637ce7b8d4c2bbeadf56d359dc5f0cd7f3222a6bbf9768fb8ea904f8df9d1e"
+          },
+          "noise_signature": {
+            "seed": 20260613
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:615:row:1545",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:615:row:1545",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "ae10ca80b67c61ce30fac05841ed758553edf339747dbead9b248313f62d62c5",
+          "signature_hash": "40e7b7b52c7c182d2ab08e0df12e639618d558829a04338d1789ff4cd7a38480"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2182:row:5440",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "e1189663426a0383220a15954f881795a4e24e6edfae34cf92287a481c5d36d6",
+            "signature_hash": "1003434dcd3bd2c383eea760fe4572b9d049d70c097689ecb8306e7a68ac596d"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1589:row:3957",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "9a17b334846d3806efe14a2c1b992f20f89d1920af7c8ff1cf3b446d1b18cfe3",
+            "signature_hash": "6574a95bea52ac21535c810f277eb8ff5eb7de4398bbd521d305baaae3f80cc3"
+          },
+          "noise_signature": {
+            "seed": 20260614
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3893:row:9760",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:3893:row:9760",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "cdd3ff1f2db5df553f8c7ffa2be241714279562cbd7a3b021cb5992793d3a3c1",
+          "signature_hash": "e0cad9162e20f669d1c82c980cbe5b2c7eb41edb8586f02a8fda851944741aa0"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3620:row:9074",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "4624d3351a21579ed557e9d20315b621dbe9d22988653ea61090e2b664d36f69",
+            "signature_hash": "a29f19956e3dee00013291dc876fee88272415b5e92b8122e0c477c3b2d8ed95"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:299:row:722",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "819d861a9c8f41b72c96d60fbc09b86645ca1967fec9cfe1e2b82cdf4558c905",
+            "signature_hash": "c10c8adb88013ed696a914a30dfbf5e42a95a4b407fdaddf49dd8bede5c5813a"
+          },
+          "noise_signature": {
+            "seed": 20260615
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:384:row:955",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:384:row:955",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "66d295fbad578c752270fac6e3dfa1324d73fe50ee3e13b35cc6ca38effae9ca",
+          "signature_hash": "a89baf793c595e6ac0734c94be79778507a4a0f0d8ed16bafe894c83f039676b"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2489:row:6155",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "367d04f14d478f00bec4d043c590d9f7941cba3af4fad581f8fdc544a9bd8aa7",
+            "signature_hash": "da8db292e133b1dde281af3a763c5f8d5f06711aaced4e8fca7430e721056cfc"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:622:row:1569",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "0e43b93fb7000c4c1e71d68004a9d339acde5a3e1299af1c9465b1ebbd2b5aab",
+            "signature_hash": "4b00964d4a9516bd372b6249234028d078f9ed247eea3c257726e4f895f135af"
+          },
+          "noise_signature": {
+            "seed": 20260616
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:1976:row:4965",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:1976:row:4965",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "1f9aa8226b5c7feca64db62c49c843bb1e2dc3fa5271253a4086ff38cad7d569",
+          "signature_hash": "68b970d3c32ae69b8b61ae656b9e76355ee60d0159af0a08cbcd86c58a8e1209"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3460:row:8663",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "3428bfd1760001f34b069a7badb5b8a7757c3ccc760013539e5d4757494beefb",
+            "signature_hash": "c05de239e91507ee5be050e0a5bc9557bd39727e4febc365a58f781e9a3668f8"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:750:row:1904",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "6b37a9bc5afbc70ba92a19fde35b3524d905e9e13036a12ef3a4244ba7ef1887",
+            "signature_hash": "899f2d2e742869f19d9f26f6ccc2304d11f28e1937e000ee8de2ec14c5005230"
+          },
+          "noise_signature": {
+            "seed": 20260617
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:223:row:542",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:223:row:542",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "8bcf6ec0ab5557a080ea4a7a50c0618a43aac3d6e1fd090122f062334c9c4f05",
+          "signature_hash": "d7291b2457586d392ad52948d6cf1bb2d3fa0cb8d7867dc360962b113757e5a4"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3634:row:9102",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "4ea9651336f0d7ed9d0cb71beb813aaa160b91986930c970fea87b3f8a8abd29",
+            "signature_hash": "92fc4cf9e50840067db11265dac08ced97f63668fa0e08cbce994ec263de43ee"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:727:row:1849",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "b8d616310f165ef42db1ed72d6f24f6710ab36a600a9262af988721439ef8073",
+            "signature_hash": "67f578624edf943e62bd18fc9469d92d240ea6885bec6a09635734af0d0005a3"
+          },
+          "noise_signature": {
+            "seed": 20260618
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:2154:row:5385",
+        "target_pattern": "sorted_ascending",
+        "subject": {
+          "subject_id": "dedup:2154:row:5385",
+          "target_pattern": "sorted_ascending",
+          "weights_hash": "cde9a323e3e837713215e16b670ee127c13c3ae9d053566fd1ceac7f66e4d600",
+          "signature_hash": "a1f4d04ba81acb282c58bd0080d9a12ea73c2ad564d07848c4d39b61a596b1a3"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3619:row:9073",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "76c5bd226b1d046af48dc43bbdd2916c846c0f961df02b3ecfd09a253db1129e",
+            "signature_hash": "5a23b0afcafd0ecf04576777849def53e1889d03e81c3241779e4bc31eb02d90"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3557:row:8909",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "dae70ed8897937e20638084ce320565b8820dbb93ae515e3da156fe96edfaa02",
+            "signature_hash": "12109a6479eb9432935cb4199b69e6717ae32a13f7818e747a8a08549e5676ef"
+          },
+          "noise_signature": {
+            "seed": 20260619
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:670:row:1694",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:670:row:1694",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "b40641749d94e7460d078df2e96796614f1d9a16b60939b68516cf5a4da5b367",
+          "signature_hash": "1d6a0d7f014be0081bcfd10d6918559357e7825ec3220e1ea157caafe4babe68"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:680:row:1717",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "8b9823ac523e34afc20e3a5b63ba36edbba62bd86b97a6f946260796e430a85c",
+            "signature_hash": "e9ccc22e7c465758479290cc8ccf717f9e704ff57aa120028b71f6ac950aa92e"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3247:row:8142",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "10e72fb1250562eeeff89798bb0e0523383773520cd420c023b9b81eaed25f2b",
+            "signature_hash": "02480bd75a10fd147ae12ce258117d1e75fc02f0ae57d794c4e626937792291b"
+          },
+          "noise_signature": {
+            "seed": 20260620
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3187:row:8002",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3187:row:8002",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "a9a3019645c0f4f95274ad84fa1f5a656e604246292397d04da6565dbc3c613d",
+          "signature_hash": "d03eae26db314243eb161da502e53f8e06818265506a0a189c9bc03bb6858964"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:164:row:404",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "02356be5b2f9f1483bd249d812cb393abf845e391b6907691ab560594c91fd5c",
+            "signature_hash": "3d5d6592041ec574a826a7686994f9a247109432997fe69c6ad3d3dde3505fcc"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1642:row:4084",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "6747053aa7ae5b48be7db64a065d6cd6ef90dc9a0fa4c340b2ea78f170731e40",
+            "signature_hash": "a713cf3ac71e2e63fbe29a4adfb62fc6bd5f632198c3656e3000330aababc299"
+          },
+          "noise_signature": {
+            "seed": 20260621
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:83:row:192",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:83:row:192",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "da7e39ce07d41c7b747a97062f905c7f8a8bd33e06313955a1bdddc4af7cb4a7",
+          "signature_hash": "47897e33c0cfe23bca1ccbb40c44e07217510917f7709fc3b9e5307770fc62e0"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:134:row:322",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "0a915f30d8c67ad2b9555707c152817e8a103f53558624687ec112a996ee8964",
+            "signature_hash": "6354ccf63bd1dea920b95bc2e487a9cd3b9d3fcd8742c2eb846ea30fb67e483a"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3790:row:9478",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "d0e360e6c7b09fb366343f983252ee7b986a36214da9b2a013a5d5881a919ca2",
+            "signature_hash": "653be93488d6fc6f3e0b9d8ee2ba81f5f1bf3bcf8ca73c2d0fa5eb92bbc10318"
+          },
+          "noise_signature": {
+            "seed": 20260622
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:1675:row:4160",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:1675:row:4160",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "866a151bd41234e2f8c91caefe03b916618f6e7e2b5184795615428b9466fc68",
+          "signature_hash": "14f1ddf4ff717c8db23de94c38a332a186ff570d19d4511a246d665c7f922f80"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1590:row:3959",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "bf793059f713e1d08bcde3e3fe8b79a74e4259e19a2bf54c3d5f08e89e51070b",
+            "signature_hash": "24afa6299bc0708bfa303a3636bca4b44650af575b46c382c6771d640c5fc8a7"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:2570:row:6374",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "dcce9c4423d4c7799270a2781981bea3a6304877034bf3143b157160d6b2420b",
+            "signature_hash": "6c91e81d5e3ed677c885dfa5db8547d7d43dbb4766fb54d90e19b096845ec0d0"
+          },
+          "noise_signature": {
+            "seed": 20260623
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:2066:row:5176",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2066:row:5176",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "940279c0bf0861a222e63357c02b6d1cdd6c89da7ae65e416091d4b4c03760db",
+          "signature_hash": "4fbabee0c763e9abaa186c47b696073fd041573f99a362430edecb37d79b03c0"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1824:row:4522",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "6865d320b083ab530177a42210be17b0085e4c0af3bfa838f1f6cf5f1f8344ce",
+            "signature_hash": "40eebb9f497507a766c372bbfc02657d3f74dc51301584c7c836a8523d738e62"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3592:row:9007",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "e30970485465e83f3b4b35d9b4478d08caf9ef38cd6e154ed73a59edcf15adbd",
+            "signature_hash": "b1cef10b63d26f15761e65a192593ba4b8cbfa0bd8799af2e84e97e8cd739f16"
+          },
+          "noise_signature": {
+            "seed": 20260624
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:2878:row:7229",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2878:row:7229",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "749ccf2686ba7a417ea88653e6803cd0a9ad47b072a9ed48367a816821e47a4d",
+          "signature_hash": "986b08af1cb5f27484401f1739be4607e09da86342b42ce697d9f6c3965ca915"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1183:row:2972",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "b5a823ecaddd65aa5553c54d8aafe0a0e274b1cf54722704ee54ba3186a2a4a6",
+            "signature_hash": "e6a7a8f607587b1960b88bcd7fc58b2cd0e3e9b9f7f83177c3a8bfd76cc48f59"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3042:row:7621",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "5050ad5f088d2034c85a6aaf8df594dc813c35966281824f0119d0b5d411bef3",
+            "signature_hash": "3b7aa2e958fe7f1363009f2656272b3d57bbe5e45a3bc1eafd095ad79737e4ca"
+          },
+          "noise_signature": {
+            "seed": 20260625
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3541:row:8876",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3541:row:8876",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "5bfcd67a4aca4df0f9e4d1288261d98538b5e7df7cfaf5d5d4dc4643757506cc",
+          "signature_hash": "c1e1c75f947daea520c955ba8ace484a38ae0dd251a02de0147ec14422fdd533"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:3988:row:9987",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "39886f89ecce98cdde61dfe8b44c07db91b5da02eb3bdf61e3d808831b572f25",
+            "signature_hash": "11ff0bde37d474c0a0404c981f2ca72ad3c5e43086c26fc3c2c38e3d497f1276"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3277:row:8204",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "92ec371061af97d67de350d66c7a9cb0916d51a52988c34bec9951081e03fe64",
+            "signature_hash": "e4624fef0ad3eaba0c70c8e489897f23d0d7a6dc4b45525c898c344ea212472e"
+          },
+          "noise_signature": {
+            "seed": 20260626
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:2606:row:6476",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:2606:row:6476",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "f1f7adf8a705ca1002010ce341abd5d828d3498b91273a02c73287f85c42638e",
+          "signature_hash": "ec425dd8a3cf20133feea986a5d2c8e742959aed9f646a9db869961884c7deed"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2110:row:5273",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "354b984e47bbdd0dd326635738720289df79490245ee63b4ab1b125b943aeb89",
+            "signature_hash": "68b688d8a0ce6a5d00aac576139d934f059be719306670a2ad7f9359b2bf7f7e"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:3754:row:9392",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "6148964d89f33f381e3942757542cfd9ab4d06f0c58ff341e650d4a76e26df64",
+            "signature_hash": "19fc80ffc4cadc93898ca73801d308810e4ea5e68f22aacf31fd053cbd904b02"
+          },
+          "noise_signature": {
+            "seed": 20260627
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3129:row:7849",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3129:row:7849",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "fd0ba398e497a28fe8d882027b2abe42f10900e562ab146fd07d27aa58935914",
+          "signature_hash": "0541940ecb388ca8b2eb91b9a3158913ce5b9ea2a6e0be215cba831698c3e7cc"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:2121:row:5307",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "5f8151d9ec21adca7c38b6654f4a413de54a5526b563a3a81f4c1c2618578db8",
+            "signature_hash": "5cd470c77ad0bb8969f537f283e962812180543459a16cc6e93870023abd16c1"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:1303:row:3276",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "d1b4edb0c258ea8be4d5d656f49919ec5b156956ca0303480cf8b1cd084c1e63",
+            "signature_hash": "29b876be3d4d6adfe7125d8afe941a4d36496e6ebe7b9084aacfbb687fd9986c"
+          },
+          "noise_signature": {
+            "seed": 20260628
+          }
+        }
+      },
+      {
+        "group_id": "test:dedup:3508:row:8791",
+        "target_pattern": "sorted_descending",
+        "subject": {
+          "subject_id": "dedup:3508:row:8791",
+          "target_pattern": "sorted_descending",
+          "weights_hash": "9cb55f85c222cab28eba11fe0c9a4840665a499e1c490c34dff0f6ca72721f59",
+          "signature_hash": "3cf222b377a5b578f5bd70fb0e6fe2d39d80223e93206a018028423abb5ba9a2"
+        },
+        "controls": {
+          "same_label_other_subject": {
+            "subject_id": "dedup:1847:row:4584",
+            "target_pattern": "sorted_descending",
+            "weights_hash": "6ed0a6a9910e1b559033bc3498a62a5417d1d6d9a5fcade04f7e0e96e1ae20e6",
+            "signature_hash": "0d5af5ee541746c4d2c3cdcfc8b9518a9f7013997cdbf4e230dc566416460296"
+          },
+          "opposite_direction": {
+            "subject_id": "dedup:855:row:2204",
+            "target_pattern": "sorted_ascending",
+            "weights_hash": "252e1db6278a99e04d312208a76abe12249f54a875a296a78aec683c1d62dd43",
+            "signature_hash": "eade3618cb58788449c3c68ff85ff5735ed8e945404790d308b4879167735f32"
+          },
+          "noise_signature": {
+            "seed": 20260629
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,962 @@
+{
+  "test:dedup:149:row:363": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 175.35520935058594
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 175.9180145263672
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 175.2913055419922
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 175.2913055419922
+    }
+  },
+  "test:dedup:1675:row:4160": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.32516098022461
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.29962921142578
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.55080032348633
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 51.55080032348633
+    }
+  },
+  "test:dedup:1976:row:4965": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 2372.13916015625
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 2374.215576171875
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 2371.9033203125
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 2371.9033203125
+    }
+  },
+  "test:dedup:2066:row:5176": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 173.12301635742188
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 173.07443237304688
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 173.55274963378906
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 173.55274963378906
+    }
+  },
+  "test:dedup:2154:row:5385": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1767.9969482421875
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1769.7288818359375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1767.8001708984375
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 1767.8001708984375
+    }
+  },
+  "test:dedup:223:row:542": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 565.3128662109375
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 566.343994140625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 565.19580078125
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 565.19580078125
+    }
+  },
+  "test:dedup:2499:row:6187": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.040061950683594
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.333595275878906
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 51.00676345825195
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 51.00676345825195
+    }
+  },
+  "test:dedup:2606:row:6476": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 7.818260192871094
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 7.808952808380127
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 7.900754928588867
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 7.900754928588867
+    }
+  },
+  "test:dedup:2878:row:7229": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 81.14183044433594
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 81.11407470703125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 81.38750457763672
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 81.38750457763672
+    }
+  },
+  "test:dedup:3060:row:7682": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 218.3243408203125
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 218.95791625976562
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 218.25244140625
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 218.25244140625
+    }
+  },
+  "test:dedup:3129:row:7849": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 75.55931091308594
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 75.52677154541016
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 75.84676361083984
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 75.84676361083984
+    }
+  },
+  "test:dedup:3187:row:8002": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 48.43440246582031
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 48.41099548339844
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 48.64125061035156
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 48.64125061035156
+    }
+  },
+  "test:dedup:3508:row:8791": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 34.986175537109375
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 34.96932601928711
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 35.13525390625
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 35.13525390625
+    }
+  },
+  "test:dedup:3541:row:8876": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 36.872337341308594
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 36.8513298034668
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 37.05774688720703
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 37.05774688720703
+    }
+  },
+  "test:dedup:384:row:955": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 261.1744384765625
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 261.86773681640625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 261.09576416015625
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 261.09576416015625
+    }
+  },
+  "test:dedup:3893:row:9760": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 178.12892150878906
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 178.72154235839844
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 178.0616912841797
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 178.0616912841797
+    }
+  },
+  "test:dedup:3951:row:9897": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 290.02716064453125
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 290.7637023925781
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 289.94354248046875
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 289.94354248046875
+    }
+  },
+  "test:dedup:615:row:1545": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 353.80047607421875
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 354.60430908203125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 353.709228515625
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 353.709228515625
+    }
+  },
+  "test:dedup:670:row:1694": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 81.0162353515625
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 80.99215698242188
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 81.22952270507812
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 81.22952270507812
+    }
+  },
+  "test:dedup:83:row:192": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 187.33970642089844
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 187.28135681152344
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 187.854736328125
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 187.854736328125
+    }
+  },
+  "validation:dedup:1095:row:2761": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 131.84207153320312
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 131.79812622070312
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 132.22988891601562
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 132.22988891601562
+    }
+  },
+  "validation:dedup:1268:row:3198": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 39.152381896972656
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 39.129554748535156
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 39.35444641113281
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 39.35444641113281
+    }
+  },
+  "validation:dedup:1494:row:3734": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 255.99374389648438
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 256.6579895019531
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 255.91827392578125
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 255.91827392578125
+    }
+  },
+  "validation:dedup:1690:row:4201": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 113.59988403320312
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 113.55911254882812
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 113.95977020263672
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 113.95977020263672
+    }
+  },
+  "validation:dedup:1884:row:4676": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 28.07638168334961
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 28.061555862426758
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 28.20768928527832
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 28.20768928527832
+    }
+  },
+  "validation:dedup:1906:row:4732": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 202.5250244140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 203.14483642578125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 202.45469665527344
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 202.45469665527344
+    }
+  },
+  "validation:dedup:2513:row:6220": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 38.62453842163086
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 38.60564422607422
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 38.79178237915039
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 38.79178237915039
+    }
+  },
+  "validation:dedup:2581:row:6403": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 5.936630725860596
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 5.9280571937561035
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 6.012843608856201
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 6.012843608856201
+    }
+  },
+  "validation:dedup:2585:row:6412": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 176.67416381835938
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 177.25401306152344
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 176.6083984375
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 176.6083984375
+    }
+  },
+  "validation:dedup:2932:row:7363": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 225.66842651367188
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 226.31617736816406
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 225.59487915039062
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 225.59487915039062
+    }
+  },
+  "validation:dedup:2989:row:7508": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 37.86555862426758
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 37.84625244140625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 38.03608703613281
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 38.03608703613281
+    }
+  },
+  "validation:dedup:3133:row:7860": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 433.6244812011719
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 433.5487365722656
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 434.2939147949219
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 434.2939147949219
+    }
+  },
+  "validation:dedup:3272:row:8195": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 165.73504638671875
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 166.29197692871094
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 165.6718292236328
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 165.6718292236328
+    }
+  },
+  "validation:dedup:3286:row:8229": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1284.758544921875
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1286.26171875
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 1284.5877685546875
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 1284.5877685546875
+    }
+  },
+  "validation:dedup:334:row:818": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 29.525218963623047
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 29.51399040222168
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 29.62506866455078
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 29.62506866455078
+    }
+  },
+  "validation:dedup:3524:row:8834": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 983.5778198242188
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 984.9508666992188
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 983.4219970703125
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 983.4219970703125
+    }
+  },
+  "validation:dedup:3672:row:9198": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -1.7881393432617188e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 65.7091064453125
+      },
+      "opposite_direction": {
+        "behavior_margin": -2.8014183044433594e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 65.68816375732422
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 1.4603137969970703e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 65.89469909667969
+      }
+    },
+    "matched": {
+      "behavior_margin": 1.4603137969970703e-05,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 65.89469909667969
+    }
+  },
+  "validation:dedup:471:row:1154": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 286.8410339355469
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 287.5616149902344
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 286.7592468261719
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 286.7592468261719
+    }
+  },
+  "validation:dedup:880:row:2255": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 67.32563781738281
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 67.6717300415039
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 67.286376953125
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 67.286376953125
+    }
+  },
+  "validation:dedup:987:row:2507": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 5.364418029785156e-07,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 157.25225830078125
+      },
+      "opposite_direction": {
+        "behavior_margin": -1.3887882232666016e-05,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 157.80030822753906
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 3.635883331298828e-06,
+        "decoder": "train_label_centroid_weight_decoder",
+        "subject_output_mse": 157.1900634765625
+      }
+    },
+    "matched": {
+      "behavior_margin": 3.635883331298828e-06,
+      "decoder": "train_label_centroid_weight_decoder",
+      "subject_output_mse": 157.1900634765625
+    }
+  }
+}

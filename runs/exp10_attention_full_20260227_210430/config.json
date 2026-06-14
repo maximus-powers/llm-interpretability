@@ -1,0 +1,16 @@
+{
+  "name": "attention_full",
+  "neuron_latent_dim": 64,
+  "model_latent_dim": 128,
+  "hidden_dim": 256,
+  "encoder_layers": 3,
+  "dropout": 0.1,
+  "aggregation": "attention",
+  "epochs": 50,
+  "batch_size": 64,
+  "lr": 0.001,
+  "weight_decay": 0.01,
+  "train_ratio": 0.8,
+  "val_ratio": 0.1,
+  "test_ratio": 0.1
+}

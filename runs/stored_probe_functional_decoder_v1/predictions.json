@@ -1,0 +1,962 @@
+{
+  "test:dedup:149:row:363": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.2521554734557867,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 10.284502983093262
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4256034936988726,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 117.97775268554688
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.27412842755211386,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 525.09326171875
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.3048058105632663,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 2.1508593559265137
+    }
+  },
+  "test:dedup:1675:row:4160": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.029407930288471107,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 123.20724487304688
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1282156241395569,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 86.85848999023438
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.4540449529886246,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 12.448694229125977
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6171232312917709,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 6.414485931396484
+    }
+  },
+  "test:dedup:1976:row:4965": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.054285164922475815,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1284.03759765625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.046859782155593166,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1414.127197265625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2801834646234056,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 838.8443603515625
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2666459527317784,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 147.25497436523438
+    }
+  },
+  "test:dedup:2066:row:5176": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.033245628233999014,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 113.34234619140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1683998916996643,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 120.42595672607422
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6434258818626404,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 128.44259643554688
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.624022901058197,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 19.121177673339844
+    }
+  },
+  "test:dedup:2154:row:5385": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.19271210255101323,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 952.7750244140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3656746428459883,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1613.7947998046875
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2610717983916402,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1038.9931640625
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2741846751887351,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 173.10096740722656
+    }
+  },
+  "test:dedup:223:row:542": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.20966667393804528,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 146.33935546875
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.34507417677679847,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 489.48077392578125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.23962613195180893,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 329.1995849609375
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.23657574225217104,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 9.935211181640625
+    }
+  },
+  "test:dedup:2499:row:6187": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.1340895937755704,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 11.736991882324219
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4950310466688279,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 74.56488800048828
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.3381828162819147,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1.1958081722259521
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.3445028718560934,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 8.59658432006836
+    }
+  },
+  "test:dedup:2606:row:6476": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.13869696076619675,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 139.48301696777344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.08699383592465892,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 53.317867279052734
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.13204212486743927,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 4.5377044677734375
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.3322068750858307,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 3.3662004470825195
+    }
+  },
+  "test:dedup:2878:row:7229": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.06374307118056777,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 178.27154541015625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.13323190190845935,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 174.2340545654297
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5897301286458969,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 32.22774124145508
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6600611358880997,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 6.768444061279297
+    }
+  },
+  "test:dedup:3060:row:7682": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.1449026558548212,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 104.83737182617188
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.601074284153583,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 186.0544891357422
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.280954867368564,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 20.749088287353516
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2784623180050403,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 2.3929128646850586
+    }
+  },
+  "test:dedup:3129:row:7849": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.5463146865367889,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 20.947179794311523
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.17231729626655554,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 930.56396484375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5910550355911255,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 59.82780456542969
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6422636806964874,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 23.495473861694336
+    }
+  },
+  "test:dedup:3187:row:8002": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.1470793776815847,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 330.4100036621094
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.13071821629998903,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 777.4094848632812
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6710599958896637,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 23.901996612548828
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6653249114751816,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 7.737504959106445
+    }
+  },
+  "test:dedup:3508:row:8791": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.14958932444130824,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 143.73280334472656
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.03007185459136963,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 31.47213363647461
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5555866658687592,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 9.987579345703125
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6070147305727005,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 5.00064754486084
+    }
+  },
+  "test:dedup:3541:row:8876": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.48420725762844086,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 26.406179428100586
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.09636161417066802,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 221.06195068359375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.7287603467702866,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 2.1759755611419678
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.014957526698708534,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 19.618677139282227
+    }
+  },
+  "test:dedup:384:row:955": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.022304714962956496,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 44.30284118652344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.39875925704836845,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 219.4879913330078
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.14436356164515018,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 138.10598754882812
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.24319826535065658,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 3.364842414855957
+    }
+  },
+  "test:dedup:3893:row:9760": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.1416092363651842,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 61.68375015258789
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4748587354188203,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 125.34963989257812
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.3035086360760033,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 8.02413272857666
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.22439343947917223,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 23.659225463867188
+    }
+  },
+  "test:dedup:3951:row:9897": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.018621215596795082,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 120.7168960571289
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.6438411106355488,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 294.08740234375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.25155174965038896,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 15.607680320739746
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2696095107239671,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 1.1226723194122314
+    }
+  },
+  "test:dedup:615:row:1545": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.120126286521554,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 79.04437255859375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4367345240484042,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 250.25405883789062
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.3269585222005844,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 62.418731689453125
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2612891807220876,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 1.8586812019348145
+    }
+  },
+  "test:dedup:670:row:1694": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.12101158621226205,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 133.44766235351562
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12459655106795253,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 111.65859985351562
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5934795588254929,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 57.23207092285156
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6198012977838516,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 10.346142768859863
+    }
+  },
+  "test:dedup:83:row:192": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.013539130333811045,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 77.10521697998047
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.10693065815294128,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 319.8413391113281
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.7054765820503235,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 44.93580627441406
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5211322233080864,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 26.04347801208496
+    }
+  },
+  "validation:dedup:1095:row:2761": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.15649727919853262,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 140.8463897705078
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.11863388118977383,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 395.9887390136719
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6076711267232895,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 24.628658294677734
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5773344188928604,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 21.49942970275879
+    }
+  },
+  "validation:dedup:1268:row:3198": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.16738830918711756,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 77.79998779296875
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12686759231068492,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 424.6689758300781
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.10858184844255447,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 286.7152404785156
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5187492817640305,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 6.441642761230469
+    }
+  },
+  "validation:dedup:1494:row:3734": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.10938051575794816,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 22.15465545654297
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.6181948378580273,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 227.20645141601562
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.3113875947892666,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 13.839492797851562
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.24904781486839056,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 8.466354370117188
+    }
+  },
+  "validation:dedup:1690:row:4201": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.18081030249595642,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 79.08506774902344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12411832117868471,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 86.17413330078125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6237497478723526,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 71.41431427001953
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5508153289556503,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 33.24591064453125
+    }
+  },
+  "validation:dedup:1884:row:4676": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.016336896042048465,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 71.91350555419922
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.11648124452350217,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 517.7703247070312
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5782108008861542,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 15.808804512023926
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6548543572425842,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 5.610374927520752
+    }
+  },
+  "validation:dedup:1906:row:4732": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.06327644782140851,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 84.70243072509766
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5317946487414247,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 155.8389892578125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.23841512948274612,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 80.06791687011719
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.23161266837269068,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 10.058114051818848
+    }
+  },
+  "validation:dedup:2513:row:6220": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.08631508734727955,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 336.2861633300781
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.11382590234277754,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 882.3204956054688
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6223073899745941,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 21.63059425354004
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6373212188482285,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 3.6192264556884766
+    }
+  },
+  "validation:dedup:2581:row:6403": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.00700414291350171,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 127.73731231689453
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12100872242385419,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 338.2059631347656
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5737050175666809,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 6.3795061111450195
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.41282984614372253,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 0.2850629985332489
+    }
+  },
+  "validation:dedup:2585:row:6412": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.2732771383598447,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 12.17266845703125
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5906808321960852,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 145.3580780029297
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.23715115852633062,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 363.87200927734375
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2103517985669896,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 5.7407636642456055
+    }
+  },
+  "validation:dedup:2932:row:7363": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.008239816728746518,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 14.934937477111816
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.33042700167970906,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 117.90179443359375
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.27910458529368043,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 67.667236328125
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.23311997452401556,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 2.085129737854004
+    }
+  },
+  "validation:dedup:2989:row:7508": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.1464232641228591,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 82.17495727539062
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1340144601023212,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 112.76847076416016
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6768276393413544,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 10.057344436645508
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.3837510794401169,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 21.790945053100586
+    }
+  },
+  "validation:dedup:3133:row:7860": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.06426403048681095,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 322.165771484375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12044119089724103,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 595.7847290039062
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.6606127917766571,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 190.7964630126953
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.5983279794454575,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 40.36642837524414
+    }
+  },
+  "validation:dedup:3272:row:8195": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.10459542274475098,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 49.73094177246094
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.45305218494960986,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 171.3270721435547
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2760319048538804,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 192.42291259765625
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.24633224244462326,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 2.8200581073760986
+    }
+  },
+  "validation:dedup:3286:row:8229": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.27621020609512925,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 424.2593994140625
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5325650435795559,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 1095.2672119140625
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.26454253029078245,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 649.29345703125
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.28573873155983165,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 6.294279098510742
+    }
+  },
+  "validation:dedup:334:row:818": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.026255710816258215,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 150.773193359375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.11537552521335093,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 487.5113830566406
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5920838415622711,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 6.578376293182373
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6397436559200287,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 4.708240032196045
+    }
+  },
+  "validation:dedup:3524:row:8834": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.15427688881754875,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 477.50726318359375
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.37118506207480095,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 776.2297973632812
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.27753773439326324,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 210.98721313476562
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.26130517626415894,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 8.60617446899414
+    }
+  },
+  "validation:dedup:3672:row:9198": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.10950838818462216,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 136.67160034179688
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1114482696450263,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 350.82110595703125
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.5426051318645477,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 19.62732696533203
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.6407919824123383,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 5.867098808288574
+    }
+  },
+  "validation:dedup:471:row:1154": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.0014183465391397476,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 63.259254455566406
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5078811865645889,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 239.1500701904297
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2609711357338256,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 302.5304260253906
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.2992559648118913,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 47.48210144042969
+    }
+  },
+  "validation:dedup:880:row:2255": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": -0.009179111570119858,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 13.890079498291016
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5515176169574261,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 67.7751235961914
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.2237123148079263,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 54.17905044555664
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.31994054839015007,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 7.124858379364014
+    }
+  },
+  "validation:dedup:987:row:2507": {
+    "controls": {
+      "noise_signature": {
+        "behavior_margin": 0.03340394049882889,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 35.9450569152832
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5740665652556345,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 134.3072967529297
+      },
+      "same_label_other_subject": {
+        "behavior_margin": 0.23334916459862143,
+        "decoder": "stored_probe_functional_decoder_v1",
+        "subject_output_mse": 2.725222110748291
+      }
+    },
+    "matched": {
+      "behavior_margin": 0.23122776683885604,
+      "decoder": "stored_probe_functional_decoder_v1",
+      "subject_output_mse": 2.376417398452759
+    }
+  }
+}

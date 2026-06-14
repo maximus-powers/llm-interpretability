@@ -1,0 +1,11 @@
+source	palindrome	alternating	sorted_descending	sorted_ascending	decreasing_pairs	mountain_pattern	increasing_pairs	first_last_match	no_repeats	has_majority
+palindrome	-	0.000	0.000	1.000	1.000	0.000	1.000	0.500	0.000	0.500
+alternating	0.000	-	0.000	1.000	1.000	0.000	1.000	1.000	0.000	1.000
+sorted_descending	0.000	0.000	-	1.000	1.000	0.000	1.000	0.333	0.000	0.333
+sorted_ascending	0.000	0.000	0.000	-	1.000	0.000	1.000	0.250	0.000	0.250
+decreasing_pairs	0.000	0.500	0.000	1.000	-	0.000	0.750	1.000	0.500	0.750
+mountain_pattern	0.000	0.000	0.000	1.000	1.000	-	1.000	0.500	0.000	0.250
+increasing_pairs	0.000	0.000	0.000	1.000	1.000	0.000	-	1.000	0.000	1.000
+first_last_match	0.000	0.000	0.000	1.000	1.000	0.000	1.000	-	0.000	0.750
+no_repeats	0.000	0.000	0.000	1.000	1.000	0.000	1.000	1.000	-	1.000
+has_majority	0.000	0.000	0.000	1.000	1.000	0.000	1.000	1.000	0.000	-

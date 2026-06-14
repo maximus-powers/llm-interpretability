@@ -1,0 +1,331 @@
+{
+  "aggregate": {
+    "heldout_margin_max": 0.0018367767333984375,
+    "heldout_margin_mean": -0.0013983920216560364,
+    "heldout_margin_min": -0.00609588623046875,
+    "n": 4,
+    "pass_count": 0,
+    "pass_rate": 0.0,
+    "source_margin_gate": 0.4,
+    "support_margin_mean": -0.0013485029339790344
+  },
+  "behavior_suite_metadata": {
+    "base": 10,
+    "hard_negative_fraction": 0.5,
+    "heldout_hash": "c65c0c32aba2dc62db3ea7af3999859027a236ce98e21c091f50fab503a07204",
+    "heldout_per_class": 64,
+    "name": "clean_proof_v1",
+    "negative_case_policy": "Each target's negative cases include other selected behavior positives as hard negatives plus generic no-selected-behavior negatives.",
+    "overlap_matrix": {
+      "has_majority": {
+        "has_majority": 8560,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "mountain_pattern": {
+        "has_majority": 0,
+        "mountain_pattern": 2892,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "sorted_ascending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 252,
+        "sorted_descending": 0
+      },
+      "sorted_descending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 252
+      }
+    },
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending",
+      "has_majority",
+      "mountain_pattern"
+    ],
+    "predicate_counts": {
+      "has_majority": 8560,
+      "mountain_pattern": 2892,
+      "sorted_ascending": 252,
+      "sorted_descending": 252
+    },
+    "seed": 20260609,
+    "sequence_length": 5,
+    "support_hash": "8f75b98bd5ba8c7fff78289de3c9d40c1621d5820709cb8bb02fd58cf59500f3",
+    "support_heldout_overlap_count": 0,
+    "support_per_class": 160,
+    "thresholds": {
+      "condition_min_accuracy": 0.4,
+      "condition_min_delta_vs_majority": 0.1,
+      "decode_min_accuracy": 0.6,
+      "decode_min_accuracy_per_behavior": 0.5,
+      "decode_min_delta_vs_condition_ablation": 0.2,
+      "decode_min_delta_vs_control": 0.2,
+      "decode_min_delta_vs_control_per_behavior": 0.2,
+      "decode_min_delta_vs_noise_signature": 0.2,
+      "decode_min_delta_vs_null_signature": 0.2,
+      "decode_min_delta_vs_train_centroid_signature": 0.2,
+      "decode_min_margin": 0.0,
+      "decode_min_margin_per_behavior": 0.0,
+      "min_heldout_samples_per_behavior": 50,
+      "min_interpret_recall_per_behavior": 0.3,
+      "raw_signature_rf_min_accuracy": 0.45,
+      "raw_signature_rf_min_delta_vs_majority": 0.15,
+      "steer_min_delta_vs_no_edit": 0.25,
+      "steer_min_margin_delta": 0.05,
+      "steer_min_margin_delta_per_target": 0.0,
+      "steer_min_target_success": 0.6,
+      "steer_min_target_success_per_behavior": 0.5,
+      "subject_functional_specificity_min_improvement": 0.02,
+      "subject_functional_specificity_min_median_improvement": 0.0,
+      "subject_functional_specificity_min_samples": 50,
+      "subject_functional_specificity_min_samples_per_behavior": 50,
+      "subject_functional_specificity_min_win_rate": 0.55
+    }
+  },
+  "by_behavior": {
+    "has_majority": {
+      "heldout_margin_max": -0.0012902617454528809,
+      "heldout_margin_mean": -0.0012902617454528809,
+      "heldout_margin_min": -0.0012902617454528809,
+      "n": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": -0.0011304616928100586
+    },
+    "mountain_pattern": {
+      "heldout_margin_max": -4.419684410095215e-05,
+      "heldout_margin_mean": -4.419684410095215e-05,
+      "heldout_margin_min": -4.419684410095215e-05,
+      "n": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": -0.00011983513832092285
+    },
+    "sorted_ascending": {
+      "heldout_margin_max": -0.00609588623046875,
+      "heldout_margin_mean": -0.00609588623046875,
+      "heldout_margin_min": -0.00609588623046875,
+      "n": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": -0.00573277473449707
+    },
+    "sorted_descending": {
+      "heldout_margin_max": 0.0018367767333984375,
+      "heldout_margin_mean": 0.0018367767333984375,
+      "heldout_margin_min": 0.0018367767333984375,
+      "n": 1,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": 0.001589059829711914
+    }
+  },
+  "candidate_pool_summary": {
+    "has_majority": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 3148,
+        "hash": "91718b2100d22901149daaad2c327d2e07cf8107d7ca0febe74448fd0436ccfb"
+      },
+      "positive": {
+        "count": 8424,
+        "hash": "5f401a09550d6d621a4a51270a966424984e0471d93d0462ef4c9236a513ade5"
+      }
+    },
+    "mountain_pattern": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 8798,
+        "hash": "424ef786225bf6f43fc67789e8623b3bc182bd7c4528977efe158ea9a9904b9b"
+      },
+      "positive": {
+        "count": 2774,
+        "hash": "c0494cf3dc45f6bc34dd6678e4df207bf018ba59c534920105904df4ce7e40f8"
+      }
+    },
+    "sorted_ascending": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 11385,
+        "hash": "6e15c5a75ae26350fe1adb6beace624013e5448eadef0d319271fead3d44695b"
+      },
+      "positive": {
+        "count": 187,
+        "hash": "8338731652ef89c41bb3cc68e6145563ab5c773ff704993585495e1060f7f55c"
+      }
+    },
+    "sorted_descending": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 11385,
+        "hash": "bc9caf55c2e2b08ed54b9f7e57814b6cb1e769be715806ab6645b99afd1b6611"
+      },
+      "positive": {
+        "count": 187,
+        "hash": "c1352a9e784af676cb58f3008709fc32ca59eb8f3fe4cdb8c788e27d3fa75608"
+      }
+    }
+  },
+  "caveats": [
+    "Pilot feasibility sample; n=8 per behavior is not an impossibility result.",
+    "Tests support-only source generation, not stored-probe decoding.",
+    "A revised source-generation protocol would require a new preregistration before proof use."
+  ],
+  "claim_scope": "smoke",
+  "config": {
+    "base_seed": 20261210,
+    "generic_negative_cap": 1024,
+    "hard_negative_cap": 1024,
+    "heldout_per_class": 64,
+    "lr": 0.003,
+    "n_per_behavior": 1,
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending",
+      "has_majority",
+      "mountain_pattern"
+    ],
+    "positive_cap": 2048,
+    "probe_examples_hash": "b156dabece5a9eb58a966271388c8e5479fd308712dcca7b373e0f253e670279",
+    "probe_set_id": "stored_digit_probe_v1_seed_20260610_n256",
+    "source_margin_gate": 0.4,
+    "support_per_class": 160,
+    "train_epochs": 1,
+    "training_mode": "heldout_excluded_full_pool"
+  },
+  "development_status": "smoke",
+  "failures": [
+    "sorted_ascending source gate pass count 0/1",
+    "sorted_descending source gate pass count 0/1",
+    "has_majority source gate pass count 0/1",
+    "mountain_pattern source gate pass count 0/1"
+  ],
+  "global_heldout_exclusion_count": 512,
+  "interpretation": "Under this support-only source-generation protocol, has_majority fails the preregistered heldout source-margin gate in this pilot.",
+  "passed": false,
+  "records": [
+    {
+      "heldout_margin": -0.00609588623046875,
+      "passed_source_gate": false,
+      "pattern": "sorted_ascending",
+      "seed": 20261210,
+      "signature_hash": "148c1242d69bf7d2705a2d12176f5c5eb06fa9ee6f15e9dd9da6c989501fad56",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_ascending:0:seed:20261210",
+      "support_margin": -0.00573277473449707,
+      "train_info": {
+        "final_train_loss": 0.879994809627533,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "8bdbf51478312e7f05e13b9080e5c38bf01a52affbf759b343ff645cb4a56113",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "b49350a5db16170c4b6b6a0162a0ab67edec4fca3562b1cf8381fe27b6be6f3c",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "1af562d9b5d3521f1b29c4a603c195b9bac10cf89ec6851d281294b740ce9c63",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "fa555dfbdbac53cefcc47ab9e4638ff2d8584a8e0986c6633db73b1e43352e04",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "1c670286207b25ed5defc77c1fe4f85817edfde1b15ee48b20b1c61491153065"
+    },
+    {
+      "heldout_margin": 0.0018367767333984375,
+      "passed_source_gate": false,
+      "pattern": "sorted_descending",
+      "seed": 20271210,
+      "signature_hash": "35f73a74460ed49642c34d258cc69a346c610d0ebc202ddb106c1d6bada973e0",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_descending:0:seed:20271210",
+      "support_margin": 0.001589059829711914,
+      "train_info": {
+        "final_train_loss": 0.7598361968994141,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "0098a18af9b2b9fb7a46b1a1f3911f00814c1513eb35a1a08d1786880001cf1d",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "f4f5ceb7b7917414a1afe5271f63f030139f0e506620d59f5b9c82c889cbc9d3",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "46ab2ea7662207b281c605db07eec2186784f428ad83aa2a36e27ddf1318a66f",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "38ec23ac2139f841bc597602bf658f454ca5f999512c97f97aba4ca72fc4bbdd",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "cad47ca316625101427993ded0fb60aa522180b9d76f5a05c7745f7a755accdf"
+    },
+    {
+      "heldout_margin": -0.0012902617454528809,
+      "passed_source_gate": false,
+      "pattern": "has_majority",
+      "seed": 20281210,
+      "signature_hash": "1ea2f3798faab70daf97fc2edf96b1f5236d0efd4e0566b436c7325660a2f567",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:has_majority:0:seed:20281210",
+      "support_margin": -0.0011304616928100586,
+      "train_info": {
+        "final_train_loss": 0.6958695650100708,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "f1ac2fa85b4a91046907457a799078647cdee8f719ca1a52a0947b178afb0199",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "0b2b79e4c49885c4bcf7f6334e926529f36894c23365262e2ee1cb4f3db891d5",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "330a82fdf616c76f6a321e6d31deb1471f871f23b9bb58c6616596a920071607",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "d6d9a5a9968af85963e706aa45e2587f22f402ea105a93692652dd21bbd3f60e",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "0c8ae7029541aaa1c4964e89b4eb72b82b0d86bd831b6140d5e14b2f736a33f1"
+    },
+    {
+      "heldout_margin": -4.419684410095215e-05,
+      "passed_source_gate": false,
+      "pattern": "mountain_pattern",
+      "seed": 20291210,
+      "signature_hash": "27a4a52cc021ff9f104dfd5b2377310cb38588bc50ee7e104161c01a3bac7ebd",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:mountain_pattern:0:seed:20291210",
+      "support_margin": -0.00011983513832092285,
+      "train_info": {
+        "final_train_loss": 0.6948463320732117,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "0a8c6eda57f5a5daf144a70a019ef3705392e7cd54a63792cbeae947e678a82a",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "b53562decb7aaee639d3ba086e318f6f3a2a862ca2d5d74dd3322e22f8e7da98",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "a1e36618a750fb16a03f24af0c874aac39736653a15baab4a0b3ea97205ff424",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "8743b25b4d527005ae5d31dd84cccf3223e9423aa43fc123f6a847130e5e6c49",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "2f7c4bc1d565ac23d82909966d74b7098f1f1c266ec1df486d0d2d623349c4cc"
+    }
+  ],
+  "result_payload_sha256": "5bae32e39a6fc6375f3f778844045ff996fd17338040b265d9e04522a5feac68"
+}

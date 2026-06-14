@@ -1,0 +1,4 @@
+{"elapsed_seconds": 0.00017299999999997873, "event": "development_start", "max_workers": 8, "output_dir": "runs/four_behavior_functional_weight_editing_v23_probe_routed_sparse_subspace_editor", "pool_dir": "runs/four_behavior_functional_weight_editing_v23_pools", "updated_at_unix": 1781386442.056743}
+{"elapsed_seconds": 0.08520612500000002, "eval_pool_sha256": "607e8f218d7731d885f05f7073cd35e0145ae8253e68047d12e7d2f3051f8432", "event": "source_payloads_loaded", "train_pool_sha256": "bd06def195dd1cb1ffa2fed01f519d2a2cca3a08329fc8916352df3d9294cc30", "updated_at_unix": 1781386442.1417768}
+{"contract_failure_count": 0, "elapsed_seconds": 0.09203208399999996, "event": "source_pool_contract_validated", "updated_at_unix": 1781386442.148602}
+{"elapsed_seconds": 0.09224045899999989, "eval_subject_count": 96, "event": "train_statistics_start", "train_subject_count": 256, "updated_at_unix": 1781386442.14881}

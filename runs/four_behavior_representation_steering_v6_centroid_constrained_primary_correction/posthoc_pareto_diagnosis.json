@@ -1,0 +1,146 @@
+{
+  "claim_scope": "v6_development_posthoc_diagnosis_not_proof",
+  "development_status": "posthoc_development_only_diagnosis_after_preregistered_v6_failure",
+  "dominance_by_direction": {
+    "has_majority_to_mountain_pattern": {
+      "dominated": 2,
+      "n": 24,
+      "undominated": 22,
+      "undominated_rate": 0.9166666666666666
+    },
+    "has_majority_to_sorted_ascending": {
+      "dominated": 4,
+      "n": 24,
+      "undominated": 20,
+      "undominated_rate": 0.8333333333333334
+    },
+    "has_majority_to_sorted_descending": {
+      "dominated": 2,
+      "n": 24,
+      "undominated": 22,
+      "undominated_rate": 0.9166666666666666
+    },
+    "mountain_pattern_to_has_majority": {
+      "dominated": 3,
+      "n": 24,
+      "undominated": 21,
+      "undominated_rate": 0.875
+    },
+    "mountain_pattern_to_sorted_ascending": {
+      "dominated": 8,
+      "n": 24,
+      "undominated": 16,
+      "undominated_rate": 0.6666666666666666
+    },
+    "mountain_pattern_to_sorted_descending": {
+      "dominated": 4,
+      "n": 24,
+      "undominated": 20,
+      "undominated_rate": 0.8333333333333334
+    },
+    "sorted_ascending_to_has_majority": {
+      "dominated": 4,
+      "n": 24,
+      "undominated": 20,
+      "undominated_rate": 0.8333333333333334
+    },
+    "sorted_ascending_to_mountain_pattern": {
+      "dominated": 8,
+      "n": 24,
+      "undominated": 16,
+      "undominated_rate": 0.6666666666666666
+    },
+    "sorted_ascending_to_sorted_descending": {
+      "dominated": 6,
+      "n": 24,
+      "undominated": 18,
+      "undominated_rate": 0.75
+    },
+    "sorted_descending_to_has_majority": {
+      "dominated": 8,
+      "n": 24,
+      "undominated": 16,
+      "undominated_rate": 0.6666666666666666
+    },
+    "sorted_descending_to_mountain_pattern": {
+      "dominated": 5,
+      "n": 24,
+      "undominated": 19,
+      "undominated_rate": 0.7916666666666666
+    },
+    "sorted_descending_to_sorted_ascending": {
+      "dominated": 8,
+      "n": 24,
+      "undominated": 16,
+      "undominated_rate": 0.6666666666666666
+    }
+  },
+  "dominator_type_counts": {
+    "same_target_other_source_v6_centroid_constrained_primary_correction": 33,
+    "shuffled_v6_centroid_constrained_primary_correction": 5,
+    "v2_centroid_delta": 12,
+    "v3_diagonal_transport": 12,
+    "v5_contrastive_residual_calibration": 27
+  },
+  "mean_control_minus_matched_by_type": {
+    "no_edit": {
+      "centroid": -5.28796112537384,
+      "primary": -98.11620056132476
+    },
+    "null_vector": {
+      "centroid": -5.28796112537384,
+      "primary": -98.11620056132476
+    },
+    "random_norm_matched_vector": {
+      "centroid": -13.203467669172419,
+      "primary": -99.72244399603612
+    },
+    "reverse_v6_centroid_constrained_primary_correction": {
+      "centroid": -10.60273152589798,
+      "primary": -228.7738766670227
+    },
+    "same_source_other_target_v6_centroid_constrained_primary_correction": {
+      "centroid": -2.0664136989249124,
+      "primary": -112.8739479697413
+    },
+    "same_target_other_source_v6_centroid_constrained_primary_correction": {
+      "centroid": -3.6806877884599896,
+      "primary": -16.78314301951064
+    },
+    "shuffled_v6_centroid_constrained_primary_correction": {
+      "centroid": -5.943163219425413,
+      "primary": -124.03993033700519
+    },
+    "v2_centroid_delta": {
+      "centroid": -4.03621682855818,
+      "primary": -2.302112387286292
+    },
+    "v3_diagonal_transport": {
+      "centroid": -3.725839568508996,
+      "primary": -2.9514984058009253
+    },
+    "v4_low_rank_residual_transport": {
+      "centroid": -0.09309818678432041,
+      "primary": -5.9002181059784355
+    },
+    "v5_contrastive_residual_calibration": {
+      "centroid": -0.8543339901500278,
+      "primary": 62.647249334388306
+    }
+  },
+  "n": 288,
+  "pareto_dominated_count": 62,
+  "pareto_undominated_count": 226,
+  "pareto_undominated_rate": 0.7847222222222222,
+  "final_access_status": "does_not_authorize_opening_or_evaluating_v6_final_raw",
+  "limitations": [
+    "Posthoc diagnosis on V6 development data only.",
+    "Not proof-grade evidence and not final evidence.",
+    "The preregistered V6 development gates failed, so V6 final evaluation remains blocked.",
+    "Any V7 proof attempt must use a new preregistration and fresh pools, not reinterpret this development result as final evidence.",
+    "Worst-direction Pareto-undominated rate is only 16/24, so the diagnosis motivates method design rather than a gate-only claim."
+  ],
+  "next_action": "use_only_to_motivate_fresh_preregistered_v7_design_do_not_open_v6_final_raw",
+  "source_artifact": "runs/four_behavior_representation_steering_v6_centroid_constrained_primary_correction/development_results.json",
+  "source_artifact_sha256": "4dcb37d961d00dcdb4535208e1caed32961c4719e49f79580719c2960f3c35a3"
+}

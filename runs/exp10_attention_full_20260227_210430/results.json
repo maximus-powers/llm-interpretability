@@ -1,0 +1,5 @@
+{
+  "best_val_acc": 0.413,
+  "test_acc": 0.41,
+  "random_baseline": 0.07142857142857142
+}

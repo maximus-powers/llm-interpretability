@@ -1,0 +1,5 @@
+source	sorted_descending	sorted_ascending	decreasing_pairs	increasing_pairs
+sorted_descending	-	1.000	1.000	1.000
+sorted_ascending	1.000	-	1.000	1.000
+decreasing_pairs	1.000	1.000	-	1.000
+increasing_pairs	1.000	1.000	1.000	-

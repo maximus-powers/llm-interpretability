@@ -1,0 +1,42 @@
+{
+  "reconstruction": {
+    "cosine_similarity": 0.09506527334451675,
+    "mse": 0.1144951656460762
+  },
+  "editing": [],
+  "history": {
+    "loss": [
+      18.26117162704468
+    ],
+    "recon_loss": [
+      0.11524925529956817
+    ],
+    "kl_loss": [
+      0.12471705377101898
+    ],
+    "functional_loss": [
+      15.743377494812012
+    ],
+    "target_behavior_loss": [
+      2.3900726795196534
+    ],
+    "val_loss": [
+      5.483375072479248
+    ],
+    "val_recon_loss": [
+      0.10658031702041626
+    ],
+    "val_kl_loss": [
+      0.10254742205142975
+    ],
+    "val_functional_loss": [
+      2.974675178527832
+    ],
+    "val_target_behavior_loss": [
+      2.391864776611328
+    ],
+    "lr": [
+      0.0
+    ]
+  }
+}

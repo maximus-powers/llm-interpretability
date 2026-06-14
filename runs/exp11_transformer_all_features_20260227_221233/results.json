@@ -1,0 +1,8 @@
+{
+  "name": "transformer_all_features",
+  "model_type": "transformer",
+  "use_all_features": true,
+  "best_val_acc": 0.568,
+  "test_acc": 0.61,
+  "n_params": 3309582
+}

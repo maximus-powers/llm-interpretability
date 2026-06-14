@@ -107,10 +107,18 @@ def normalize_features(features: np.ndarray, norm_stats: Dict[str, Dict[str, flo
     
     Returns:
         Normalized features with zero mean and unit variance per feature
+        
+    Note:
+        input_correlations features are SKIPPED from normalization to preserve
+        the direct linear relationship: weight ≈ 0.35 * input_corr + 0.02
+        This enables the InputCorrelationBypass in the decoder to work correctly.
     """
     feature_order = norm_stats.get("_feature_order", [])
     if not feature_order:
         return features
+    
+    # Features to skip normalization (preserves direct weight relationship for bypass)
+    SKIP_NORMALIZATION_PREFIXES = ("input_correlations",)
     
     normalized = features.copy()
     num_features = len(feature_order)
@@ -126,6 +134,9 @@ def normalize_features(features: np.ndarray, norm_stats: Dict[str, Dict[str, flo
         
         for i, feature_name in enumerate(feature_order):
             if feature_name in norm_stats:
+                # Skip normalization for input_correlations
+                if any(feature_name.startswith(prefix) for prefix in SKIP_NORMALIZATION_PREFIXES):
+                    continue
                 mean = norm_stats[feature_name]["mean"]
                 std = norm_stats[feature_name]["std"]
                 normalized[:, i] = (normalized[:, i] - mean) / std
@@ -135,6 +146,9 @@ def normalize_features(features: np.ndarray, norm_stats: Dict[str, Dict[str, flo
     # For multi-dimensional arrays, assume last dim is features
     for i, feature_name in enumerate(feature_order):
         if feature_name in norm_stats and i < features.shape[-1]:
+            # Skip normalization for input_correlations
+            if any(feature_name.startswith(prefix) for prefix in SKIP_NORMALIZATION_PREFIXES):
+                continue
             mean = norm_stats[feature_name]["mean"]
             std = norm_stats[feature_name]["std"]
             normalized[..., i] = (normalized[..., i] - mean) / std
@@ -505,6 +519,9 @@ class WeightSpaceDataset(Dataset):
         arch_spec = extract_architecture_spec(weights_dict)
 
         # tokenize input (signature, weights, or both)
+        # Also save raw (unnormalized) signature for bypass pathway
+        raw_signature_tensor = None
+        
         if self.input_mode == "signature":
             if self.tokenizer.granularity == "neuron":
                 # flatten signature and tokenize
@@ -530,15 +547,27 @@ class WeightSpaceDataset(Dataset):
                 
                 # Apply per-feature normalization if stats are available
                 if self.norm_stats is not None:
-                    signature_flat = normalize_features(signature_flat, self.norm_stats)
+                    signature_flat_normalized = normalize_features(signature_flat, self.norm_stats)
+                else:
+                    signature_flat_normalized = signature_flat
                 
                 encoder_tokenized = self.tokenizer.tokenize(
-                    signature_flat, metadata_dict
+                    signature_flat_normalized, metadata_dict
                 )
+                
+                # IMPORTANT: Tokenize raw (unnormalized) signature the SAME WAY for bypass
+                # The InputCorrelationBypass expects [batch, num_neurons, features_per_neuron]
+                raw_tokenized = self.tokenizer.tokenize(signature_flat, metadata_dict)
+                raw_signature_tensor = raw_tokenized["tokens"]
             else:
                 signature_features, signature_mask = preprocess_signature(
                     example["improved_signature"], self.max_dims, self.method_names
                 )
+                
+                # IMPORTANT: Save raw signature BEFORE normalization for bypass
+                # Shape must match encoder_tokenized["tokens"] for bypass to work
+                raw_signature_tensor = torch.from_numpy(signature_features.copy().reshape(1, -1))
+                
                 # Apply per-feature normalization if stats are available
                 if self.norm_stats is not None:
                     signature_features = normalize_features(signature_features, self.norm_stats)
@@ -654,6 +683,11 @@ class WeightSpaceDataset(Dataset):
             "test_inputs": test_inputs,
             "arch_spec": arch_spec,
         }
+        
+        # CRITICAL: Include raw (unnormalized) signature for InputCorrelationBypass
+        # The bypass uses empirical coefficients that were computed on raw data
+        if raw_signature_tensor is not None:
+            output["raw_signature"] = raw_signature_tensor
 
         # original_shapes if available (for detokenization)
         if "original_shapes" in weights_tokenized:
@@ -736,6 +770,9 @@ def custom_collate_fn(batch):
     # for decoder_target, use the actual max from the batch, used to ensure consistency within the batch
     max_decoder_dim = max(item["decoder_target"].shape[1] for item in batch)
 
+    # Check if raw_signature exists in batch
+    has_raw_signature = "raw_signature" in batch[0]
+    
     # pad each item to max dims
     for item in batch:
         encoder_input = item["encoder_input"]
@@ -751,6 +788,16 @@ def custom_collate_fn(batch):
                 decoder_target.shape[0], max_decoder_dim - decoder_target.shape[1]
             )
             item["decoder_target"] = torch.cat([decoder_target, padding], dim=1)
+        
+        # Pad raw_signature if present (same shape as encoder_input)
+        if has_raw_signature:
+            raw_sig = item["raw_signature"]
+            # raw_signature has same shape as encoder_input: [num_tokens, token_dim]
+            if raw_sig.shape[1] < max_encoder_dim:
+                padding = torch.zeros(
+                    raw_sig.shape[0], max_encoder_dim - raw_sig.shape[1]
+                )
+                item["raw_signature"] = torch.cat([raw_sig, padding], dim=1)
 
     collated_batch = default_collate(batch)
 

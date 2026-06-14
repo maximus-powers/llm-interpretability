@@ -1,0 +1,8 @@
+{
+  "name": "mlp_all_features",
+  "model_type": "mlp",
+  "use_all_features": true,
+  "best_val_acc": 0.669,
+  "test_acc": 0.662,
+  "n_params": 339982
+}

@@ -1,0 +1,8 @@
+{
+  "name": "quick_test",
+  "model_type": "mlp",
+  "use_all_features": false,
+  "best_val_acc": 0.261,
+  "test_acc": 0.251,
+  "n_params": 103182
+}

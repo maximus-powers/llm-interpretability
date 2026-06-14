@@ -1,0 +1,8 @@
+{
+  "name": "transformer_behavioral",
+  "model_type": "transformer",
+  "use_all_features": false,
+  "best_val_acc": 0.485,
+  "test_acc": 0.496,
+  "n_params": 3307534
+}

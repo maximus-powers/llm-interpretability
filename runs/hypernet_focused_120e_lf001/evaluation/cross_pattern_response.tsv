@@ -1,0 +1,13 @@
+source	target	resp_sorted_descending	resp_sorted_ascending	resp_decreasing_pairs	resp_increasing_pairs
+sorted_descending	sorted_ascending	-0.6669	0.5767	-0.5821	0.4814
+sorted_descending	decreasing_pairs	0.5659	-0.6226	0.5137	-0.5342
+sorted_descending	increasing_pairs	-0.5205	0.5233	-0.4993	0.4607
+sorted_ascending	sorted_descending	0.6530	-0.5444	0.5528	-0.5080
+sorted_ascending	decreasing_pairs	0.5722	-0.6206	0.5168	-0.5336
+sorted_ascending	increasing_pairs	-0.5227	0.5200	-0.5011	0.4590
+decreasing_pairs	sorted_descending	0.6497	-0.5427	0.5480	-0.5068
+decreasing_pairs	sorted_ascending	-0.6684	0.5762	-0.5827	0.4816
+decreasing_pairs	increasing_pairs	-0.5207	0.5220	-0.4997	0.4601
+increasing_pairs	sorted_descending	0.6512	-0.5430	0.5514	-0.5066
+increasing_pairs	sorted_ascending	-0.6563	0.5708	-0.5791	0.4824
+increasing_pairs	decreasing_pairs	0.5674	-0.6218	0.5139	-0.5335

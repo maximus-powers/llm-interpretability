@@ -1,0 +1,65 @@
+{
+  "reconstruction": {
+    "cosine_similarity": 0.06321360170841217,
+    "mse": 0.11558585613965988
+  },
+  "editing": [
+    {
+      "source_pattern": "sorted_descending",
+      "target_pattern": "sorted_ascending",
+      "original_correct": 10,
+      "edited_correct_source": 4,
+      "edited_correct_target": 6,
+      "total": 10
+    },
+    {
+      "source_pattern": "sorted_ascending",
+      "target_pattern": "sorted_descending",
+      "original_correct": 10,
+      "edited_correct_source": 10,
+      "edited_correct_target": 0,
+      "total": 10
+    }
+  ],
+  "history": {
+    "loss": [
+      13.083043370928083
+    ],
+    "recon_loss": [
+      0.11671161864485059
+    ],
+    "kl_loss": [
+      0.10845465106623513
+    ],
+    "functional_loss": [
+      8.185035773686
+    ],
+    "target_behavior_loss": [
+      2.390282051903861
+    ],
+    "condition_behavior_loss": [
+      2.3899297373635426
+    ],
+    "val_loss": [
+      14.321667671203613
+    ],
+    "val_recon_loss": [
+      0.11675307154655457
+    ],
+    "val_kl_loss": [
+      0.1139950156211853
+    ],
+    "val_functional_loss": [
+      9.421355247497559
+    ],
+    "val_target_behavior_loss": [
+      2.3884763717651367
+    ],
+    "val_condition_behavior_loss": [
+      2.3939428329467773
+    ],
+    "lr": [
+      0.0
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "mlp_behavioral",
+  "model_type": "mlp",
+  "use_all_features": false,
+  "best_val_acc": 0.479,
+  "test_acc": 0.462,
+  "n_params": 337934
+}

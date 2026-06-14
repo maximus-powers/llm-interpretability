@@ -1,0 +1,1122 @@
+{
+  "validation:dedup:3286:row:8229": {
+    "matched": {
+      "behavior_margin": 0.25515349954366684,
+      "subject_output_mse": 0.056420061737298965,
+      "decoded_train_index": 3888,
+      "nearest_distance": 37.68221664428711
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.4569392614066601,
+        "subject_output_mse": 0.45709115266799927,
+        "decoded_train_index": 3363,
+        "nearest_distance": 21.56070899963379
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3887879085941677,
+        "subject_output_mse": 0.296671062707901,
+        "decoded_train_index": 216,
+        "nearest_distance": 25.427148818969727
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4067270141094923,
+        "subject_output_mse": 0.3259104788303375,
+        "decoded_train_index": 3143,
+        "nearest_distance": 26.721832275390625
+      }
+    }
+  },
+  "validation:dedup:3272:row:8195": {
+    "matched": {
+      "behavior_margin": 0.20273112505674362,
+      "subject_output_mse": 0.007833367213606834,
+      "decoded_train_index": 984,
+      "nearest_distance": 26.365114212036133
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.042137302458286285,
+        "subject_output_mse": 0.009860065765678883,
+        "decoded_train_index": 42,
+        "nearest_distance": 28.429052352905273
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.4339783469292655,
+        "subject_output_mse": 0.33318644762039185,
+        "decoded_train_index": 1996,
+        "nearest_distance": 25.06974983215332
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4569392614066601,
+        "subject_output_mse": 0.45596787333488464,
+        "decoded_train_index": 3363,
+        "nearest_distance": 28.008346557617188
+      }
+    }
+  },
+  "validation:dedup:880:row:2255": {
+    "matched": {
+      "behavior_margin": 0.2820330560207367,
+      "subject_output_mse": 0.014137006364762783,
+      "decoded_train_index": 3479,
+      "nearest_distance": 25.01620101928711
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.23572451993823051,
+        "subject_output_mse": 0.16117778420448303,
+        "decoded_train_index": 3478,
+        "nearest_distance": 24.808687210083008
+      },
+      "opposite_direction": {
+        "behavior_margin": 0.18883661925792694,
+        "subject_output_mse": 0.058777593076229095,
+        "decoded_train_index": 1919,
+        "nearest_distance": 22.704906463623047
+      },
+      "noise_signature": {
+        "behavior_margin": -0.17505666986107826,
+        "subject_output_mse": 0.14234860241413116,
+        "decoded_train_index": 1250,
+        "nearest_distance": 29.107765197753906
+      }
+    }
+  },
+  "validation:dedup:1494:row:3734": {
+    "matched": {
+      "behavior_margin": 0.08361975848674774,
+      "subject_output_mse": 0.0012964827474206686,
+      "decoded_train_index": 2067,
+      "nearest_distance": 30.069847106933594
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.11477866768836975,
+        "subject_output_mse": 0.008987165056169033,
+        "decoded_train_index": 672,
+        "nearest_distance": 28.34608268737793
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3572970973746692,
+        "subject_output_mse": 0.2850702404975891,
+        "decoded_train_index": 821,
+        "nearest_distance": 24.76782989501953
+      },
+      "noise_signature": {
+        "behavior_margin": -0.20424978248775005,
+        "subject_output_mse": 0.1498769372701645,
+        "decoded_train_index": 1037,
+        "nearest_distance": 27.09696388244629
+      }
+    }
+  },
+  "validation:dedup:987:row:2507": {
+    "matched": {
+      "behavior_margin": 0.24613115936517715,
+      "subject_output_mse": 0.00721248984336853,
+      "decoded_train_index": 9,
+      "nearest_distance": 22.727901458740234
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.06632295809686184,
+        "subject_output_mse": 0.0016094385646283627,
+        "decoded_train_index": 3236,
+        "nearest_distance": 26.814125061035156
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.2743561150855385,
+        "subject_output_mse": 0.12610501050949097,
+        "decoded_train_index": 3668,
+        "nearest_distance": 22.201719284057617
+      },
+      "noise_signature": {
+        "behavior_margin": -0.27949312468990684,
+        "subject_output_mse": 0.20237332582473755,
+        "decoded_train_index": 7,
+        "nearest_distance": 27.702722549438477
+      }
+    }
+  },
+  "validation:dedup:3524:row:8834": {
+    "matched": {
+      "behavior_margin": 0.16209444403648376,
+      "subject_output_mse": 0.004868251271545887,
+      "decoded_train_index": 3548,
+      "nearest_distance": 13.80584716796875
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.07057267427444458,
+        "subject_output_mse": 0.010159017518162727,
+        "decoded_train_index": 1522,
+        "nearest_distance": 27.730375289916992
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3666129944031127,
+        "subject_output_mse": 0.2473440170288086,
+        "decoded_train_index": 3856,
+        "nearest_distance": 25.610986709594727
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3577160909771919,
+        "subject_output_mse": 0.44849926233291626,
+        "decoded_train_index": 1355,
+        "nearest_distance": 27.103710174560547
+      }
+    }
+  },
+  "validation:dedup:471:row:1154": {
+    "matched": {
+      "behavior_margin": 0.12326047569513321,
+      "subject_output_mse": 0.027557216584682465,
+      "decoded_train_index": 3942,
+      "nearest_distance": 32.47687530517578
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.039151616394519806,
+        "subject_output_mse": 0.008852560073137283,
+        "decoded_train_index": 3397,
+        "nearest_distance": 37.13034439086914
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.37420217802753086,
+        "subject_output_mse": 0.27765896916389465,
+        "decoded_train_index": 2388,
+        "nearest_distance": 25.27454376220703
+      },
+      "noise_signature": {
+        "behavior_margin": 0.17172915488481522,
+        "subject_output_mse": 0.03665067255496979,
+        "decoded_train_index": 2408,
+        "nearest_distance": 27.42142677307129
+      }
+    }
+  },
+  "validation:dedup:1906:row:4732": {
+    "matched": {
+      "behavior_margin": 0.06297257170081139,
+      "subject_output_mse": 0.0026381714269518852,
+      "decoded_train_index": 1764,
+      "nearest_distance": 25.806774139404297
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.11285968869924545,
+        "subject_output_mse": 0.004585471004247665,
+        "decoded_train_index": 1367,
+        "nearest_distance": 20.17071533203125
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.34409022703766823,
+        "subject_output_mse": 0.28120848536491394,
+        "decoded_train_index": 57,
+        "nearest_distance": 23.211088180541992
+      },
+      "noise_signature": {
+        "behavior_margin": 0.13426440209150314,
+        "subject_output_mse": 0.05544700101017952,
+        "decoded_train_index": 1272,
+        "nearest_distance": 27.91069221496582
+      }
+    }
+  },
+  "validation:dedup:2932:row:7363": {
+    "matched": {
+      "behavior_margin": 0.27505791559815407,
+      "subject_output_mse": 0.039184216409921646,
+      "decoded_train_index": 2557,
+      "nearest_distance": 29.119691848754883
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.11871573515236378,
+        "subject_output_mse": 0.08314049243927002,
+        "decoded_train_index": 2088,
+        "nearest_distance": 24.80190086364746
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.06886692740501132,
+        "subject_output_mse": 0.045470885932445526,
+        "decoded_train_index": 3216,
+        "nearest_distance": 26.199047088623047
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2579374648630619,
+        "subject_output_mse": 0.20740261673927307,
+        "decoded_train_index": 3514,
+        "nearest_distance": 27.35334587097168
+      }
+    }
+  },
+  "validation:dedup:2585:row:6412": {
+    "matched": {
+      "behavior_margin": 0.031172776594758034,
+      "subject_output_mse": 0.0020347116515040398,
+      "decoded_train_index": 2456,
+      "nearest_distance": 21.18296241760254
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.31975874677300453,
+        "subject_output_mse": 0.006925409659743309,
+        "decoded_train_index": 1775,
+        "nearest_distance": 24.611957550048828
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.22630771645344794,
+        "subject_output_mse": 0.11109571903944016,
+        "decoded_train_index": 2614,
+        "nearest_distance": 23.679149627685547
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2637849992606789,
+        "subject_output_mse": 0.2107921540737152,
+        "decoded_train_index": 732,
+        "nearest_distance": 27.111570358276367
+      }
+    }
+  },
+  "validation:dedup:1268:row:3198": {
+    "matched": {
+      "behavior_margin": 0.4394043833017349,
+      "subject_output_mse": 0.019900605082511902,
+      "decoded_train_index": 2859,
+      "nearest_distance": 12.661953926086426
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.6092965304851532,
+        "subject_output_mse": 0.1140763983130455,
+        "decoded_train_index": 2463,
+        "nearest_distance": 27.102380752563477
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.0263497955887928,
+        "subject_output_mse": 0.11827340722084045,
+        "decoded_train_index": 3730,
+        "nearest_distance": 33.56245040893555
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3403869836620288,
+        "subject_output_mse": 0.2703750729560852,
+        "decoded_train_index": 2688,
+        "nearest_distance": 27.98744773864746
+      }
+    }
+  },
+  "validation:dedup:1884:row:4676": {
+    "matched": {
+      "behavior_margin": -0.18062457721680403,
+      "subject_output_mse": 0.2916628122329712,
+      "decoded_train_index": 1204,
+      "nearest_distance": 23.35858154296875
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.025768399238586426,
+        "subject_output_mse": 0.2763708829879761,
+        "decoded_train_index": 1987,
+        "nearest_distance": 21.053403854370117
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.01753298812997084,
+        "subject_output_mse": 0.2822294235229492,
+        "decoded_train_index": 2975,
+        "nearest_distance": 28.095190048217773
+      },
+      "noise_signature": {
+        "behavior_margin": -0.38778100861236453,
+        "subject_output_mse": 0.2974242568016052,
+        "decoded_train_index": 3648,
+        "nearest_distance": 26.472684860229492
+      }
+    }
+  },
+  "validation:dedup:3672:row:9198": {
+    "matched": {
+      "behavior_margin": 0.7129757702350616,
+      "subject_output_mse": 0.14653657376766205,
+      "decoded_train_index": 3949,
+      "nearest_distance": 23.45094108581543
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.3171306997537613,
+        "subject_output_mse": 0.23315021395683289,
+        "decoded_train_index": 2552,
+        "nearest_distance": 22.586259841918945
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.030488815622447873,
+        "subject_output_mse": 0.39309579133987427,
+        "decoded_train_index": 3336,
+        "nearest_distance": 26.30650520324707
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2593517312052427,
+        "subject_output_mse": 0.40449780225753784,
+        "decoded_train_index": 732,
+        "nearest_distance": 28.475345611572266
+      }
+    }
+  },
+  "validation:dedup:334:row:818": {
+    "matched": {
+      "behavior_margin": -0.14338960229360964,
+      "subject_output_mse": 0.4660484194755554,
+      "decoded_train_index": 3370,
+      "nearest_distance": 24.491199493408203
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.009966820478439331,
+        "subject_output_mse": 0.28352227807044983,
+        "decoded_train_index": 2224,
+        "nearest_distance": 24.26120376586914
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.05496849087512601,
+        "subject_output_mse": 0.41412004828453064,
+        "decoded_train_index": 683,
+        "nearest_distance": 18.596363067626953
+      },
+      "noise_signature": {
+        "behavior_margin": -0.5340529382228851,
+        "subject_output_mse": 0.36953961849212646,
+        "decoded_train_index": 3800,
+        "nearest_distance": 27.406686782836914
+      }
+    }
+  },
+  "validation:dedup:2581:row:6403": {
+    "matched": {
+      "behavior_margin": -0.029974736273288727,
+      "subject_output_mse": 0.100715771317482,
+      "decoded_train_index": 2885,
+      "nearest_distance": 20.954238891601562
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.6213827133178711,
+        "subject_output_mse": 0.035070523619651794,
+        "decoded_train_index": 404,
+        "nearest_distance": 21.36957550048828
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.04568341313597557,
+        "subject_output_mse": 0.1377011388540268,
+        "decoded_train_index": 3655,
+        "nearest_distance": 33.76665496826172
+      },
+      "noise_signature": {
+        "behavior_margin": -0.15235844254493713,
+        "subject_output_mse": 0.12013272941112518,
+        "decoded_train_index": 3902,
+        "nearest_distance": 27.866880416870117
+      }
+    }
+  },
+  "validation:dedup:1095:row:2761": {
+    "matched": {
+      "behavior_margin": -0.21179726719856262,
+      "subject_output_mse": 0.21156500279903412,
+      "decoded_train_index": 1832,
+      "nearest_distance": 24.189470291137695
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.5820335745811462,
+        "subject_output_mse": 0.19556915760040283,
+        "decoded_train_index": 2921,
+        "nearest_distance": 27.930145263671875
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.03472854370056666,
+        "subject_output_mse": 0.2049606740474701,
+        "decoded_train_index": 3859,
+        "nearest_distance": 30.06627082824707
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3845998402684927,
+        "subject_output_mse": 0.4315173625946045,
+        "decoded_train_index": 3983,
+        "nearest_distance": 28.640043258666992
+      }
+    }
+  },
+  "validation:dedup:2989:row:7508": {
+    "matched": {
+      "behavior_margin": 0.5680746138095856,
+      "subject_output_mse": 0.12595725059509277,
+      "decoded_train_index": 3971,
+      "nearest_distance": 18.943748474121094
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.38375434279441833,
+        "subject_output_mse": 0.12301400303840637,
+        "decoded_train_index": 2153,
+        "nearest_distance": 24.73227310180664
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.0328486137004802,
+        "subject_output_mse": 0.27261555194854736,
+        "decoded_train_index": 621,
+        "nearest_distance": 25.511280059814453
+      },
+      "noise_signature": {
+        "behavior_margin": -0.40467234782408923,
+        "subject_output_mse": 0.3773375451564789,
+        "decoded_train_index": 3408,
+        "nearest_distance": 28.39565086364746
+      }
+    }
+  },
+  "validation:dedup:1690:row:4201": {
+    "matched": {
+      "behavior_margin": 0.6527942419052124,
+      "subject_output_mse": 0.2424243688583374,
+      "decoded_train_index": 724,
+      "nearest_distance": 22.429080963134766
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.3588114380836487,
+        "subject_output_mse": 0.11372494697570801,
+        "decoded_train_index": 3089,
+        "nearest_distance": 21.923826217651367
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.027886920575838303,
+        "subject_output_mse": 0.11204636842012405,
+        "decoded_train_index": 3199,
+        "nearest_distance": 20.86890411376953
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2616843683645129,
+        "subject_output_mse": 0.22168999910354614,
+        "decoded_train_index": 2036,
+        "nearest_distance": 28.0168399810791
+      }
+    }
+  },
+  "validation:dedup:3133:row:7860": {
+    "matched": {
+      "behavior_margin": 0.715655192732811,
+      "subject_output_mse": 0.1065896525979042,
+      "decoded_train_index": 1259,
+      "nearest_distance": 13.10380744934082
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.7205381467938423,
+        "subject_output_mse": 0.04118555411696434,
+        "decoded_train_index": 1714,
+        "nearest_distance": 25.767963409423828
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.030823958038610044,
+        "subject_output_mse": 0.1203891858458519,
+        "decoded_train_index": 1834,
+        "nearest_distance": 10.425729751586914
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2593517312052427,
+        "subject_output_mse": 0.23271940648555756,
+        "decoded_train_index": 732,
+        "nearest_distance": 26.29469871520996
+      }
+    }
+  },
+  "validation:dedup:2513:row:6220": {
+    "matched": {
+      "behavior_margin": 0.5468364357948303,
+      "subject_output_mse": 0.06843400746583939,
+      "decoded_train_index": 3912,
+      "nearest_distance": 25.834699630737305
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.022314615547657013,
+        "subject_output_mse": 0.2437237948179245,
+        "decoded_train_index": 3797,
+        "nearest_distance": 21.673460006713867
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.029974899311597858,
+        "subject_output_mse": 0.2787536084651947,
+        "decoded_train_index": 90,
+        "nearest_distance": 31.238689422607422
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3151922933757305,
+        "subject_output_mse": 0.33907923102378845,
+        "decoded_train_index": 602,
+        "nearest_distance": 27.62544822692871
+      }
+    }
+  },
+  "test:dedup:3951:row:9897": {
+    "matched": {
+      "behavior_margin": 0.15913671255111694,
+      "subject_output_mse": 0.0034363134764134884,
+      "decoded_train_index": 69,
+      "nearest_distance": 24.588537216186523
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.11483036167919636,
+        "subject_output_mse": 0.004868898540735245,
+        "decoded_train_index": 3905,
+        "nearest_distance": 25.31743812561035
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.5529185310006142,
+        "subject_output_mse": 0.4237439036369324,
+        "decoded_train_index": 616,
+        "nearest_distance": 22.7277889251709
+      },
+      "noise_signature": {
+        "behavior_margin": 0.06712678074836731,
+        "subject_output_mse": 0.03080315701663494,
+        "decoded_train_index": 3121,
+        "nearest_distance": 27.517990112304688
+      }
+    }
+  },
+  "test:dedup:3060:row:7682": {
+    "matched": {
+      "behavior_margin": 0.18926571682095528,
+      "subject_output_mse": 0.004638074431568384,
+      "decoded_train_index": 3933,
+      "nearest_distance": 27.028343200683594
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.2583048827946186,
+        "subject_output_mse": 0.009834930300712585,
+        "decoded_train_index": 2022,
+        "nearest_distance": 26.138071060180664
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1371113695204258,
+        "subject_output_mse": 0.0698573961853981,
+        "decoded_train_index": 3168,
+        "nearest_distance": 22.6809139251709
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3577160909771919,
+        "subject_output_mse": 0.44146841764450073,
+        "decoded_train_index": 1355,
+        "nearest_distance": 27.735015869140625
+      }
+    }
+  },
+  "test:dedup:2499:row:6187": {
+    "matched": {
+      "behavior_margin": 0.19271637499332428,
+      "subject_output_mse": 0.05712686479091644,
+      "decoded_train_index": 2694,
+      "nearest_distance": 25.235551834106445
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.07682275213301182,
+        "subject_output_mse": 0.012720322236418724,
+        "decoded_train_index": 1702,
+        "nearest_distance": 23.829471588134766
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.40377026107853453,
+        "subject_output_mse": 0.2901604175567627,
+        "decoded_train_index": 3021,
+        "nearest_distance": 9.337136268615723
+      },
+      "noise_signature": {
+        "behavior_margin": -0.39745065197348595,
+        "subject_output_mse": 0.3785269856452942,
+        "decoded_train_index": 1770,
+        "nearest_distance": 28.353107452392578
+      }
+    }
+  },
+  "test:dedup:149:row:363": {
+    "matched": {
+      "behavior_margin": 0.16286420822143555,
+      "subject_output_mse": 0.0032303747721016407,
+      "decoded_train_index": 3528,
+      "nearest_distance": 6.835765838623047
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.19888455793261528,
+        "subject_output_mse": 0.041913021355867386,
+        "decoded_train_index": 2445,
+        "nearest_distance": 26.667505264282227
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.33230781462043524,
+        "subject_output_mse": 0.2713658809661865,
+        "decoded_train_index": 3295,
+        "nearest_distance": 24.58024024963379
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4067270141094923,
+        "subject_output_mse": 0.3277857005596161,
+        "decoded_train_index": 3143,
+        "nearest_distance": 28.916194915771484
+      }
+    }
+  },
+  "test:dedup:615:row:1545": {
+    "matched": {
+      "behavior_margin": 0.24536054208874702,
+      "subject_output_mse": 0.04092230647802353,
+      "decoded_train_index": 1744,
+      "nearest_distance": 16.60014533996582
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.1655070185661316,
+        "subject_output_mse": 0.13533882796764374,
+        "decoded_train_index": 3440,
+        "nearest_distance": 27.814437866210938
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.2562935894839029,
+        "subject_output_mse": 0.14548130333423615,
+        "decoded_train_index": 1688,
+        "nearest_distance": 24.14622688293457
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4151732251048088,
+        "subject_output_mse": 0.2990603446960449,
+        "decoded_train_index": 486,
+        "nearest_distance": 27.987138748168945
+      }
+    }
+  },
+  "test:dedup:3893:row:9760": {
+    "matched": {
+      "behavior_margin": 0.2145336214452982,
+      "subject_output_mse": 0.005726373288780451,
+      "decoded_train_index": 139,
+      "nearest_distance": 21.18058967590332
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.2838633518294955,
+        "subject_output_mse": 0.1389673948287964,
+        "decoded_train_index": 1731,
+        "nearest_distance": 24.338741302490234
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.551244440266828,
+        "subject_output_mse": 0.45050305128097534,
+        "decoded_train_index": 1627,
+        "nearest_distance": 22.334875106811523
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3577160909771919,
+        "subject_output_mse": 0.4478307366371155,
+        "decoded_train_index": 1355,
+        "nearest_distance": 27.331069946289062
+      }
+    }
+  },
+  "test:dedup:384:row:955": {
+    "matched": {
+      "behavior_margin": 0.03384518250823021,
+      "subject_output_mse": 0.0009796296944841743,
+      "decoded_train_index": 3861,
+      "nearest_distance": 11.202493667602539
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.16698428615927696,
+        "subject_output_mse": 0.07858020812273026,
+        "decoded_train_index": 2910,
+        "nearest_distance": 20.355554580688477
+      },
+      "opposite_direction": {
+        "behavior_margin": 0.191951721906662,
+        "subject_output_mse": 0.061003245413303375,
+        "decoded_train_index": 2207,
+        "nearest_distance": 21.89227294921875
+      },
+      "noise_signature": {
+        "behavior_margin": -0.35942763835191727,
+        "subject_output_mse": 0.2463153600692749,
+        "decoded_train_index": 509,
+        "nearest_distance": 27.60027503967285
+      }
+    }
+  },
+  "test:dedup:1976:row:4965": {
+    "matched": {
+      "behavior_margin": 0.06632295809686184,
+      "subject_output_mse": 0.009389701299369335,
+      "decoded_train_index": 3236,
+      "nearest_distance": 34.323570251464844
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.042137302458286285,
+        "subject_output_mse": 0.00023889087606221437,
+        "decoded_train_index": 42,
+        "nearest_distance": 32.74562072753906
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.3410451852446954,
+        "subject_output_mse": 0.2659383714199066,
+        "decoded_train_index": 3073,
+        "nearest_distance": 28.23269271850586
+      },
+      "noise_signature": {
+        "behavior_margin": 0.18930118158459663,
+        "subject_output_mse": 0.03410625085234642,
+        "decoded_train_index": 932,
+        "nearest_distance": 27.305593490600586
+      }
+    }
+  },
+  "test:dedup:223:row:542": {
+    "matched": {
+      "behavior_margin": 0.16504640877246857,
+      "subject_output_mse": 0.011044206097722054,
+      "decoded_train_index": 958,
+      "nearest_distance": 14.813199996948242
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.13877491652965546,
+        "subject_output_mse": 0.115994393825531,
+        "decoded_train_index": 3225,
+        "nearest_distance": 19.693607330322266
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.12556375759777438,
+        "subject_output_mse": 0.061196282505989075,
+        "decoded_train_index": 271,
+        "nearest_distance": 23.47723960876465
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3807156039401889,
+        "subject_output_mse": 0.3130946159362793,
+        "decoded_train_index": 619,
+        "nearest_distance": 28.93852424621582
+      }
+    }
+  },
+  "test:dedup:2154:row:5385": {
+    "matched": {
+      "behavior_margin": 0.14916414767503738,
+      "subject_output_mse": 0.03414733707904816,
+      "decoded_train_index": 2433,
+      "nearest_distance": 32.957847595214844
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.10514852404594421,
+        "subject_output_mse": 0.03353431820869446,
+        "decoded_train_index": 33,
+        "nearest_distance": 22.92181968688965
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.30947924917563796,
+        "subject_output_mse": 0.16065062582492828,
+        "decoded_train_index": 2674,
+        "nearest_distance": 24.788150787353516
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4416125565767288,
+        "subject_output_mse": 0.40489643812179565,
+        "decoded_train_index": 1150,
+        "nearest_distance": 28.57601547241211
+      }
+    }
+  },
+  "test:dedup:670:row:1694": {
+    "matched": {
+      "behavior_margin": 0.7394340336322784,
+      "subject_output_mse": 0.1303299516439438,
+      "decoded_train_index": 2871,
+      "nearest_distance": 26.336204528808594
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.7130507826805115,
+        "subject_output_mse": 0.105518639087677,
+        "decoded_train_index": 3050,
+        "nearest_distance": 26.395837783813477
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.020491508534178138,
+        "subject_output_mse": 0.3634171783924103,
+        "decoded_train_index": 1254,
+        "nearest_distance": 23.4208984375
+      },
+      "noise_signature": {
+        "behavior_margin": -0.24191224575042725,
+        "subject_output_mse": 0.2664109170436859,
+        "decoded_train_index": 3455,
+        "nearest_distance": 27.29305076599121
+      }
+    }
+  },
+  "test:dedup:3187:row:8002": {
+    "matched": {
+      "behavior_margin": -0.31700949743390083,
+      "subject_output_mse": 0.39689722657203674,
+      "decoded_train_index": 522,
+      "nearest_distance": 24.379758834838867
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.15682195127010345,
+        "subject_output_mse": 0.27796831727027893,
+        "decoded_train_index": 57,
+        "nearest_distance": 23.115482330322266
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.09204191714525223,
+        "subject_output_mse": 0.2977364659309387,
+        "decoded_train_index": 3806,
+        "nearest_distance": 20.674283981323242
+      },
+      "noise_signature": {
+        "behavior_margin": -0.2293998715467751,
+        "subject_output_mse": 0.2823657989501953,
+        "decoded_train_index": 7,
+        "nearest_distance": 26.713367462158203
+      }
+    }
+  },
+  "test:dedup:83:row:192": {
+    "matched": {
+      "behavior_margin": 0.7292344868183136,
+      "subject_output_mse": 0.10117414593696594,
+      "decoded_train_index": 2635,
+      "nearest_distance": 25.749011993408203
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.7129757702350616,
+        "subject_output_mse": 0.2189169079065323,
+        "decoded_train_index": 3949,
+        "nearest_distance": 28.53769874572754
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.012710998090142311,
+        "subject_output_mse": 0.049288310110569,
+        "decoded_train_index": 1125,
+        "nearest_distance": 29.381900787353516
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3151922933757305,
+        "subject_output_mse": 0.24887274205684662,
+        "decoded_train_index": 602,
+        "nearest_distance": 27.9942569732666
+      }
+    }
+  },
+  "test:dedup:1675:row:4160": {
+    "matched": {
+      "behavior_margin": 0.3703048825263977,
+      "subject_output_mse": 0.18980243802070618,
+      "decoded_train_index": 1292,
+      "nearest_distance": 25.611907958984375
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.12352432310581207,
+        "subject_output_mse": 0.1653364896774292,
+        "decoded_train_index": 179,
+        "nearest_distance": 26.054025650024414
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.03139299218673841,
+        "subject_output_mse": 0.19464395940303802,
+        "decoded_train_index": 3605,
+        "nearest_distance": 21.115934371948242
+      },
+      "noise_signature": {
+        "behavior_margin": -0.18670587241649628,
+        "subject_output_mse": 0.2324942946434021,
+        "decoded_train_index": 1201,
+        "nearest_distance": 27.644739151000977
+      }
+    }
+  },
+  "test:dedup:2066:row:5176": {
+    "matched": {
+      "behavior_margin": 0.07991372048854828,
+      "subject_output_mse": 0.1030154824256897,
+      "decoded_train_index": 3900,
+      "nearest_distance": 25.60531997680664
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.591909795999527,
+        "subject_output_mse": 0.21041038632392883,
+        "decoded_train_index": 3338,
+        "nearest_distance": 23.229385375976562
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.1747556608170271,
+        "subject_output_mse": 0.2364395260810852,
+        "decoded_train_index": 3532,
+        "nearest_distance": 23.521718978881836
+      },
+      "noise_signature": {
+        "behavior_margin": -0.4102668622508645,
+        "subject_output_mse": 0.42008352279663086,
+        "decoded_train_index": 1150,
+        "nearest_distance": 27.21892547607422
+      }
+    }
+  },
+  "test:dedup:2878:row:7229": {
+    "matched": {
+      "behavior_margin": -0.29973663738928735,
+      "subject_output_mse": 0.3620750308036804,
+      "decoded_train_index": 1252,
+      "nearest_distance": 25.3818359375
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.5094034820795059,
+        "subject_output_mse": 0.395678848028183,
+        "decoded_train_index": 3363,
+        "nearest_distance": 24.134971618652344
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.03749047562611452,
+        "subject_output_mse": 0.3190983831882477,
+        "decoded_train_index": 3528,
+        "nearest_distance": 8.821712493896484
+      },
+      "noise_signature": {
+        "behavior_margin": -0.06590506665315843,
+        "subject_output_mse": 0.33722037076950073,
+        "decoded_train_index": 932,
+        "nearest_distance": 27.29156494140625
+      }
+    }
+  },
+  "test:dedup:3541:row:8876": {
+    "matched": {
+      "behavior_margin": -0.061608538031578064,
+      "subject_output_mse": 0.219672292470932,
+      "decoded_train_index": 2148,
+      "nearest_distance": 24.616262435913086
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.5334935784339905,
+        "subject_output_mse": 0.05042819678783417,
+        "decoded_train_index": 1347,
+        "nearest_distance": 24.28090476989746
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.022613538680388956,
+        "subject_output_mse": 0.21465623378753662,
+        "decoded_train_index": 3548,
+        "nearest_distance": 21.537309646606445
+      },
+      "noise_signature": {
+        "behavior_margin": -0.3237913005577866,
+        "subject_output_mse": 0.3209640681743622,
+        "decoded_train_index": 3295,
+        "nearest_distance": 26.660690307617188
+      }
+    }
+  },
+  "test:dedup:2606:row:6476": {
+    "matched": {
+      "behavior_margin": -0.04712291061878204,
+      "subject_output_mse": 0.1183362603187561,
+      "decoded_train_index": 3932,
+      "nearest_distance": 23.033100128173828
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.055776430293917656,
+        "subject_output_mse": 0.17721876502037048,
+        "decoded_train_index": 2293,
+        "nearest_distance": 23.294822692871094
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.03188111862982623,
+        "subject_output_mse": 0.16218885779380798,
+        "decoded_train_index": 1422,
+        "nearest_distance": 21.747316360473633
+      },
+      "noise_signature": {
+        "behavior_margin": -0.19556125858798623,
+        "subject_output_mse": 0.21328389644622803,
+        "decoded_train_index": 3125,
+        "nearest_distance": 28.586668014526367
+      }
+    }
+  },
+  "test:dedup:3129:row:7849": {
+    "matched": {
+      "behavior_margin": -0.3030087695988186,
+      "subject_output_mse": 0.21013480424880981,
+      "decoded_train_index": 1131,
+      "nearest_distance": 24.583070755004883
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": 0.6434584259986877,
+        "subject_output_mse": 0.17763692140579224,
+        "decoded_train_index": 1354,
+        "nearest_distance": 23.36821746826172
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.008017789572477335,
+        "subject_output_mse": 0.13900187611579895,
+        "decoded_train_index": 408,
+        "nearest_distance": 42.74647903442383
+      },
+      "noise_signature": {
+        "behavior_margin": -0.5094034820795059,
+        "subject_output_mse": 0.3545549809932709,
+        "decoded_train_index": 3363,
+        "nearest_distance": 27.89924430847168
+      }
+    }
+  },
+  "test:dedup:3508:row:8791": {
+    "matched": {
+      "behavior_margin": 0.5334935784339905,
+      "subject_output_mse": 0.09920628368854523,
+      "decoded_train_index": 1347,
+      "nearest_distance": 22.323335647583008
+    },
+    "controls": {
+      "same_label_other_subject": {
+        "behavior_margin": -0.24945561587810516,
+        "subject_output_mse": 0.3281957507133484,
+        "decoded_train_index": 2672,
+        "nearest_distance": 24.87901496887207
+      },
+      "opposite_direction": {
+        "behavior_margin": -0.025768399238586426,
+        "subject_output_mse": 0.32270878553390503,
+        "decoded_train_index": 1987,
+        "nearest_distance": 16.711002349853516
+      },
+      "noise_signature": {
+        "behavior_margin": -0.18260050052776933,
+        "subject_output_mse": 0.32881417870521545,
+        "decoded_train_index": 3090,
+        "nearest_distance": 27.058443069458008
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+pattern	pattern_idx	sample_idx
+sorted_ascending	4	0
+sorted_descending	3	1
+sorted_ascending	4	2
+sorted_ascending	4	3
+has_majority	12	4
+mountain_pattern	7	5
+sorted_ascending	4	6
+sorted_ascending	4	7
+sorted_descending	3	8
+mountain_pattern	7	9
+has_majority	12	10
+has_majority	12	11

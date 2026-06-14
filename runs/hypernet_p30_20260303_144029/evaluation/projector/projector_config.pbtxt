@@ -1,0 +1,5 @@
+embeddings {
+  tensor_path: "latent_vectors.tsv"
+  metadata_path: "metadata.tsv"
+  tensor_name: "latent_space"
+}

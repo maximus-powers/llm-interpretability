@@ -1,0 +1,110 @@
+{
+  "counts": {
+    "failures": [],
+    "min_count": 9,
+    "passed": true,
+    "per_split": {
+      "validation": {
+        "counts": {
+          "sorted_ascending": {
+            "noise_signature": 9,
+            "opposite_direction": 9,
+            "same_label_other_subject": 9
+          },
+          "sorted_descending": {
+            "noise_signature": 9,
+            "opposite_direction": 9,
+            "same_label_other_subject": 9
+          }
+        },
+        "failures": [],
+        "min_count": 9,
+        "passed": true
+      }
+    }
+  },
+  "decode_policy": {
+    "passed": true,
+    "policy": "condition_only"
+  },
+  "failures": [],
+  "passed": true,
+  "probe_provenance": {
+    "invalid_fields": [],
+    "missing_fields": [],
+    "passed": true
+  },
+  "schema": {
+    "failures": [],
+    "n_groups": 18,
+    "passed": true
+  },
+  "source_pool_preflight": {
+    "failures": [],
+    "passed": true
+  },
+  "splits": {
+    "failures": [],
+    "passed": true,
+    "split_subject_ids": {
+      "test": [],
+      "train": [],
+      "validation": [
+        "dedup:1072:row:2705",
+        "dedup:1087:row:2742",
+        "dedup:1372:row:3444",
+        "dedup:1390:row:3480",
+        "dedup:1453:row:3633",
+        "dedup:1489:row:3721",
+        "dedup:1498:row:3742",
+        "dedup:1531:row:3833",
+        "dedup:1564:row:3896",
+        "dedup:168:row:410",
+        "dedup:1796:row:4467",
+        "dedup:17:row:36",
+        "dedup:1822:row:4519",
+        "dedup:1828:row:4538",
+        "dedup:1829:row:4540",
+        "dedup:2007:row:5042",
+        "dedup:204:row:490",
+        "dedup:2063:row:5171",
+        "dedup:2065:row:5175",
+        "dedup:2117:row:5297",
+        "dedup:2229:row:5551",
+        "dedup:2276:row:5654",
+        "dedup:2287:row:5685",
+        "dedup:2300:row:5719",
+        "dedup:2349:row:5842",
+        "dedup:2370:row:5879",
+        "dedup:2487:row:6149",
+        "dedup:2525:row:6252",
+        "dedup:2535:row:6272",
+        "dedup:2728:row:6795",
+        "dedup:3035:row:7612",
+        "dedup:3088:row:7748",
+        "dedup:3124:row:7842",
+        "dedup:3150:row:7908",
+        "dedup:3248:row:8143",
+        "dedup:3304:row:8265",
+        "dedup:3519:row:8826",
+        "dedup:3535:row:8858",
+        "dedup:3554:row:8904",
+        "dedup:3564:row:8931",
+        "dedup:3581:row:8977",
+        "dedup:3664:row:9178",
+        "dedup:3903:row:9786",
+        "dedup:3931:row:9852",
+        "dedup:3947:row:9892",
+        "dedup:469:row:1150",
+        "dedup:4:row:5",
+        "dedup:524:row:1298",
+        "dedup:581:row:1444",
+        "dedup:708:row:1788",
+        "dedup:761:row:1947",
+        "dedup:823:row:2112",
+        "dedup:867:row:2228",
+        "dedup:888:row:2268"
+      ]
+    }
+  }
+}

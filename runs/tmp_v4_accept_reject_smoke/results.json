@@ -1,0 +1,513 @@
+{
+  "acceptance_summary": {
+    "has_majority": {
+      "acceptance_rate": 0.0,
+      "accepted_count": 0,
+      "accepted_subject_ids": [],
+      "attempts_used": 2,
+      "rejected_count": 2,
+      "rejected_subject_ids": [
+        "four_behavior_source_feasibility:has_majority:attempt:0:seed:20281310",
+        "four_behavior_source_feasibility:has_majority:attempt:1:seed:20281311"
+      ]
+    },
+    "mountain_pattern": {
+      "acceptance_rate": 0.0,
+      "accepted_count": 0,
+      "accepted_subject_ids": [],
+      "attempts_used": 2,
+      "rejected_count": 2,
+      "rejected_subject_ids": [
+        "four_behavior_source_feasibility:mountain_pattern:attempt:0:seed:20291310",
+        "four_behavior_source_feasibility:mountain_pattern:attempt:1:seed:20291311"
+      ]
+    },
+    "sorted_ascending": {
+      "acceptance_rate": 0.0,
+      "accepted_count": 0,
+      "accepted_subject_ids": [],
+      "attempts_used": 2,
+      "rejected_count": 2,
+      "rejected_subject_ids": [
+        "four_behavior_source_feasibility:sorted_ascending:attempt:0:seed:20261310",
+        "four_behavior_source_feasibility:sorted_ascending:attempt:1:seed:20261311"
+      ]
+    },
+    "sorted_descending": {
+      "acceptance_rate": 0.0,
+      "accepted_count": 0,
+      "accepted_subject_ids": [],
+      "attempts_used": 2,
+      "rejected_count": 2,
+      "rejected_subject_ids": [
+        "four_behavior_source_feasibility:sorted_descending:attempt:0:seed:20271310",
+        "four_behavior_source_feasibility:sorted_descending:attempt:1:seed:20271311"
+      ]
+    }
+  },
+  "aggregate": {
+    "heldout_margin_max": 0.005632340908050537,
+    "heldout_margin_mean": 0.0011342763900756836,
+    "heldout_margin_min": -0.0011691153049468994,
+    "n": 8,
+    "pass_count": 0,
+    "pass_rate": 0.0,
+    "source_margin_gate": 0.4,
+    "support_margin_mean": 0.0007606856524944305
+  },
+  "behavior_suite_metadata": {
+    "base": 10,
+    "hard_negative_fraction": 0.5,
+    "heldout_hash": "c65c0c32aba2dc62db3ea7af3999859027a236ce98e21c091f50fab503a07204",
+    "heldout_per_class": 64,
+    "name": "clean_proof_v1",
+    "negative_case_policy": "Each target's negative cases include other selected behavior positives as hard negatives plus generic no-selected-behavior negatives.",
+    "overlap_matrix": {
+      "has_majority": {
+        "has_majority": 8560,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "mountain_pattern": {
+        "has_majority": 0,
+        "mountain_pattern": 2892,
+        "sorted_ascending": 0,
+        "sorted_descending": 0
+      },
+      "sorted_ascending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 252,
+        "sorted_descending": 0
+      },
+      "sorted_descending": {
+        "has_majority": 0,
+        "mountain_pattern": 0,
+        "sorted_ascending": 0,
+        "sorted_descending": 252
+      }
+    },
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending",
+      "has_majority",
+      "mountain_pattern"
+    ],
+    "predicate_counts": {
+      "has_majority": 8560,
+      "mountain_pattern": 2892,
+      "sorted_ascending": 252,
+      "sorted_descending": 252
+    },
+    "seed": 20260609,
+    "sequence_length": 5,
+    "support_hash": "8f75b98bd5ba8c7fff78289de3c9d40c1621d5820709cb8bb02fd58cf59500f3",
+    "support_heldout_overlap_count": 0,
+    "support_per_class": 160,
+    "thresholds": {
+      "condition_min_accuracy": 0.4,
+      "condition_min_delta_vs_majority": 0.1,
+      "decode_min_accuracy": 0.6,
+      "decode_min_accuracy_per_behavior": 0.5,
+      "decode_min_delta_vs_condition_ablation": 0.2,
+      "decode_min_delta_vs_control": 0.2,
+      "decode_min_delta_vs_control_per_behavior": 0.2,
+      "decode_min_delta_vs_noise_signature": 0.2,
+      "decode_min_delta_vs_null_signature": 0.2,
+      "decode_min_delta_vs_train_centroid_signature": 0.2,
+      "decode_min_margin": 0.0,
+      "decode_min_margin_per_behavior": 0.0,
+      "min_heldout_samples_per_behavior": 50,
+      "min_interpret_recall_per_behavior": 0.3,
+      "raw_signature_rf_min_accuracy": 0.45,
+      "raw_signature_rf_min_delta_vs_majority": 0.15,
+      "steer_min_delta_vs_no_edit": 0.25,
+      "steer_min_margin_delta": 0.05,
+      "steer_min_margin_delta_per_target": 0.0,
+      "steer_min_target_success": 0.6,
+      "steer_min_target_success_per_behavior": 0.5,
+      "subject_functional_specificity_min_improvement": 0.02,
+      "subject_functional_specificity_min_median_improvement": 0.0,
+      "subject_functional_specificity_min_samples": 50,
+      "subject_functional_specificity_min_samples_per_behavior": 50,
+      "subject_functional_specificity_min_win_rate": 0.55
+    }
+  },
+  "by_behavior": {
+    "has_majority": {
+      "heldout_margin_max": 0.0006036758422851562,
+      "heldout_margin_mean": 0.0003098398447036743,
+      "heldout_margin_min": 1.6003847122192383e-05,
+      "n": 2,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": 0.00032323598861694336
+    },
+    "mountain_pattern": {
+      "heldout_margin_max": 0.002935051918029785,
+      "heldout_margin_mean": 0.0015285313129425049,
+      "heldout_margin_min": 0.00012201070785522461,
+      "n": 2,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": 0.0013795197010040283
+    },
+    "sorted_ascending": {
+      "heldout_margin_max": 0.001031339168548584,
+      "heldout_margin_mean": 0.00046712160110473633,
+      "heldout_margin_min": -9.709596633911133e-05,
+      "n": 2,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": 0.00030291080474853516
+    },
+    "sorted_descending": {
+      "heldout_margin_max": 0.005632340908050537,
+      "heldout_margin_mean": 0.002231612801551819,
+      "heldout_margin_min": -0.0011691153049468994,
+      "n": 2,
+      "pass_count": 0,
+      "pass_rate": 0.0,
+      "source_margin_gate": 0.4,
+      "support_margin_mean": 0.0010370761156082153
+    }
+  },
+  "candidate_pool_summary": {
+    "has_majority": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 3148,
+        "hash": "91718b2100d22901149daaad2c327d2e07cf8107d7ca0febe74448fd0436ccfb"
+      },
+      "positive": {
+        "count": 8424,
+        "hash": "5f401a09550d6d621a4a51270a966424984e0471d93d0462ef4c9236a513ade5"
+      }
+    },
+    "mountain_pattern": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 8798,
+        "hash": "424ef786225bf6f43fc67789e8623b3bc182bd7c4528977efe158ea9a9904b9b"
+      },
+      "positive": {
+        "count": 2774,
+        "hash": "c0494cf3dc45f6bc34dd6678e4df207bf018ba59c534920105904df4ce7e40f8"
+      }
+    },
+    "sorted_ascending": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 11385,
+        "hash": "6e15c5a75ae26350fe1adb6beace624013e5448eadef0d319271fead3d44695b"
+      },
+      "positive": {
+        "count": 187,
+        "hash": "8338731652ef89c41bb3cc68e6145563ab5c773ff704993585495e1060f7f55c"
+      }
+    },
+    "sorted_descending": {
+      "generic_negative": {
+        "count": 87916,
+        "hash": "c2202de81aaffedd94a2d4f3d816c617989c32f1f44280e7c76e932aecfe3b31"
+      },
+      "hard_negative": {
+        "count": 11385,
+        "hash": "bc9caf55c2e2b08ed54b9f7e57814b6cb1e769be715806ab6645b99afd1b6611"
+      },
+      "positive": {
+        "count": 187,
+        "hash": "c1352a9e784af676cb58f3008709fc32ca59eb8f3fe4cdb8c788e27d3fa75608"
+      }
+    }
+  },
+  "caveats": [
+    "Pilot feasibility sample; n=8 per behavior is not an impossibility result.",
+    "Tests source generation, not stored-probe decoding.",
+    "A revised source-generation protocol would require a new preregistration before proof use."
+  ],
+  "claim_scope": "smoke",
+  "config": {
+    "base_seed": 20261310,
+    "collection_mode": "accept_reject",
+    "generic_negative_cap": 1024,
+    "hard_negative_cap": 1024,
+    "heldout_per_class": 64,
+    "lr": 0.003,
+    "max_attempts_per_behavior": 2,
+    "n_per_behavior": 8,
+    "patterns": [
+      "sorted_ascending",
+      "sorted_descending",
+      "has_majority",
+      "mountain_pattern"
+    ],
+    "positive_cap": 2048,
+    "probe_examples_hash": "b156dabece5a9eb58a966271388c8e5479fd308712dcca7b373e0f253e670279",
+    "probe_set_id": "stored_digit_probe_v1_seed_20260610_n256",
+    "source_margin_gate": 0.4,
+    "support_per_class": 160,
+    "target_accepted_per_behavior": 1,
+    "train_epochs": 1,
+    "training_mode": "heldout_excluded_full_pool"
+  },
+  "development_status": "smoke",
+  "failures": [
+    "sorted_ascending source gate pass count 0/1",
+    "sorted_descending source gate pass count 0/1",
+    "has_majority source gate pass count 0/1",
+    "mountain_pattern source gate pass count 0/1"
+  ],
+  "global_heldout_exclusion_count": 512,
+  "interpretation": "Under this heldout-excluded full-pool source-generation protocol, has_majority remains the limiting behavior for the preregistered heldout source-margin gate in this pilot.",
+  "max_selected_train_vs_heldout_overlap_count": 0,
+  "passed": false,
+  "records": [
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 0,
+      "heldout_margin": -9.709596633911133e-05,
+      "passed_source_gate": false,
+      "pattern": "sorted_ascending",
+      "pattern_index": 0,
+      "seed": 20261310,
+      "signature_hash": "3c1c9b62c0b06bd83fbd01755523b6c26cb0eb8385e95067a3cb08cee8aa4d19",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_ascending:attempt:0:seed:20261310",
+      "support_margin": -0.00028443336486816406,
+      "train_info": {
+        "final_train_loss": 0.7418127059936523,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "322d64e7c30b315bb5a446b4cd7277824c657931806c112db46693e893f59575",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "68b57ce8117e902b91296aaca0d1ff1d068792e7461c5281217547aa55dfe9ef",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "77177063527308d8b8f1f55ff47163e40171aa622762fd07b41f8e0c36acf174",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "584408c167b60b038f21f99fba7fe32d4b1b798afd27b966a1165277c20f99ad",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "a11abb122a30f12ae8449be18dae0c2e783a5ee561918e2d5a3580d98eaa701b"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 1,
+      "heldout_margin": 0.001031339168548584,
+      "passed_source_gate": false,
+      "pattern": "sorted_ascending",
+      "pattern_index": 0,
+      "seed": 20261311,
+      "signature_hash": "97fff23b41af05901db498c7b30492aebf77b62cb280e02ee86ea5b7fc7d28f5",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_ascending:attempt:1:seed:20261311",
+      "support_margin": 0.0008902549743652344,
+      "train_info": {
+        "final_train_loss": 0.8633278012275696,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "cf6961c1770d00a0a68b3bd546a3f7d4deed233ac06e9ef32ec8ec8b98fa9811",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "7a5831c82c951240a1d0ac3d62e08170aecb6378dd0b70311bb8a71f2e7ca46f",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "382c7e6df5a150d65c8619dea8323d3ed4ea0faaee8fda87f53f7a3cb596d733",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "86640550462b3db589a75641d3e38abc1e43ee309a4e3cc56f63fe9a0001de47",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "fe90505b194bae71b948e49f8db200978a4fa8906f64335ceadfb52fc30c4f8b"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 0,
+      "heldout_margin": 0.005632340908050537,
+      "passed_source_gate": false,
+      "pattern": "sorted_descending",
+      "pattern_index": 1,
+      "seed": 20271310,
+      "signature_hash": "a5a04f2f7446508f80a5c2203952b72c61d5d57d905c41ce5c4fb1fb67f3a63b",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_descending:attempt:0:seed:20271310",
+      "support_margin": 0.003410935401916504,
+      "train_info": {
+        "final_train_loss": 0.7565526366233826,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "7e52f466c5f457eb2921abd6e6f1290f7f67ba3acdc1a066de5e6f4cbb4a966a",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "2a883fb20e776da49a5f6e492e3aa31ad2b4ef9841d01b020858a2e4606c1fe2",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "43cd4472959819aacb5ec94023af33dd9606536c068f1a22b31ea8433c7d1f5c",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "a41eeadaa9f56a7b1819b04bac52eb1c74a6a21c82ae1ce2ed51b6f2ab240778",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "36cef6160ffdd9fd4efbe1615096389d56371885bccfeadf05de5cae1911f8eb"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 1,
+      "heldout_margin": -0.0011691153049468994,
+      "passed_source_gate": false,
+      "pattern": "sorted_descending",
+      "pattern_index": 1,
+      "seed": 20271311,
+      "signature_hash": "651ac5aaebedf1dc0b60d24688f0fb25893225c7a1e275c8a01b413312df03f0",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:sorted_descending:attempt:1:seed:20271311",
+      "support_margin": -0.0013367831707000732,
+      "train_info": {
+        "final_train_loss": 0.6415175199508667,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "5d3e79a40dc1da1cd13329a84d7f6968ff21347bfaefb4910373088cdbf0a51f",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "918237c11b827ddc3bb8a2cd84d5294558431ac59dee549584b6a8ee1afa86be",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 187,
+        "selected_positive_hash": "9b7fe96c7cc23d2f78afa0288e7f266f75d4970c4e3d348252cf6217b93cec36",
+        "selected_total_count": 2235,
+        "selected_train_cases_hash": "9feaed75b7c88a64e8fa61a5b4580bc8bee8daca8ff6ac5ddbc97d1d05afefa3",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "e9f70d48d47258744de91416b3f3e0c329f34bc864a5c960dc528dcc77815e10"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 0,
+      "heldout_margin": 1.6003847122192383e-05,
+      "passed_source_gate": false,
+      "pattern": "has_majority",
+      "pattern_index": 2,
+      "seed": 20281310,
+      "signature_hash": "2b9538531eeb033da9e6e6590a7b7e1ab5d3fa448d0a79973c015aca4b179361",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:has_majority:attempt:0:seed:20281310",
+      "support_margin": -0.00011664628982543945,
+      "train_info": {
+        "final_train_loss": 0.6948909759521484,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "c70a6b4f871cb7dee4f1c14b2f16de5ac808c4f15541f3db95622344fd62c7b1",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "90383f9f5aa31d0e4076dc3550644b6042632ad75876ad4dfb4a0e33dc0bc5ff",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "528b78a5f7b6ff735b15dd9951ceed0a8a5d89f41ecdb7641ec38436b8395021",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "f20e25a55ae1663a43cc0d77b9723d0c72bbe76b4698a9397a9adf68dc1b8523",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "af4874238e33a4cd1998cd7d3fe3009c716173b82fb29dd9557e30d0342f5cea"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 1,
+      "heldout_margin": 0.0006036758422851562,
+      "passed_source_gate": false,
+      "pattern": "has_majority",
+      "pattern_index": 2,
+      "seed": 20281311,
+      "signature_hash": "698cb0db5e690e3bf65d341398d13c53ba6d975037e60fc73508916bf2cf1dc6",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:has_majority:attempt:1:seed:20281311",
+      "support_margin": 0.0007631182670593262,
+      "train_info": {
+        "final_train_loss": 0.7030496597290039,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "5aa58c2690f53e1c5bd1b75f88d618462752e09a506ae9d8d2765d83f057c909",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "44c625ed93ce93506d6cbd308ccabe1ef155339d14aca1f2f5a5fb64957ecbc9",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "4c0451ccba1cae59dff7aeb6bff4c323c261c0c30110f39aa1c18aad0fe35258",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "22144a3480f310198d9802424e6eff42980c74f1c4b3e716b833289ed17cc60b",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "379831a473e30b1d9ed581d6de54f3afe627ea2cf73506ee86356e23e1074df3"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 0,
+      "heldout_margin": 0.002935051918029785,
+      "passed_source_gate": false,
+      "pattern": "mountain_pattern",
+      "pattern_index": 3,
+      "seed": 20291310,
+      "signature_hash": "d655761fde986bdbc17b2c63439c4fcc6b783c3c728ed199eba8f0a0ff1b7c45",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:mountain_pattern:attempt:0:seed:20291310",
+      "support_margin": 0.0025972723960876465,
+      "train_info": {
+        "final_train_loss": 0.6919991374015808,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "20f3b295c6f5211d769cf975621068c4c4e7af3a0f1e80f2d636264421849210",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "22d34d85ffc92911863e554ee4c4d469e818559842bb92b4d6f6ad2f9acdeb29",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "d34b97ea9e923fcd5451f99c85ca90645c7697d78458ae33170968748c9a2f7f",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "bc98bad32817e8b3b01c04c4abdeff1b1209c9a919c84512a2b2884b3e643d59",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "e162ce5d922c3faba15d56d85be75201addb1fef4282af01abfc18fc3f67c573"
+    },
+    {
+      "accepted": false,
+      "accepted_index": null,
+      "attempt_index": 1,
+      "heldout_margin": 0.00012201070785522461,
+      "passed_source_gate": false,
+      "pattern": "mountain_pattern",
+      "pattern_index": 3,
+      "seed": 20291311,
+      "signature_hash": "afc47bb908239d9670a9aae62602ecd56b213303e2fa8eb5fbfb4f872d3cd1b9",
+      "source_margin_gate": 0.4,
+      "subject_id": "four_behavior_source_feasibility:mountain_pattern:attempt:1:seed:20291311",
+      "support_margin": 0.00016176700592041016,
+      "train_info": {
+        "final_train_loss": 0.6980142593383789,
+        "selected_generic_negative_count": 1024,
+        "selected_generic_negative_hash": "39aaf2670b66c2121e2d94d5be89807cc9f026a451ff909e9574025cd2792fe2",
+        "selected_hard_negative_count": 1024,
+        "selected_hard_negative_hash": "27e15116c818dbb52184d03449476ee4fee6c26a16fbca53036a03c1dfcfa499",
+        "selected_negative_count": 2048,
+        "selected_positive_count": 2048,
+        "selected_positive_hash": "613b3c5b85798b7f444429c6d118f26c5c871e57ccf7e78a4afe6de3916ea500",
+        "selected_total_count": 4096,
+        "selected_train_cases_hash": "3949b5897131fd361be5139c4fd9d5fe88748cee956d652a3f554a089e869d67",
+        "selected_train_vs_heldout_overlap_count": 0,
+        "training_mode": "heldout_excluded_full_pool"
+      },
+      "weights_hash": "0d59717f5de952c3339a3ea46a34c378a2bb7600eab219ede7abef77cfb1b5da"
+    }
+  ],
+  "result_payload_sha256": "d4b36410c58b8ddb4619060148a5bb91eca70b2a97078afe9fde91f3c5c0c9b4"
+}
